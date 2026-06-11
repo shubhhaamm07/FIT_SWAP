@@ -3,6 +3,8 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
 
+const authRoutes = require('./routes/auth.routes');
+
 const app = express();
 
 app.use(
@@ -22,5 +24,7 @@ app.get('/api/health', (req, res) => {
         message: 'FitSwap API Running'
     });
 });
+
+app.use('/api/auth', authRoutes);
 
 module.exports = app;
