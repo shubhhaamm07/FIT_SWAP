@@ -31,7 +31,8 @@ const login = async (req, res) => {
             user: {
                 id: user.id,
                 email: user.email,
-                role: user.role
+                role: user.role,
+                password: user.password
             }
         });
     } catch (error) {
@@ -41,6 +42,12 @@ const login = async (req, res) => {
         });
     }
 };
+const getMe = async (req, res) => {
+    return res.status(200).json({
+        success: true,
+        user: req.user
+    });
+};
 module.exports = {
-    register, login
+    register, login, getMe
 };
