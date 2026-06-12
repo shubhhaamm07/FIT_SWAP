@@ -5,7 +5,7 @@ const morgan = require('morgan');
 const adminRoutes = require('./routes/admin.routes');
 
 const authRoutes = require('./routes/auth.routes');
-
+const gymRoutes = require('./routes/gym.routes');
 const app = express();
 
 app.use(
@@ -28,5 +28,5 @@ app.get('/api/health', (req, res) => {
 
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
-
+app.use('/api/gyms', gymRoutes);
 module.exports = app;
