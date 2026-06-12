@@ -10,7 +10,16 @@ const createGym = async (gymData, ownerId) => {
 
     return gym;
 };
+const getMyGyms = async (ownerId) => {
+    const gyms = await prisma.gym.findMany({
+        where: {
+            ownerId
+        }
+    });
+
+    return gyms;
+};
 
 module.exports = {
-    createGym
+    createGym, getMyGyms
 };

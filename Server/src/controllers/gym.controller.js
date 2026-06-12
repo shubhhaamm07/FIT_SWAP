@@ -18,7 +18,25 @@ const createGym = async (req, res) => {
         });
     }
 };
+const getMyGyms = async (req, res) => {
+    try {
+        const gyms = await gymService.getMyGyms(
+            req.user.userId
+        );
+
+        return res.status(200).json({
+            success: true,
+            count: gyms.length,
+            data: gyms
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
 console.log(gymService);
 module.exports = {
-    createGym
+    createGym, getMyGyms
 };

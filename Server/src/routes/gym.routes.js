@@ -13,5 +13,10 @@ router.post(
     protect,
     gymController.createGym
 );
+router.get(
+    '/my-gyms',
+    protect,
+    gymController.getMyGyms
+);
 
 module.exports = router;
