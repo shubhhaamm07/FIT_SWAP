@@ -7,13 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserRole {
-  USER
-  GYM_OWNER
-  GYM_STAFF
-  ADMIN
-}
-
 model User {
   id        String   @id @default(cuid())
   firstName String
@@ -21,30 +14,53 @@ model User {
   email     String   @unique
   password  String
   role      UserRole @default(USER)
-  gyms      Gym[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  gyms      Gym[]
 }
 
 model Gym {
-  id String @id @default(cuid())
-
+  id          String           @id @default(cuid())
   name        String
   description String?
+  address     String
+  city        String
+  state       String
+  pincode     String
+  phone       String
+  email       String?
+  status      GymStatus        @default(PENDING)
+  ownerId     String
+  owner       User             @relation(fields: [ownerId], references: [id])
+  plans       MembershipPlan[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
 
-  address String
-  city    String
-  state   String
-  pincode String
+model MembershipPlan {
+  id             String   @id @default(cuid())
+  name           String
+  description    String?
+  durationInDays Int
+  price          Float
+  transferable   Boolean  @default(true)
+  freezeAllowed  Boolean  @default(false)
+  transferFee    Float?
+  gymId          String
+  gym            Gym      @relation(fields: [gymId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
 
-  phone String
-  email String?
+enum UserRole {
+  USER
+  GYM_OWNER
+  GYM_STAFF
+  ADMIN
+}
 
-  verified Boolean @default(false)
-
-  ownerId String
-  owner   User   @relation(fields: [ownerId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum GymStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }

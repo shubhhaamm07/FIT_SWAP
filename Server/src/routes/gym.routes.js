@@ -1,22 +1,35 @@
 const express = require('express');
 
 const router = express.Router();
+const {
+    authorize
+} = require('../middlewares/role.middleware');
 
-const gymController = require('../controllers/gym.controller');
 
 const {
     protect
 } = require('../middlewares/auth.middleware');
+const gymController = require('../controllers/gym.controller');
+
+router.get('/', gymController.getAllGyms);
+
+router.get(
+    '/my-gyms',
+    protect,
+    gymController.getMyGyms
+);
 
 router.post(
     '/',
     protect,
     gymController.createGym
 );
-router.get(
-    '/my-gyms',
+router.patch(
+    '/:id/status',
     protect,
-    gymController.getMyGyms
+    authorize('ADMIN'),
+    gymController.updateGymStatus
 );
+
 
 module.exports = router;

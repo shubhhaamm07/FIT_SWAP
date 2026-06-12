@@ -18,5 +18,11 @@ router.get(
     authorize('ADMIN'),
     adminController.getDashboard
 );
+router.get(
+    '/pending-gyms',
+    protect,
+    authorize('ADMIN'),
+    adminController.getPendingGyms
+);
 
 module.exports = router;
