@@ -6,6 +6,11 @@ const adminRoutes = require('./routes/admin.routes');
 
 const authRoutes = require('./routes/auth.routes');
 const gymRoutes = require('./routes/gym.routes');
+const membershipPlanRoutes = require(
+
+    './routes/membership-plan.routes'
+
+);
 const app = express();
 
 app.use(
@@ -29,4 +34,5 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/gyms', gymRoutes);
+app.use('/api', membershipPlanRoutes);
 module.exports = app;
