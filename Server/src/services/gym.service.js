@@ -43,6 +43,13 @@ const updateGymStatus = async (gymId, status) => {
 
     return gym;
 };
+const getGymById = async (gymId) => {
+    return prisma.gym.findUnique({
+        where: {
+            id: gymId
+        }
+    });
+};
 module.exports = {
-    createGym, getMyGyms, getAllGyms, updateGymStatus
+    createGym, getMyGyms, getAllGyms, updateGymStatus, getGymById
 };

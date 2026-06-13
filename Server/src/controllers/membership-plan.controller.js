@@ -68,8 +68,46 @@ const getPlanById = async (req, res) => {
         });
     }
 };
+const deletePlan = async (req, res) => {
+    try {
+        await membershipPlanService.deletePlan(
+            req.params.planId
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: 'Plan deleted successfully'
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+const updatePlan = async (req, res) => {
+    try {
+        const updatedPlan =
+            await membershipPlanService.updatePlan(
+                req.params.planId,
+                req.body
+            );
+
+        return res.status(200).json({
+            success: true,
+            data: updatedPlan
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
 module.exports = {
     createMembershipPlan,
     getPlansByGym,
-    getPlanById
+    getPlanById,
+    deletePlan,
+    updatePlan
 };

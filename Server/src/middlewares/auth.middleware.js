@@ -19,6 +19,7 @@ const protect = (req, res, next) => {
         );
 
         req.user = decoded;
+        req.user.id = decoded.userId;
 
         next();
     } catch (error) {

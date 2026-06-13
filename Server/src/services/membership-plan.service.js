@@ -30,8 +30,39 @@ const getPlanById = async (planId) => {
         }
     });
 };
+const getPlanWithGym = async (planId) => {
+    return prisma.membershipPlan.findUnique({
+        where: {
+            id: planId
+        },
+        include: {
+            gym: true
+        }
+    });
+};
+const deletePlan = async (planId) => {
+    return prisma.membershipPlan.delete({
+        where: {
+            id: planId
+        }
+    });
+};
+const updatePlan = async (
+    planId,
+    updateData
+) => {
+    return prisma.membershipPlan.update({
+        where: {
+            id: planId
+        },
+        data: updateData
+    });
+};
 module.exports = {
     createMembershipPlan,
     getPlansByGym,
-    getPlanById
+    getPlanById,
+    deletePlan,
+    getPlanWithGym,
+    updatePlan
 };
