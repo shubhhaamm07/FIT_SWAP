@@ -17,6 +17,7 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   gyms      Gym[]
+  memberships UserMembership[]
 }
 
 model Gym {
@@ -50,6 +51,19 @@ model MembershipPlan {
   gym            Gym      @relation(fields: [gymId], references: [id])
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  memberships UserMembership[]
+}
+model UserMembership {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id])
+  planId String
+  plan MembershipPlan @relation(fields: [planId], references: [id])
+  startDate DateTime
+  endDate DateTime
+  status MembershipStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum UserRole {
@@ -63,4 +77,11 @@ enum GymStatus {
   PENDING
   APPROVED
   REJECTED
+}
+enum MembershipStatus {
+  ACTIVE
+  EXPIRED
+  FROZEN
+  TRANSFERRED
+
 }

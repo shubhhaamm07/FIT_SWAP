@@ -11,6 +11,9 @@ const membershipPlanRoutes = require(
     './routes/membership-plan.routes'
 
 );
+const userMembershipRoutes = require(
+    './routes/user-membership.routes'
+);
 const app = express();
 
 app.use(
@@ -35,4 +38,5 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/gyms', gymRoutes);
 app.use('/api', membershipPlanRoutes);
+app.use('/api', userMembershipRoutes);
 module.exports = app;
