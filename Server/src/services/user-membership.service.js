@@ -80,7 +80,27 @@ const getMyMemberships = async (
         }
     });
 };
+const getMembershipById = async (
+    membershipId
+) => {
+    return prisma.userMembership.findUnique({
+        where: {
+            id: membershipId
+        },
+        include: {
+            plan: {
+                select: {
+                    id: true,
+                    name: true,
+                    price: true,
+                    durationInDays: true
+                }
+            }
+        }
+    });
+};
 module.exports = {
     purchaseMembership,
-    getMyMemberships
+    getMyMemberships,
+    getMembershipById
 };

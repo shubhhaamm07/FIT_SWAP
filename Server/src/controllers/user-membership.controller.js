@@ -45,8 +45,24 @@ const getMyMemberships = async (
         });
     }
 };
-
+const getMembershipById = async (
+    req,
+    res
+) => {
+    try {
+        return res.status(200).json({
+            success: true,
+            data: req.membership
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
 module.exports = {
     purchaseMembership,
-    getMyMemberships
+    getMyMemberships,
+    getMembershipById
 };
