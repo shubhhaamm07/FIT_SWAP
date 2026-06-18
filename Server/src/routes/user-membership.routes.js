@@ -32,5 +32,15 @@ router.get(
     verifyMembershipOwnership,
     userMembershipController.getMembershipById
 );
+router.patch(
+    '/memberships/:membershipId/freeze',
+    protect,
+    userMembershipController.freezeMembership
+);
+router.patch(
+    '/memberships/:membershipId/unfreeze',
+    protect,
+    userMembershipController.unfreezeMembership
+);
 
 module.exports = router;

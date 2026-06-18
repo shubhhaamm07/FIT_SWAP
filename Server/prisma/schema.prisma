@@ -14,10 +14,13 @@ model User {
   email     String   @unique
   password  String
   role      UserRole @default(USER)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  gyms      Gym[]
+
+  gyms        Gym[]
   memberships UserMembership[]
+  listings    MarketplaceListing[]
 }
 
 model Gym {
@@ -39,29 +42,57 @@ model Gym {
 }
 
 model MembershipPlan {
-  id             String   @id @default(cuid())
+  id             String  @id @default(cuid())
   name           String
   description    String?
   durationInDays Int
   price          Float
-  transferable   Boolean  @default(true)
-  freezeAllowed  Boolean  @default(false)
+  transferable   Boolean @default(true)
+  freezeAllowed  Boolean @default(false)
   transferFee    Float?
-  gymId          String
-  gym            Gym      @relation(fields: [gymId], references: [id])
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+
+  gymId String
+  gym   Gym    @relation(fields: [gymId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   memberships UserMembership[]
 }
+
 model UserMembership {
   id String @id @default(cuid())
+
   userId String
-  user User @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
   planId String
-  plan MembershipPlan @relation(fields: [planId], references: [id])
+  plan   MembershipPlan @relation(fields: [planId], references: [id])
+
   startDate DateTime
-  endDate DateTime
+  endDate   DateTime
+
   status MembershipStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  listing MarketplaceListing?
+}
+
+model MarketplaceListing {
+  id String @id @default(cuid())
+
+  membershipId String         @unique
+  membership   UserMembership @relation(fields: [membershipId], references: [id])
+
+  sellerId String
+  seller   User   @relation(fields: [sellerId], references: [id])
+
+  askingPrice Float
+
+  status ListingStatus @default(ACTIVE)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -78,10 +109,16 @@ enum GymStatus {
   APPROVED
   REJECTED
 }
+
 enum MembershipStatus {
   ACTIVE
   EXPIRED
   FROZEN
   TRANSFERRED
+}
 
+enum ListingStatus {
+  ACTIVE
+  SOLD
+  CANCELLED
 }

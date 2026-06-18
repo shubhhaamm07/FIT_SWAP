@@ -14,6 +14,9 @@ const membershipPlanRoutes = require(
 const userMembershipRoutes = require(
     './routes/user-membership.routes'
 );
+const marketplaceListingRoutes = require(
+    './routes/marketplace-listing.routes'
+);
 const app = express();
 
 app.use(
@@ -39,4 +42,5 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/gyms', gymRoutes);
 app.use('/api', membershipPlanRoutes);
 app.use('/api', userMembershipRoutes);
+app.use('/api', marketplaceListingRoutes);
 module.exports = app;

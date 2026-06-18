@@ -61,8 +61,58 @@ const getMembershipById = async (
         });
     }
 };
+const freezeMembership = async (
+    req,
+    res
+) => {
+    try {
+        const membership =
+            await userMembershipService.freezeMembership(
+                req.params.membershipId,
+                req.user.id
+            );
+
+        return res.status(200).json({
+            success: true,
+            message:
+                'Membership frozen successfully',
+            data: membership
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+const unfreezeMembership = async (
+    req,
+    res
+) => {
+    try {
+        const membership =
+            await userMembershipService.unfreezeMembership(
+                req.params.membershipId,
+                req.user.id
+            );
+
+        return res.status(200).json({
+            success: true,
+            message:
+                'Membership unfrozen successfully',
+            data: membership
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
 module.exports = {
     purchaseMembership,
     getMyMemberships,
-    getMembershipById
+    getMembershipById,
+    freezeMembership,
+    unfreezeMembership
 };

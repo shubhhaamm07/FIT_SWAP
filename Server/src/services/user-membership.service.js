@@ -99,8 +99,124 @@ const getMembershipById = async (
         }
     });
 };
+const freezeMembership = async (
+    membershipId,
+    userId
+) => {
+    const membership =
+        await prisma.userMembership.findUnique({
+            where: {
+                id: membershipId
+            },
+            include: {
+                plan: true,
+                listing: true
+            }
+        });
+
+    // Membership Exists
+    if (!membership) {
+        throw new Error(
+            'Membership not found'
+        );
+    }
+
+    // Ownership Check
+    if (membership.userId !== userId) {
+        throw new Error(
+            'You do not own this membership'
+        );
+    }
+
+    // Membership Active Check
+    if (membership.status !== 'ACTIVE') {
+        throw new Error(
+            'Only active memberships can be frozen'
+        );
+    }
+
+    // Plan Allows Freeze
+    if (!membership.plan.freezeAllowed) {
+        throw new Error(
+            'This membership cannot be frozen'
+        );
+    }
+
+    // Active Marketplace Listing Check
+    if (
+        membership.listing &&
+        membership.listing.status === 'ACTIVE'
+    ) {
+        throw new Error(
+            'Cannot freeze a listed membership'
+        );
+    }
+
+    // Expiry Check
+    const daysRemaining = Math.ceil(
+        (membership.endDate - new Date()) /
+        (1000 * 60 * 60 * 24)
+    );
+
+    if (daysRemaining < 7) {
+        throw new Error(
+            'Membership is too close to expiry'
+        );
+    }
+
+    return prisma.userMembership.update({
+        where: {
+            id: membershipId
+        },
+        data: {
+            status: 'FROZEN'
+        }
+    });
+};
+const unfreezeMembership = async (
+    membershipId,
+    userId
+) => {
+    const membership =
+        await prisma.userMembership.findUnique({
+            where: {
+                id: membershipId
+            }
+        });
+
+    if (!membership) {
+        throw new Error(
+            'Membership not found'
+        );
+    }
+
+    // Ownership Check
+    if (membership.userId !== userId) {
+        throw new Error(
+            'You do not own this membership'
+        );
+    }
+
+    // Must Be Frozen
+    if (membership.status !== 'FROZEN') {
+        throw new Error(
+            'Only frozen memberships can be unfrozen'
+        );
+    }
+
+    return prisma.userMembership.update({
+        where: {
+            id: membershipId
+        },
+        data: {
+            status: 'ACTIVE'
+        }
+    });
+};
 module.exports = {
     purchaseMembership,
     getMyMemberships,
-    getMembershipById
+    getMembershipById,
+    freezeMembership,
+    unfreezeMembership
 };
