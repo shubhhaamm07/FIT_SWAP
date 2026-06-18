@@ -17,7 +17,11 @@ const userMembershipRoutes = require(
 const marketplaceListingRoutes = require(
     './routes/marketplace-listing.routes'
 );
+const transferRequestRoutes = require(
+    './routes/transfer-request.routes'
+);
 const app = express();
+
 
 app.use(
     cors({
@@ -43,4 +47,5 @@ app.use('/api/gyms', gymRoutes);
 app.use('/api', membershipPlanRoutes);
 app.use('/api', userMembershipRoutes);
 app.use('/api', marketplaceListingRoutes);
+app.use('/api', transferRequestRoutes);
 module.exports = app;
