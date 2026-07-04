@@ -12,6 +12,7 @@ model User {
   firstName String
   lastName  String
   email     String   @unique
+  phone     String?  @unique
   password  String
   role      UserRole @default(USER)
 
@@ -22,6 +23,7 @@ model User {
   memberships      UserMembership[]
   listings         MarketplaceListing[]
   transferRequests TransferRequest[]
+  notifications    Notification[]
 }
 
 model Gym {
@@ -114,6 +116,20 @@ model TransferRequest {
   updatedAt DateTime @updatedAt
 
   @@unique([listingId, buyerId])
+}
+
+model Notification {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  title   String
+  message String
+
+  isRead Boolean @default(false)
+
+  createdAt DateTime @default(now())
 }
 
 enum UserRole {

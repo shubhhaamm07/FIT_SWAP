@@ -30,9 +30,11 @@ const login = async (req, res) => {
             token,
             user: {
                 id: user.id,
+                firstName: user.firstName,
+                lastName: user.lastName,
                 email: user.email,
-                role: user.role,
-                password: user.password
+                phone: user.phone,
+                role: user.role
             }
         });
     } catch (error) {

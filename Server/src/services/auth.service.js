@@ -5,14 +5,26 @@ const registerUser = async ({
     firstName,
     lastName,
     email,
-    password
+    phone,
+    password,
+    role
 }) => {
     const existingUser = await prisma.user.findUnique({
         where: {
             email
         }
     });
+    if (phone) {
+        const existingPhone = await prisma.user.findUnique({
+            where: {
+                phone
+            }
+        });
 
+        if (existingPhone) {
+            throw new Error("Phone number already exists");
+        }
+    }
     if (existingUser) {
         throw new Error('User already exists');
     }
@@ -24,7 +36,9 @@ const registerUser = async ({
             firstName,
             lastName,
             email,
-            password: hashedPassword
+            phone,
+            password: hashedPassword,
+            role
         }
     });
 

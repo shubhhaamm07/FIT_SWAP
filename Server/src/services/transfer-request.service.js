@@ -1,5 +1,11 @@
 const prisma = require('../lib/prisma');
 
+
+const notificationService = require(
+
+    './notification.service'
+
+);
 const createTransferRequest = async (
     buyerId,
     listingId
@@ -62,12 +68,21 @@ const createTransferRequest = async (
         );
     }
 
-    return prisma.transferRequest.create({
-        data: {
-            listingId,
-            buyerId
-        }
-    });
+    const transferRequest =
+        await prisma.transferRequest.create({
+            data: {
+                listingId,
+                buyerId
+            }
+        });
+
+    await notificationService.createNotification(
+        listing.sellerId,
+        'Transfer Request Received',
+        'A buyer has requested your membership.'
+    );
+
+    return transferRequest;
 };
 const getMyTransferRequests = async (
     buyerId
@@ -196,54 +211,63 @@ const approveTransferRequest = async (
         );
     }
 
-    return prisma.$transaction(
-        async (tx) => {
-            const approvedRequest =
-                await tx.transferRequest.update({
+    const approvedRequest =
+        await prisma.$transaction(
+            async (tx) => {
+                const approvedRequest =
+                    await tx.transferRequest.update({
+                        where: {
+                            id: requestId
+                        },
+                        data: {
+                            status: 'APPROVED'
+                        }
+                    });
+
+                await tx.transferRequest.updateMany({
                     where: {
-                        id: requestId
+                        listingId:
+                            request.listingId,
+                        id: {
+                            not: requestId
+                        }
                     },
                     data: {
-                        status: 'APPROVED'
+                        status: 'REJECTED'
                     }
                 });
 
-            await tx.transferRequest.updateMany({
-                where: {
-                    listingId:
-                        request.listingId,
-                    id: {
-                        not: requestId
+                await tx.userMembership.update({
+                    where: {
+                        id: request.listing
+                            .membershipId
+                    },
+                    data: {
+                        userId:
+                            request.buyerId
                     }
-                },
-                data: {
-                    status: 'REJECTED'
-                }
-            });
+                });
 
-            await tx.userMembership.update({
-                where: {
-                    id: request.listing
-                        .membershipId
-                },
-                data: {
-                    userId:
-                        request.buyerId
-                }
-            });
+                await tx.marketplaceListing.update({
+                    where: {
+                        id: request.listingId
+                    },
+                    data: {
+                        status: 'SOLD'
+                    }
+                });
 
-            await tx.marketplaceListing.update({
-                where: {
-                    id: request.listingId
-                },
-                data: {
-                    status: 'SOLD'
-                }
-            });
+                return approvedRequest;
+            }
+        );
 
-            return approvedRequest;
-        }
+    await notificationService.createNotification(
+        request.buyerId,
+        'Transfer Request Approved',
+        'Your transfer request has been approved.'
     );
+
+    return approvedRequest;
 };
 const rejectTransferRequest = async (
     requestId,
@@ -280,14 +304,23 @@ const rejectTransferRequest = async (
         );
     }
 
-    return prisma.transferRequest.update({
-        where: {
-            id: requestId
-        },
-        data: {
-            status: 'REJECTED'
-        }
-    });
+    const rejectedRequest =
+        await prisma.transferRequest.update({
+            where: {
+                id: requestId
+            },
+            data: {
+                status: 'REJECTED'
+            }
+        });
+
+    await notificationService.createNotification(
+        request.buyerId,
+        'Transfer Request Rejected',
+        'Your transfer request has been rejected.'
+    );
+
+    return rejectedRequest;
 };
 module.exports = {
     createTransferRequest, getMyTransferRequests, getIncomingTransferRequests, approveTransferRequest, rejectTransferRequest
