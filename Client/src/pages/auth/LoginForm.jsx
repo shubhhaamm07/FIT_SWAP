@@ -49,7 +49,7 @@ function LoginForm() {
     try {
       const response = await loginUser(formData);
 
-      console.log(response);
+      // console.log(response);
 
       login(response.user, response.token);
 

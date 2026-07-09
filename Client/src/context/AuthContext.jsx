@@ -45,6 +45,9 @@ export function AuthProvider({ children }) {
   );
 }
 
+/* ⭐ ADD THIS */
 export function useAuth() {
   return useContext(AuthContext);
 }
+
+export { AuthContext };

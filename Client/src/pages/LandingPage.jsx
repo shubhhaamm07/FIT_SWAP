@@ -1,17 +1,17 @@
 import Navbar from "../components/common/Navbar";
 // import heroImage from "../assets/images/hero.png";
-import WorkflowCard from "../components/common/WorkflowCard";
+// import WorkflowCard from "../components/common/WorkflowCard";
 import HeroSection from "../components/landing/HeroSection";
-import StatsSection from "../components/landing/StatsSection";
+// import StatsSection from "../components/landing/StatsSection";
 import WhyFitSwapSection from "../components/landing/WhyFitSwapSection";
 import HowItWorksSection from "../components/landing/HowItWorksSection";
 import MarketplacePreview from "../components/landing/MarketplacePreview";
 import CTASection from "../components/landing/CTASection";
 import Footer from "../components/landing/Footer";
-import Arrow from "../components/common/Arrow";
+// import Arrow from "../components/common/Arrow";
 import FadeInSection from "../components/common/FadeInSection";
-import CountUp from "react-countup";
-import { motion } from "framer-motion";
+// import CountUp from "react-countup";
+// import { motion } from "framer-motion";
 function LandingPage() {
   return (
     <div className="bg-[#0B0B0F] text-white">
