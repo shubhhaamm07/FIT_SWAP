@@ -1,71 +1,67 @@
-import { CreditCard, Store, Dumbbell, Plus } from "lucide-react";
+import { Plus, Store, CreditCard, Dumbbell } from "lucide-react";
 
 function QuickActions() {
   const actions = [
     {
-      title: "Buy Membership",
-      icon: CreditCard,
-      color: "text-violet-400",
-    },
-    {
       title: "Sell Membership",
       icon: Store,
-      color: "text-green-400",
+      color: "bg-violet-600 hover:bg-violet-500",
+    },
+    {
+      title: "Buy Membership",
+      icon: CreditCard,
+      color: "bg-emerald-600 hover:bg-emerald-500",
     },
     {
       title: "Find Gyms",
       icon: Dumbbell,
-      color: "text-blue-400",
+      color: "bg-sky-600 hover:bg-sky-500",
     },
     {
       title: "Create Listing",
       icon: Plus,
-      color: "text-orange-400",
+      color: "bg-amber-600 hover:bg-amber-500",
     },
   ];
 
   return (
-    <div className="rounded-2xl bg-[#12121A] border border-white/10 p-5">
-      <h2 className="text-lg font-bold">Quick Actions</h2>
+    <section className="rounded-3xl border border-white/10 bg-[#12121A] p-5">
+      <h2 className="text-lg font-semibold">Quick Actions</h2>
 
-      <div className="mt-5 space-y-3">
-        {actions.map((action) => (
-          <button
-            key={action.title}
-            className="
-              w-full
-              flex
-              items-center
-              gap-3
-              rounded-xl
-              border
-              border-white/10
-              p-3
-              hover:border-violet-500/30
-              hover:bg-[#18181F]
-              transition
-            "
-          >
-            <div
-              className="
-                w-9
-                h-9
-                rounded-xl
-                bg-white/5
+      <p className="mt-1 text-sm text-zinc-500">Frequently used actions</p>
+
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        {actions.map((action) => {
+          const Icon = action.icon;
+
+          return (
+            <button
+              key={action.title}
+              className={`
+                ${action.color}
+                group
                 flex
+                h-24
+                flex-col
                 items-center
                 justify-center
-              "
+                rounded-2xl
+                transition-all
+                duration-300
+                hover:-translate-y-1
+              `}
             >
-              <action.icon size={18} className={action.color} />
-            </div>
+              <Icon
+                size={22}
+                className="mb-2 transition-transform duration-300 group-hover:scale-110"
+              />
 
-            <span className="text-sm font-medium">{action.title}</span>
-          </button>
-        ))}
+              <span className="text-xs font-medium">{action.title}</span>
+            </button>
+          );
+        })}
       </div>
-    </div>
+    </section>
   );
 }
-
 export default QuickActions;

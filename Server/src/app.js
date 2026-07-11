@@ -23,6 +23,12 @@ const transferRequestRoutes = require(
 const notificationRoutes = require(
     './routes/notification.routes'
 );
+const dashboardRoutes = require(
+    "./routes/dashboard.routes"
+);
+const chartRoutes = require(
+    "./routes/chart.routes"
+);
 const app = express();
 
 
@@ -54,4 +60,6 @@ app.use('/api', userMembershipRoutes);
 app.use('/api', marketplaceListingRoutes);
 app.use('/api', transferRequestRoutes);
 app.use('/api', notificationRoutes);
+app.use("/api", dashboardRoutes);
+app.use("/api", chartRoutes);
 module.exports = app;

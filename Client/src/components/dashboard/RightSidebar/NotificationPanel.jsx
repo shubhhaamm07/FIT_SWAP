@@ -1,68 +1,51 @@
-import { Bell } from "lucide-react";
-
-import { formatDateTime } from "../../../utils/date";
+import { Bell, CheckCircle } from "lucide-react";
 
 function NotificationPanel({ notifications = [] }) {
-  const unreadNotifications = notifications.filter(
-    (notification) => !notification.isRead,
-  );
-
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#12121A] p-5">
-      <div className="flex items-center justify-between mb-5">
+    <section className="mt-5 rounded-3xl border border-white/10 bg-[#12121A] p-5">
+      <div className="mb-5 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Notifications</h2>
 
-        <span className="text-xs text-violet-400">
-          {unreadNotifications.length} New
-        </span>
+        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-500/15">
+          <Bell size={15} className="text-violet-400" />
+        </div>
       </div>
 
       {notifications.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-12">
-          <Bell size={34} className="text-zinc-600" />
+        <div className="py-8 text-center">
+          <CheckCircle size={34} className="mx-auto text-zinc-600" />
 
-          <h3 className="mt-4 text-base font-semibold">No Notifications</h3>
-
-          <p className="mt-2 text-center text-sm text-zinc-500">
-            You're all caught up.
-          </p>
+          <p className="mt-3 text-sm text-zinc-500">You're all caught up.</p>
         </div>
       ) : (
-        <div className="space-y-4 max-h-[350px] overflow-y-auto pr-2">
-          {notifications.map((notification) => (
+        <div className="space-y-4">
+          {notifications.slice(0, 5).map((notification) => (
             <div
               key={notification.id}
-              className="
-                  rounded-xl
-                  border
-                  border-white/5
-                  bg-[#18181F]
-                  p-3
-                  transition-all
-                  duration-300
-                  hover:border-violet-500/30
-                "
+              className="rounded-2xl border border-white/5 bg-white/[0.03] p-3 transition hover:border-violet-500/20"
             >
-              <div className="flex items-start justify-between">
-                <h4 className="text-sm font-semibold">{notification.title}</h4>
-
+              <div className="flex items-start gap-3">
                 {!notification.isRead && (
-                  <div className="w-2 h-2 rounded-full bg-violet-500 mt-2" />
+                  <div className="mt-2 h-2 w-2 rounded-full bg-violet-500" />
                 )}
+
+                <div className="flex-1">
+                  <h4 className="text-sm font-medium">{notification.title}</h4>
+
+                  <p className="mt-1 text-xs leading-5 text-zinc-500">
+                    {notification.message}
+                  </p>
+
+                  <p className="mt-2 text-[11px] text-zinc-600">
+                    {new Date(notification.createdAt).toLocaleString()}
+                  </p>
+                </div>
               </div>
-
-              <p className="mt-2 text-xs leading-5 text-zinc-400">
-                {notification.message}
-              </p>
-
-              <p className="mt-3 text-[11px] text-zinc-600">
-                {formatDateTime(notification.createdAt)}
-              </p>
             </div>
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }
 

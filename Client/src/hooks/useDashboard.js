@@ -1,74 +1,110 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
-import { loadDashboard } from "../api/dashboard.api";
+import {
+    getDashboard,
+    getDashboardCharts,
+} from "../api/dashboard.api";
 
 export function useDashboard() {
-    const [memberships, setMemberships] = useState([]);
-    const [listings, setListings] = useState([]);
-    const [gyms, setGyms] = useState([]);
-    const [notifications, setNotifications] =
-        useState([]);
-    const [transferRequests, setTransferRequests] =
-        useState([]);
+    const [dashboard, setDashboard] = useState({
+        stats: {
+            memberships: {
+                total: 0,
+                active: 0,
+            },
 
-    const [activities, setActivities] = useState([]);
+            marketplace: {
+                total: 0,
+            },
 
-    const [loading, setLoading] =
-        useState(true);
+            notifications: {
+                total: 0,
+                unread: 0,
+            },
 
-    const [error, setError] = useState(null);
+            transfers: {
+                total: 0,
+                pending: 0,
+            },
 
-    const refreshDashboard = useCallback(
-        async () => {
+            gyms: {
+                total: 0,
+            },
+        },
+
+        memberships: [],
+
+        listings: [],
+
+        gyms: [],
+
+        notifications: [],
+
+        transferRequests: [],
+
+        activities: [],
+
+        charts: {
+            labels: [],
+            memberships: [],
+            listings: [],
+        },
+    });
+
+    const [loading, setLoading] = useState(true);
+
+    const [error, setError] = useState("");
+
+    useEffect(() => {
+        const fetchDashboard = async () => {
             try {
                 setLoading(true);
 
-                const data =
-                    await loadDashboard();
+                const [dashboardData, chartData] = await Promise.all([
+                    getDashboard(),
+                    getDashboardCharts(),
+                ]);
 
-                setMemberships(data.memberships);
+                setDashboard({
+                    ...dashboardData,
+                    charts: chartData,
+                });
 
-                setListings(data.listings);
-
-                setGyms(data.gyms);
-
-                setNotifications(
-                    data.notifications
-                );
-
-                setTransferRequests(
-                    data.transferRequests
-                );
-
-                setActivities(data.activities);
-
-                setError(null);
+                setError("");
             } catch (err) {
+                console.error(err);
+
                 setError(
-                    err.response?.data?.message ||
-                    err.message
+                    err?.response?.data?.message ||
+                    "Failed to load dashboard."
                 );
             } finally {
                 setLoading(false);
             }
-        },
-        []
-    );
+        };
 
-    useEffect(() => {
-        refreshDashboard();
-    }, [refreshDashboard]);
+        fetchDashboard();
+    }, []);
 
     return {
-        memberships,
-        listings,
-        gyms,
-        notifications,
-        transferRequests,
-        activities,
-        loading,
-        error,
+        stats: dashboard.stats,
 
-        refreshDashboard,
+        memberships: dashboard.memberships,
+
+        listings: dashboard.listings,
+
+        gyms: dashboard.gyms,
+
+        notifications: dashboard.notifications,
+
+        transferRequests: dashboard.transferRequests,
+
+        activities: dashboard.activities,
+
+        charts: dashboard.charts,
+
+        loading,
+
+        error,
     };
 }
