@@ -173,7 +173,16 @@ const getAllListings = async () => {
 
                         include: {
 
-                            gym: true
+                            gym: {
+                                include: {
+                                    images: {
+                                        orderBy: [
+                                            { isPrimary: 'desc' },
+                                            { displayOrder: 'asc' }
+                                        ]
+                                    }
+                                }
+                            }
 
                         }
 
@@ -243,7 +252,16 @@ const getListingById = async (
 
                         include: {
 
-                            gym: true
+                            gym: {
+                                include: {
+                                    images: {
+                                        orderBy: [
+                                            { isPrimary: 'desc' },
+                                            { displayOrder: 'asc' }
+                                        ]
+                                    }
+                                }
+                            }
 
                         }
 

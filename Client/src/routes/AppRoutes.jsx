@@ -6,9 +6,15 @@ import LoginPage from "../pages/auth/LoginPage";
 import RegisterPage from "../pages/auth/RegisterPage";
 
 import DashboardPage from "../pages/dashboard/DashboardPage";
-import MembershipsPage from "../pages/memberships/MembershipsPage";
 
+import MembershipsPage from "../pages/memberships/MembershipsPage";
 import MembershipDetails from "../components/memberships/details/MembershipDetails";
+
+import MarketplacePage from "../pages/Marketplace/MarketplacePage";
+import ListingDetailsPage from "../pages/Marketplace/ListingDetailsPage";
+import WishlistPage from "../pages/Marketplace/WishlistPage";
+import SellMembershipPage from "../pages/Marketplace/SellMembershipPage";
+import MyListingsPage from "../pages/Marketplace/MyListingsPage";
 
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -16,7 +22,7 @@ function AppRoutes() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public Routes */}
+        {/* ================= Public Routes ================= */}
 
         <Route path="/" element={<LandingPage />} />
 
@@ -24,7 +30,7 @@ function AppRoutes() {
 
         <Route path="/register" element={<RegisterPage />} />
 
-        {/* Protected Routes */}
+        {/* ================= Protected Routes ================= */}
 
         <Route
           path="/dashboard"
@@ -49,6 +55,51 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <MembershipDetails />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/marketplace"
+          element={
+            <ProtectedRoute>
+              <MarketplacePage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/marketplace/:listingId"
+          element={
+            <ProtectedRoute>
+              <ListingDetailsPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/marketplace/wishlist"
+          element={
+            <ProtectedRoute>
+              <WishlistPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/marketplace/sell"
+          element={
+            <ProtectedRoute>
+              <SellMembershipPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/marketplace/my-listings"
+          element={
+            <ProtectedRoute>
+              <MyListingsPage />
             </ProtectedRoute>
           }
         />

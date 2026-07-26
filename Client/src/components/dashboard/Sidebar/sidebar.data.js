@@ -1,23 +1,20 @@
 import {
     LayoutDashboard,
+    Building2,
     CreditCard,
     Store,
-    Dumbbell,
+    ArrowRightLeft,
+    Bell,
     UserRound,
-    Apple,
-    Users,
-    Bot,
-    Trophy,
-    Crown,
+    Settings,
 } from "lucide-react";
 
 export const sidebarSections = [
     {
         title: "Dashboard",
-
         items: [
             {
-                label: "Overview",
+                label: "Dashboard",
                 to: "/dashboard",
                 icon: LayoutDashboard,
             },
@@ -25,67 +22,60 @@ export const sidebarSections = [
     },
 
     {
-        title: "Marketplace",
+        title: "Gyms",
+        items: [{ label: "Gyms", to: "/gyms", icon: Building2 }],
+    },
 
+    {
+        title: "Memberships",
         items: [
             {
                 label: "Memberships",
                 to: "/memberships",
                 icon: CreditCard,
             },
+        ],
+    },
 
+    {
+        title: "Marketplace",
+        items: [
             {
                 label: "Marketplace",
-                to: "/dashboard/marketplace",
+                to: "/marketplace",
                 icon: Store,
-            },
-
-            {
-                label: "Gyms",
-                to: "/dashboard/gyms",
-                icon: Dumbbell,
             },
         ],
     },
 
     {
-        title: "Fitness",
-
+        title: "Transfers",
         items: [
             {
-                label: "Trainers",
-                to: "/dashboard/trainers",
+                label: "Transfer Requests",
+                to: "/transfers",
+                icon: ArrowRightLeft,
+            },
+        ],
+    },
+
+    {
+        title: "Account",
+        items: [
+            {
+                label: "Notifications",
+                to: "/notifications",
+                icon: Bell,
+            },
+            {
+                label: "Profile",
+                to: "/profile",
                 icon: UserRound,
             },
-
             {
-                label: "Nutrition",
-                to: "/dashboard/nutrition",
-                icon: Apple,
-            },
-
-            {
-                label: "Community",
-                to: "/dashboard/community",
-                icon: Users,
-            },
-
-            {
-                label: "AI Coach",
-                to: "/dashboard/ai-coach",
-                icon: Bot,
-            },
-
-            {
-                label: "Challenges",
-                to: "/dashboard/challenges",
-                icon: Trophy,
-            },
-
-            {
-                label: "Subscription",
-                to: "/dashboard/subscription",
-                icon: Crown,
+                label: "Settings",
+                to: "/settings",
+                icon: Settings,
             },
         ],
     },

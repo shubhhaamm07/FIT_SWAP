@@ -25,7 +25,7 @@ function SearchBar() {
 
       <input
         type="text"
-        placeholder="Search gyms, memberships, trainers..."
+        placeholder="Search gyms, locations or membership types..."
         className="
           flex-1
           bg-transparent

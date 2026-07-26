@@ -67,13 +67,11 @@ const getMyMemberships = async (
         },
         include: {
             plan: {
-                select: {
-                    id: true,
-                    name: true,
-                    price: true,
-                    durationInDays: true
+                include: {
+                    gym: true
                 }
-            }
+            },
+            listing: true
         },
         orderBy: {
             createdAt: 'desc'

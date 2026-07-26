@@ -1,0 +1,71 @@
+export const marketplaceListings = [
+    {
+        id: 1,
+        gym: "Cult Fit",
+        membership: "Elite Membership",
+        seller: "Rahul Sharma",
+        location: "Chandigarh",
+        price: 6499,
+        originalPrice: 9999,
+        remainingDays: 142,
+        transferFee: 499,
+        verified: true,
+        featured: true,
+        image:
+            "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=1200",
+    },
+    {
+        id: 2,
+        gym: "Anytime Fitness",
+        membership: "Premium Plan",
+        seller: "Ankit Verma",
+        location: "Delhi",
+        price: 4200,
+        originalPrice: 7200,
+        remainingDays: 88,
+        transferFee: 300,
+        verified: true,
+        featured: false,
+        image:
+            "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200",
+    },
+    {
+        id: 3,
+        gym: "Gold's Gym",
+        membership: "Gold Membership",
+        seller: "Priya Singh",
+        location: "Mumbai",
+        price: 5899,
+        originalPrice: 9000,
+        remainingDays: 126,
+        transferFee: 450,
+        verified: true,
+        featured: false,
+        image:
+            "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=1200",
+    },
+    {
+        id: 4,
+        gym: "Fit Hit",
+        membership: "Annual Plan",
+        seller: "Rohit Kumar",
+        location: "Mohali",
+        price: 7200,
+        originalPrice: 11000,
+        remainingDays: 205,
+        transferFee: 500,
+        verified: true,
+        featured: true,
+        image:
+            "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=1200",
+    },
+    {
+        id: 5, gym: "Fitness First", membership: "Annual Membership", seller: "Aman Mehta", location: "Delhi", price: 22000, originalPrice: 35000, remainingDays: 104, transferFee: 550, verified: true, featured: true, validTill: "20 Jan 2027", image: "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200",
+    },
+    {
+        id: 6, gym: "Talwalkars", membership: "Semi-Annual Membership", seller: "Isha Kapoor", location: "Mumbai", price: 13000, originalPrice: 18000, remainingDays: 126, transferFee: 400, verified: true, featured: false, validTill: "05 Feb 2027", image: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=1200",
+    },
+    {
+        id: 7, gym: "Rampfit", membership: "Monthly Membership", seller: "Neha Gupta", location: "Bangalore", price: 3800, originalPrice: 4999, remainingDays: 15, transferFee: 200, verified: true, featured: false, validTill: "25 Aug 2026", image: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?w=1200",
+    },
+];

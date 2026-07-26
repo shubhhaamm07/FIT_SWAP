@@ -30,6 +30,7 @@ const chartRoutes = require(
     "./routes/chart.routes"
 );
 const imageRoutes = require("./routes/image.routes");
+const savedListingRoutes = require('./routes/saved-listing.routes');
 const {
     apiLimiter,
 } = require("./middlewares/rateLimiter.middleware");
@@ -38,7 +39,7 @@ const app = express();
 
 app.use(
     cors({
-        origin: "http://localhost:5173",
+        origin: process.env.CLIENT_URL || "http://localhost:5173",
         credentials: true,
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allowedHeaders: ["Content-Type", "Authorization"],
@@ -67,5 +68,6 @@ app.use('/api', notificationRoutes);
 app.use("/api", dashboardRoutes);
 app.use("/api", chartRoutes);
 app.use("/api", imageRoutes);
+app.use('/api', savedListingRoutes);
 app.use(apiLimiter);
 module.exports = app;
