@@ -29,6 +29,10 @@ const dashboardRoutes = require(
 const chartRoutes = require(
     "./routes/chart.routes"
 );
+const imageRoutes = require("./routes/image.routes");
+const {
+    apiLimiter,
+} = require("./middlewares/rateLimiter.middleware");
 const app = express();
 
 
@@ -62,4 +66,6 @@ app.use('/api', transferRequestRoutes);
 app.use('/api', notificationRoutes);
 app.use("/api", dashboardRoutes);
 app.use("/api", chartRoutes);
+app.use("/api", imageRoutes);
+app.use(apiLimiter);
 module.exports = app;

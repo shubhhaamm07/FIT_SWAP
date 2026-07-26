@@ -2,7 +2,7 @@ import { Bell, CheckCircle } from "lucide-react";
 
 function NotificationPanel({ notifications = [] }) {
   return (
-    <section className="mt-5 rounded-3xl border border-white/10 bg-[#12121A] p-5">
+    <section className="rounded-2xl border border-white/[0.1] bg-[#10111a] p-5">
       <div className="mb-5 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Notifications</h2>
 
@@ -12,7 +12,7 @@ function NotificationPanel({ notifications = [] }) {
       </div>
 
       {notifications.length === 0 ? (
-        <div className="py-8 text-center">
+        <div className="py-10 text-center">
           <CheckCircle size={34} className="mx-auto text-zinc-600" />
 
           <p className="mt-3 text-sm text-zinc-500">You're all caught up.</p>

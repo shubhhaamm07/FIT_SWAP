@@ -25,7 +25,7 @@ function QuickActions() {
   ];
 
   return (
-    <section className="rounded-3xl border border-white/10 bg-[#12121A] p-5">
+    <section className="rounded-2xl border border-white/[0.1] bg-[#10111a] p-5">
       <h2 className="text-lg font-semibold">Quick Actions</h2>
 
       <p className="mt-1 text-sm text-zinc-500">Frequently used actions</p>
@@ -41,11 +41,11 @@ function QuickActions() {
                 ${action.color}
                 group
                 flex
-                h-24
+                h-[108px]
                 flex-col
                 items-center
                 justify-center
-                rounded-2xl
+                rounded-xl
                 transition-all
                 duration-300
                 hover:-translate-y-1

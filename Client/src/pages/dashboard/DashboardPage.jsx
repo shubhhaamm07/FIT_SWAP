@@ -4,7 +4,7 @@ import DashboardHero from "../../components/dashboard/Hero/DashboardHero";
 import DashboardStats from "../../components/dashboard/Stats/DashboardStats";
 // import DashboardCharts from "../../components/dashboard/Charts/DashboardCharts";
 
-import MembershipSection from "../../components/dashboard/Memberships/MembershipSection";
+// import MembershipSection from "../../components/dashboard/Memberships/MembershipSection";
 // import MarketplaceSection from "../../components/dashboard/Marketplace/MarketplaceSection";
 // import GymSection from "../../components/dashboard/Gyms/GymSection";
 
@@ -20,17 +20,9 @@ function DashboardPage() {
 
     memberships,
 
-    listings,
-
-    gyms,
-
     notifications,
 
-    transferRequests,
-
     activities,
-
-    charts,
 
     loading,
 
@@ -67,7 +59,7 @@ function DashboardPage() {
         </>
       }
     >
-      <DashboardHero stats={stats} />
+      <DashboardHero />
 
       <div className="mt-6">
         <DashboardStats stats={stats} loading={loading} />
@@ -75,7 +67,7 @@ function DashboardPage() {
 
       {/* <DashboardCharts charts={charts} loading={loading} /> */}
 
-      <MembershipSection memberships={memberships} loading={loading} />
+      {/* <MembershipSection memberships={memberships} loading={loading} /> */}
 
       {/* <MarketplaceSection listings={listings} loading={loading} /> */}
 

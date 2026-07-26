@@ -24,6 +24,7 @@ router.post(
     '/gyms/:gymId/plans',
     protect,
     authorize('GYM_OWNER'),
+    verifyGymOwnership,
     membershipPlanController.createMembershipPlan
 );
 router.get(

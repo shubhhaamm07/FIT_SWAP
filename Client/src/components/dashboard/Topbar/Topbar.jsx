@@ -5,13 +5,7 @@ import UserMenu from "./UserMenu";
 function Topbar() {
   return (
     <header
-      className="
-        h-[60px]
-        flex
-        items-center
-        justify-between
-        mb-6
-      "
+      className="flex h-14 w-full items-center justify-between gap-4"
     >
       <SearchBar />
 

@@ -22,6 +22,7 @@ router.get(
 router.post(
     '/',
     protect,
+    authorize('GYM_OWNER', 'ADMIN'),
     gymController.createGym
 );
 router.patch(

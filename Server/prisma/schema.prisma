@@ -27,7 +27,7 @@ model User {
 }
 
 model Gym {
-  id          String           @id @default(cuid())
+  id          String    @id @default(cuid())
   name        String
   description String?
   address     String
@@ -36,12 +36,18 @@ model Gym {
   pincode     String
   phone       String
   email       String?
-  status      GymStatus        @default(PENDING)
-  ownerId     String
-  owner       User             @relation(fields: [ownerId], references: [id])
-  plans       MembershipPlan[]
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  status      GymStatus @default(PENDING)
+
+  ownerId String
+  owner   User   @relation(fields: [ownerId], references: [id])
+
+  plans MembershipPlan[]
+
+  // ✅ NEW RELATION
+  images GymImage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model MembershipPlan {
@@ -96,8 +102,11 @@ model MarketplaceListing {
 
   status ListingStatus @default(ACTIVE)
 
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   transferRequests TransferRequest[]
 }
 
@@ -132,6 +141,25 @@ model Notification {
   createdAt DateTime @default(now())
 }
 
+model GymImage {
+  id String @id @default(cuid())
+
+  gymId String
+  gym   Gym    @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  imageKey String @unique
+  imageUrl String
+
+  isPrimary Boolean @default(false)
+
+  displayOrder Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([gymId])
+}
+
 enum UserRole {
   USER
   GYM_OWNER
@@ -153,9 +181,19 @@ enum MembershipStatus {
 }
 
 enum ListingStatus {
+  DRAFT
   ACTIVE
+  PAUSED
+  RESERVED
+  PAYMENT_PENDING
+  PAYMENT_SUCCESS
+  PAYMENT_FAILED
+  TRANSFER_PENDING
+  GYM_APPROVAL_PENDING
+  TRANSFER_REJECTED
   SOLD
   CANCELLED
+  EXPIRED
 }
 
 enum TransferRequestStatus {

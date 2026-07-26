@@ -9,7 +9,7 @@ function UserMenu() {
       className="
         flex
         items-center
-        gap-2
+        gap-2 sm:gap-3
         px-2
         py-1
         rounded-xl
@@ -34,13 +34,13 @@ function UserMenu() {
         {user?.firstName?.charAt(0)}
       </div>
 
-      <div className="text-left">
+      <div className="hidden text-left sm:block">
         <h4 className="text-sm font-semibold">{user?.firstName}</h4>
 
         <p className="text-[11px] text-zinc-500">{user?.role}</p>
       </div>
 
-      <ChevronDown size={16} className="text-zinc-500" />
+      <ChevronDown size={16} className="hidden text-zinc-500 sm:block" />
     </button>
   );
 }

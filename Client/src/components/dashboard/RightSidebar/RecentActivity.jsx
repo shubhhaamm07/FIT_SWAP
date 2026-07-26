@@ -18,7 +18,7 @@ function RecentActivity({ activities = [] }) {
   };
 
   return (
-    <section className="mt-5 rounded-3xl border border-white/10 bg-[#12121A] p-5">
+    <section className="rounded-2xl border border-white/[0.1] bg-[#10111a] p-5">
       <div className="mb-5 flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">Recent Activity</h2>

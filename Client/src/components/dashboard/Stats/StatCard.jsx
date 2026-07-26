@@ -7,11 +7,11 @@ function StatCard({ title, value, subtitle, icon: Icon, color }) {
         group
         relative
         overflow-hidden
-        rounded-3xl
+        rounded-2xl
         border
         border-white/10
-        bg-[#12121A]
-        p-5
+        bg-[#10111a]
+        p-5 sm:p-6
         transition-all
         duration-300
         hover:-translate-y-1
@@ -40,11 +40,11 @@ function StatCard({ title, value, subtitle, icon: Icon, color }) {
 
       <div className="relative flex items-start justify-between">
         <div>
-          <p className="text-xs uppercase tracking-wider text-zinc-500">
+          <p className="max-w-[130px] text-xs font-medium uppercase tracking-wider text-zinc-500">
             {title}
           </p>
 
-          <h2 className="mt-3 text-3xl font-bold">{value}</h2>
+          <h2 className="mt-3 text-3xl font-bold tracking-tight">{value}</h2>
 
           <div className="mt-3 flex items-center gap-2">
             <TrendingUp size={14} className="text-green-400" />
@@ -62,7 +62,7 @@ function StatCard({ title, value, subtitle, icon: Icon, color }) {
             w-12
             items-center
             justify-center
-            rounded-2xl
+            rounded-xl
             bg-white/5
             transition
             duration-300
@@ -73,7 +73,7 @@ function StatCard({ title, value, subtitle, icon: Icon, color }) {
         </div>
       </div>
 
-      <div className="relative mt-5">
+      <div className="relative mt-6">
         <div className="h-2 rounded-full bg-white/5">
           <div
             className="

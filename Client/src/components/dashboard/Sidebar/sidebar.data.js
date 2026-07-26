@@ -30,7 +30,7 @@ export const sidebarSections = [
         items: [
             {
                 label: "Memberships",
-                to: "/dashboard/memberships",
+                to: "/memberships",
                 icon: CreditCard,
             },
 

@@ -1,13 +1,13 @@
 import { Link, useLocation } from "react-router-dom";
 
-function SidebarItem({ icon: Icon, label, path, disabled = false }) {
+function SidebarItem({ icon: Icon, label, to, disabled = false }) {
   const { pathname } = useLocation();
 
-  const isActive = pathname === path;
+  const isActive = pathname === to;
 
   return (
     <Link
-      to={disabled ? "#" : path}
+      to={disabled ? "#" : to}
       className={`
         group
         flex
@@ -35,7 +35,6 @@ function SidebarItem({ icon: Icon, label, path, disabled = false }) {
         size={20}
         className={`
           transition-colors
-
           ${isActive ? "text-violet-400" : "group-hover:text-violet-400"}
         `}
       />
@@ -46,18 +45,12 @@ function SidebarItem({ icon: Icon, label, path, disabled = false }) {
         <span
           className="
             ml-auto
-
             rounded-full
-
             bg-zinc-800
-
             px-2
             py-1
-
             text-[10px]
-
             uppercase
-
             tracking-wider
           "
         >

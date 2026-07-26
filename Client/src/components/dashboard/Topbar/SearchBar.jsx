@@ -4,16 +4,17 @@ function SearchBar() {
   return (
     <div
       className="
-        w-[500px]
-        h-14
-        rounded-2xl
-        bg-[#13131B]
+        h-12
+        w-full
+        max-w-[520px]
+        rounded-xl
+        bg-[#11121a]
         border
         border-white/10
         flex
         items-center
         gap-4
-        px-5
+        px-4
         transition-all
         duration-300
         hover:border-violet-500
@@ -36,6 +37,7 @@ function SearchBar() {
 
       <kbd
         className="
+          hidden
           rounded-lg
           border
           border-white/10
@@ -43,6 +45,7 @@ function SearchBar() {
           py-1
           text-xs
           text-zinc-500
+          sm:inline-flex
         "
       >
         ⌘ K

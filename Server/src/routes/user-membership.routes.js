@@ -35,11 +35,13 @@ router.get(
 router.patch(
     '/memberships/:membershipId/freeze',
     protect,
+    verifyMembershipOwnership,
     userMembershipController.freezeMembership
 );
 router.patch(
     '/memberships/:membershipId/unfreeze',
     protect,
+    verifyMembershipOwnership,
     userMembershipController.unfreezeMembership
 );
 

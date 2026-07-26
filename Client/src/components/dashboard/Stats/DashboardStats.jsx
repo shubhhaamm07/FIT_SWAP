@@ -6,7 +6,7 @@ import SkeletonCard from "./StatCardSkeleton";
 function DashboardStats({ stats = {}, loading = false }) {
   if (loading) {
     return (
-      <section className="grid grid-cols-[repeat(4,220px)] gap-5">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {[1, 2, 3, 4].map((item) => (
           <SkeletonCard key={item} />
         ))}
@@ -15,7 +15,7 @@ function DashboardStats({ stats = {}, loading = false }) {
   }
 
   return (
-    <section className="grid grid-cols-[repeat(4,220px)] gap-5">
+    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
       <StatCard
         title="Active Memberships"
         value={stats.memberships?.active ?? 0}
