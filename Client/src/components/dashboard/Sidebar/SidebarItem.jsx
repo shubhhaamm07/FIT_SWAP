@@ -3,29 +3,19 @@ import { Link, useLocation } from "react-router-dom";
 function SidebarItem({ icon: Icon, label, to, disabled = false }) {
   const { pathname } = useLocation();
 
-  const isActive = pathname === to;
+  const isActive = pathname === to || pathname.startsWith(`${to}/`);
 
   return (
     <Link
       to={disabled ? "#" : to}
+      aria-current={isActive ? "page" : undefined}
       className={`
-        group
-        flex
-        items-center
-        gap-4
-
-        px-4
-        py-3
-
-        rounded-2xl
-
-        transition-all
-        duration-300
-
+        group flex items-center gap-3 rounded-xl border px-3 py-2.5
+        text-sm transition-all duration-200
         ${
           isActive
-            ? "bg-violet-600/15 border-l-4 border-violet-500 text-violet-400"
-            : "text-zinc-400 hover:bg-[#18181F] hover:text-white"
+            ? "border-violet-500/25 bg-violet-500/12 text-white shadow-[0_8px_24px_rgba(76,29,149,0.16)]"
+            : "border-transparent text-zinc-400 hover:bg-white/[0.05] hover:text-white"
         }
 
         ${disabled ? "pointer-events-none opacity-50" : ""}
@@ -35,11 +25,11 @@ function SidebarItem({ icon: Icon, label, to, disabled = false }) {
         size={20}
         className={`
           transition-colors
-          ${isActive ? "text-violet-400" : "group-hover:text-violet-400"}
+          ${isActive ? "text-violet-300" : "group-hover:text-violet-300"}
         `}
       />
 
-      <span className="font-medium text-[15px]">{label}</span>
+      <span className="font-medium">{label}</span>
 
       {disabled && (
         <span

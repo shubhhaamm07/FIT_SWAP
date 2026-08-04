@@ -34,4 +34,9 @@ router.patch(
     protect,
     transferRequestController.rejectTransferRequest
 );
+router.patch(
+    '/transfer-requests/:requestId/cancel',
+    protect,
+    transferRequestController.cancelTransferRequest
+);
 module.exports = router;

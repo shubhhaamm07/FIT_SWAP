@@ -13,7 +13,9 @@ const createListing = async (
     askingPrice
 ) => {
 
-    if (askingPrice <= 0) {
+    const normalizedAskingPrice = Number(askingPrice);
+
+    if (!Number.isFinite(normalizedAskingPrice) || normalizedAskingPrice <= 0) {
         throw new Error(
             'Invalid asking price'
         );
@@ -96,9 +98,9 @@ const createListing = async (
     }
 
     if (
-        askingPrice <
+        normalizedAskingPrice <
         membership.plan.price * 0.30 ||
-        askingPrice >
+        normalizedAskingPrice >
         membership.plan.price
     ) {
 
@@ -142,7 +144,7 @@ const createListing = async (
 
             sellerId,
 
-            askingPrice
+            askingPrice: normalizedAskingPrice
 
         }
 
@@ -809,9 +811,11 @@ const updateListingPrice = async (
     askingPrice
 ) => {
 
+    const normalizedAskingPrice = Number(askingPrice);
+
     if (
-        !askingPrice ||
-        askingPrice <= 0
+        !Number.isFinite(normalizedAskingPrice) ||
+        normalizedAskingPrice <= 0
     ) {
 
         throw new Error(
@@ -822,17 +826,18 @@ const updateListingPrice = async (
 
     const listing =
         await prisma.marketplaceListing.findFirst({
-
             where: {
-
                 id: listingId,
-
                 sellerId,
-
                 deletedAt: null
-
+            },
+            include: {
+                membership: {
+                    include: {
+                        plan: true
+                    }
+                }
             }
-
         });
 
     if (!listing) {
@@ -853,6 +858,16 @@ const updateListingPrice = async (
             'Listing price cannot be updated.'
         );
 
+    }
+
+    const planPrice = listing.membership.plan.price;
+    if (
+        normalizedAskingPrice < planPrice * 0.30 ||
+        normalizedAskingPrice > planPrice
+    ) {
+        throw new Error(
+            `Asking price must be between ₹${(planPrice * 0.30).toFixed(0)} and ₹${planPrice}`
+        );
     }
 
     if (
@@ -881,7 +896,7 @@ const updateListingPrice = async (
 
                 data: {
 
-                    askingPrice
+                    askingPrice: normalizedAskingPrice
 
                 }
 

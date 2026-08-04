@@ -96,7 +96,18 @@ const getMyTransferRequests = async (
                 include: {
                     membership: {
                         include: {
-                            plan: true
+                            plan: {
+                                include: {
+                                    gym: true
+                                }
+                            }
+                        }
+                    },
+                    seller: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true
                         }
                     }
                 }
@@ -129,7 +140,11 @@ const getIncomingTransferRequests = async (
                 include: {
                     membership: {
                         include: {
-                            plan: true
+                            plan: {
+                                include: {
+                                    gym: true
+                                }
+                            }
                         }
                     }
                 }
@@ -214,20 +229,59 @@ const approveTransferRequest = async (
     const approvedRequest =
         await prisma.$transaction(
             async (tx) => {
-                const approvedRequest =
-                    await tx.transferRequest.update({
+                const requestUpdate =
+                    await tx.transferRequest.updateMany({
                         where: {
-                            id: requestId
+                            id: requestId,
+                            status: 'PENDING'
                         },
                         data: {
                             status: 'APPROVED'
                         }
                     });
 
+                if (requestUpdate.count !== 1) {
+                    throw new Error('Transfer request has already been processed');
+                }
+
+                const membershipUpdate =
+                    await tx.userMembership.updateMany({
+                        where: {
+                            id: request.listing.membershipId,
+                            userId: sellerId,
+                            status: 'ACTIVE'
+                        },
+                        data: {
+                            userId: request.buyerId
+                        }
+                    });
+
+                if (membershipUpdate.count !== 1) {
+                    throw new Error('Membership is no longer available for transfer');
+                }
+
+                const listingUpdate =
+                    await tx.marketplaceListing.updateMany({
+                        where: {
+                            id: request.listingId,
+                            sellerId,
+                            status: 'ACTIVE',
+                            deletedAt: null
+                        },
+                        data: {
+                            status: 'SOLD'
+                        }
+                    });
+
+                if (listingUpdate.count !== 1) {
+                    throw new Error('Listing is no longer available for transfer');
+                }
+
                 await tx.transferRequest.updateMany({
                     where: {
                         listingId:
                             request.listingId,
+                        status: 'PENDING',
                         id: {
                             not: requestId
                         }
@@ -237,27 +291,9 @@ const approveTransferRequest = async (
                     }
                 });
 
-                await tx.userMembership.update({
-                    where: {
-                        id: request.listing
-                            .membershipId
-                    },
-                    data: {
-                        userId:
-                            request.buyerId
-                    }
+                return tx.transferRequest.findUnique({
+                    where: { id: requestId }
                 });
-
-                await tx.marketplaceListing.update({
-                    where: {
-                        id: request.listingId
-                    },
-                    data: {
-                        status: 'SOLD'
-                    }
-                });
-
-                return approvedRequest;
             }
         );
 
@@ -305,14 +341,20 @@ const rejectTransferRequest = async (
     }
 
     const rejectedRequest =
-        await prisma.transferRequest.update({
+        await prisma.transferRequest.updateMany({
             where: {
-                id: requestId
+                id: requestId,
+                buyerId: request.buyerId,
+                status: 'PENDING'
             },
             data: {
                 status: 'REJECTED'
             }
         });
+
+    if (rejectedRequest.count !== 1) {
+        throw new Error('Transfer request has already been processed');
+    }
 
     await notificationService.createNotification(
         request.buyerId,
@@ -320,8 +362,58 @@ const rejectTransferRequest = async (
         'Your transfer request has been rejected.'
     );
 
-    return rejectedRequest;
+    return prisma.transferRequest.findUnique({
+        where: { id: requestId }
+    });
+};
+
+const cancelTransferRequest = async (
+    requestId,
+    buyerId
+) => {
+    const request = await prisma.transferRequest.findFirst({
+        where: {
+            id: requestId,
+            buyerId
+        },
+        include: {
+            listing: true
+        }
+    });
+
+    if (!request) {
+        throw new Error('Transfer request not found');
+    }
+
+    if (request.status !== 'PENDING') {
+        throw new Error('Only pending transfer requests can be cancelled');
+    }
+
+    const cancelledRequest = await prisma.transferRequest.updateMany({
+        where: {
+            id: requestId,
+            buyerId,
+            status: 'PENDING'
+        },
+        data: {
+            status: 'CANCELLED'
+        }
+    });
+
+    if (cancelledRequest.count !== 1) {
+        throw new Error('Transfer request has already been processed');
+    }
+
+    await notificationService.createNotification(
+        request.listing.sellerId,
+        'Transfer Request Cancelled',
+        'A buyer has cancelled their transfer request.'
+    );
+
+    return prisma.transferRequest.findUnique({
+        where: { id: requestId }
+    });
 };
 module.exports = {
-    createTransferRequest, getMyTransferRequests, getIncomingTransferRequests, approveTransferRequest, rejectTransferRequest
+    createTransferRequest, getMyTransferRequests, getIncomingTransferRequests, approveTransferRequest, rejectTransferRequest, cancelTransferRequest
 };

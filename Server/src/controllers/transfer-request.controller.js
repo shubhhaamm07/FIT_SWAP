@@ -116,10 +116,35 @@ const rejectTransferRequest = async (
         });
     }
 };
+
+const cancelTransferRequest = async (
+    req,
+    res
+) => {
+    try {
+        const request =
+            await transferRequestService.cancelTransferRequest(
+                req.params.requestId,
+                req.user.id
+            );
+
+        return res.status(200).json({
+            success: true,
+            message: 'Transfer request cancelled successfully',
+            data: request
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
 module.exports = {
     createTransferRequest,
     getMyTransferRequests,
     getIncomingTransferRequests,
     approveTransferRequest,
-    rejectTransferRequest
+    rejectTransferRequest,
+    cancelTransferRequest
 };

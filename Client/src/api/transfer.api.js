@@ -47,3 +47,12 @@ export const rejectTransferRequest =
 
         return data.data;
     };
+
+export const cancelTransferRequest =
+    async (requestId) => {
+        const { data } = await axios.patch(
+            `/transfer-requests/${requestId}/cancel`
+        );
+
+        return data.data;
+    };

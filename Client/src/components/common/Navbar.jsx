@@ -1,9 +1,17 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Dumbbell } from "lucide-react";
 
 function Navbar() {
   const [scrolled, setScrolled] = useState(false);
+  const navigate = useNavigate();
+
+  const navigateLanding = (item) => {
+    if (item === "Marketplace") return navigate("/login");
+    if (item === "How It Works") return document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" });
+    if (item === "Partner Gyms") return document.getElementById("marketplace-preview")?.scrollIntoView({ behavior: "smooth" });
+    return navigate("/register");
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -86,6 +94,8 @@ function Navbar() {
             (item) => (
               <button
                 key={item}
+                type="button"
+                onClick={() => navigateLanding(item)}
                 className="
                 relative
                 text-zinc-300

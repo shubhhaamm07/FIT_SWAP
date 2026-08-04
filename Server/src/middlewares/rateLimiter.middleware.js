@@ -34,7 +34,19 @@ const apiLimiter = rateLimit({
     },
 });
 
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        message: 'Too many sign-in attempts. Please try again after 15 minutes.',
+    },
+});
+
 module.exports = {
     uploadLimiter,
     apiLimiter,
+    authLimiter,
 };

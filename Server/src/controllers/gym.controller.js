@@ -87,7 +87,27 @@ const updateGymStatus = async (req, res) => {
         });
     }
 };
-console.log(gymService);
+const getGymById = async (req, res) => {
+    try {
+        const gym = await gymService.getGymById(req.params.id);
+        if (!gym) {
+            return res.status(404).json({
+                success: false,
+                message: 'Gym not found'
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            data: gym
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
 module.exports = {
-    createGym, getMyGyms, getAllGyms, updateGymStatus
+    createGym, getMyGyms, getAllGyms, getGymById, updateGymStatus
 };

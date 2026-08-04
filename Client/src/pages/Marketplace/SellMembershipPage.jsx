@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { BadgeCheck, CircleDollarSign, Info, LoaderCircle, Tag } from "lucide-react";
 import DashboardLayout from "../../layouts/DashboardLayout";
 import MarketplaceSidebar from "../../components/marketplace/MarketplaceSidebar";
@@ -9,6 +9,7 @@ import formatPrice from "../../components/marketplace/utils/formatPrice";
 
 const SellMembershipPage = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [memberships, setMemberships] = useState([]);
   const [membershipId, setMembershipId] = useState("");
   const [askingPrice, setAskingPrice] = useState("");
@@ -20,7 +21,14 @@ const SellMembershipPage = () => {
     const loadMemberships = async () => {
       try {
         const response = await getMyMemberships();
-        setMemberships(response.data || []);
+        const membershipData = response.data || [];
+        setMemberships(membershipData);
+        const requestedMembershipId = searchParams.get("membershipId");
+        const requestedMembership = membershipData.find((membership) => membership.id === requestedMembershipId && membership.status === "ACTIVE" && membership.plan?.transferable && !membership.listing && new Date(membership.endDate) > new Date());
+        if (requestedMembership) {
+          setMembershipId(requestedMembership.id);
+          setAskingPrice(String(Math.round(requestedMembership.plan.price)));
+        }
       } catch (err) {
         setError(err.response?.data?.message || "Unable to load your memberships.");
       } finally {
@@ -29,7 +37,7 @@ const SellMembershipPage = () => {
     };
 
     void loadMemberships();
-  }, []);
+  }, [searchParams]);
 
   const eligibleMemberships = useMemo(() => memberships.filter((membership) => membership.status === "ACTIVE" && membership.plan?.transferable && !membership.listing && new Date(membership.endDate) > new Date()), [memberships]);
   const selectedMembership = eligibleMemberships.find((membership) => membership.id === membershipId);

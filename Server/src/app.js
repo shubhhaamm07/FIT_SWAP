@@ -49,6 +49,7 @@ app.use(
 app.use(express.json());
 app.use(cookieParser());
 app.use(morgan('dev'));
+app.use('/api', apiLimiter);
 
 app.get('/api/health', (req, res) => {
     return res.status(200).json({
@@ -69,5 +70,4 @@ app.use("/api", dashboardRoutes);
 app.use("/api", chartRoutes);
 app.use("/api", imageRoutes);
 app.use('/api', savedListingRoutes);
-app.use(apiLimiter);
 module.exports = app;

@@ -15,6 +15,12 @@ model User {
   phone     String?  @unique
   password  String
   role      UserRole @default(USER)
+  avatarUrl String?
+  avatarKey String?
+  coverUrl  String?
+  coverKey  String?
+  emailNotifications       Boolean @default(true)
+  marketplaceNotifications Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -215,4 +221,5 @@ enum TransferRequestStatus {
   PENDING
   APPROVED
   REJECTED
+  CANCELLED
 }

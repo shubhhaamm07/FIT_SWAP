@@ -68,7 +68,16 @@ const getMyMemberships = async (
         include: {
             plan: {
                 include: {
-                    gym: true
+                    gym: {
+                        include: {
+                            images: {
+                                orderBy: [
+                                    { isPrimary: 'desc' },
+                                    { displayOrder: 'asc' }
+                                ]
+                            }
+                        }
+                    }
                 }
             },
             listing: true
@@ -87,11 +96,17 @@ const getMembershipById = async (
         },
         include: {
             plan: {
-                select: {
-                    id: true,
-                    name: true,
-                    price: true,
-                    durationInDays: true
+                include: {
+                    gym: {
+                        include: {
+                            images: {
+                                orderBy: [
+                                    { isPrimary: 'desc' },
+                                    { displayOrder: 'asc' }
+                                ]
+                            }
+                        }
+                    }
                 }
             }
         }

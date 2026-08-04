@@ -1,6 +1,7 @@
 const {
     PutObjectCommand,
     DeleteObjectCommand,
+    GetObjectCommand,
 } = require("@aws-sdk/client-s3");
 const { fileTypeFromBuffer } = require("file-type");
 const ALLOWED_IMAGE_TYPES = [
@@ -327,9 +328,106 @@ const reorderGymImages = async ({ gymId, userId, images }) => {
     };
 };
 
+const uploadProfileImage = async ({ userId, file, type }) => {
+    if (!file) {
+        throw new Error('Please select an image to upload.');
+    }
+
+    if (!['avatar', 'cover'].includes(type)) {
+        throw new Error('Invalid profile image type.');
+    }
+
+    const detectedType = await fileTypeFromBuffer(file.buffer);
+    if (!detectedType || !ALLOWED_IMAGE_TYPES.includes(detectedType.mime)) {
+        throw new Error('Only JPEG, PNG and WEBP images are allowed.');
+    }
+
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+            avatarKey: true,
+            coverKey: true
+        }
+    });
+
+    if (!user) {
+        throw new Error('User not found.');
+    }
+
+    const key = `profiles/${userId}/${type}/${uuid()}.${detectedType.ext}`;
+    const url = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+    const keyField = type === 'avatar' ? 'avatarKey' : 'coverKey';
+    const urlField = type === 'avatar' ? 'avatarUrl' : 'coverUrl';
+    const previousKey = type === 'avatar' ? user.avatarKey : user.coverKey;
+
+    try {
+        await s3.send(new PutObjectCommand({
+            Bucket: process.env.AWS_BUCKET_NAME,
+            Key: key,
+            Body: file.buffer,
+            ContentType: detectedType.mime,
+        }));
+
+        const updatedUser = await prisma.user.update({
+            where: { id: userId },
+            data: {
+                [keyField]: key,
+                [urlField]: url
+            },
+            select: {
+                avatarUrl: true,
+                coverUrl: true
+            }
+        });
+
+        if (previousKey) {
+            try {
+                await deleteS3Object(previousKey);
+            } catch (error) {
+                console.error('Unable to remove the previous profile image', error.message);
+            }
+        }
+
+        return updatedUser;
+    } catch (error) {
+        try {
+            await deleteS3Object(key);
+        } catch (_) {
+            // The upload did not complete, so there may be no object to remove.
+        }
+        throw error;
+    }
+};
+
+const getProfileImage = async ({ userId, type }) => {
+    if (!['avatar', 'cover'].includes(type)) {
+        throw new Error('Invalid profile image type.');
+    }
+
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+            avatarKey: true,
+            coverKey: true,
+        }
+    });
+
+    const key = type === 'avatar' ? user?.avatarKey : user?.coverKey;
+    if (!key) {
+        throw new Error('Profile image not found.');
+    }
+
+    return s3.send(new GetObjectCommand({
+        Bucket: process.env.AWS_BUCKET_NAME,
+        Key: key,
+    }));
+};
+
 module.exports = {
     uploadGymImages,
     deleteGymImage,
     setPrimaryImage,
     reorderGymImages,
+    uploadProfileImage,
+    getProfileImage,
 };

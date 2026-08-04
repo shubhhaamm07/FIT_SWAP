@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 function Footer() {
   return (
     <footer className="bg-[#09090B] border-t border-zinc-800">
@@ -34,21 +36,13 @@ function Footer() {
             <h3 className="font-semibold text-lg mb-5">Marketplace</h3>
 
             <ul className="space-y-3 text-zinc-400">
-              <li className="hover:text-violet-500 cursor-pointer transition">
-                Browse Listings
-              </li>
+              <li><Link to="/login" className="hover:text-violet-500 transition">Browse Listings</Link></li>
 
-              <li className="hover:text-violet-500 cursor-pointer transition">
-                Sell Membership
-              </li>
+              <li><Link to="/login" className="hover:text-violet-500 transition">Sell Membership</Link></li>
 
-              <li className="hover:text-violet-500 cursor-pointer transition">
-                My Listings
-              </li>
+              <li><Link to="/login" className="hover:text-violet-500 transition">My Listings</Link></li>
 
-              <li className="hover:text-violet-500 cursor-pointer transition">
-                Transfer Requests
-              </li>
+              <li><Link to="/login" className="hover:text-violet-500 transition">Transfer Requests</Link></li>
             </ul>
           </div>
 

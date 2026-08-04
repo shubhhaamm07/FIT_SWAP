@@ -1,4 +1,7 @@
+import { useNavigate } from "react-router-dom";
+
 function CTASection() {
+  const navigate = useNavigate();
   return (
     <section className="py-28 bg-[#0B0B0F]">
       <div className="max-w-6xl mx-auto px-8">
@@ -49,7 +52,7 @@ function CTASection() {
             </p>
 
             <div className="mt-10 flex justify-center gap-5 flex-wrap">
-              <button
+              <button type="button" onClick={() => navigate("/login")}
                 className="
                   px-8
                   py-4
@@ -68,7 +71,7 @@ function CTASection() {
                 Explore Marketplace
               </button>
 
-              <button
+              <button type="button" onClick={() => navigate("/register")}
                 className="
                   px-8
                   py-4

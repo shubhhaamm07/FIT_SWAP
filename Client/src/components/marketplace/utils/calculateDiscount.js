@@ -6,4 +6,4 @@ const calculateDiscount = (originalPrice, sellingPrice) => {
     );
 };
 
-export default calculateDiscount;
+export default calculateDiscount; 

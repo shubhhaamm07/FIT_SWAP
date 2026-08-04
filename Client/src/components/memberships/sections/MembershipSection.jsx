@@ -36,16 +36,14 @@ function MembershipSection() {
 
     freezeMembership,
     unfreezeMembership,
-    purchaseMembership,
   } = useMembership();
 
   return (
     <MembershipModalProvider
       onFreeze={freezeMembership}
       onUnfreeze={unfreezeMembership}
-      onPurchase={purchaseMembership}
     >
-      {({ openFreeze, openUnfreeze, openPurchase }) => (
+      {({ openFreeze, openUnfreeze }) => (
         <div className="space-y-5 lg:space-y-7">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -122,7 +120,6 @@ function MembershipSection() {
                   membership={membership}
                   onFreeze={openFreeze}
                   onUnfreeze={openUnfreeze}
-                  onPurchase={openPurchase}
                 />
               ))}
             </div>

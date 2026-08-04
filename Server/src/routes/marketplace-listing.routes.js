@@ -22,26 +22,24 @@ router.get(
 );
 
 router.get(
+    '/listings/my',
+    protect,
+    marketplaceListingController.getMyListings
+);
+
+router.get(
     '/listings/:listingId',
     marketplaceListingController.getListingById
 );
 
 /*
-|--------------------------------------------------------------------------
-| Seller Routes
-|--------------------------------------------------------------------------
+ Seller routes
 */
 
 router.post(
     '/listings',
     protect,
     marketplaceListingController.createListing
-);
-
-router.get(
-    '/listings/my',
-    protect,
-    marketplaceListingController.getMyListings
 );
 
 router.get(

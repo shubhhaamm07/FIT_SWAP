@@ -24,6 +24,17 @@ const getAllGyms = async () => {
         where: {
             status: 'APPROVED'
         },
+        include: {
+            images: {
+                orderBy: [
+                    { isPrimary: 'desc' },
+                    { displayOrder: 'asc' }
+                ]
+            },
+            plans: {
+                orderBy: { price: 'asc' }
+            }
+        },
         orderBy: {
             createdAt: 'desc'
         }
@@ -44,9 +55,21 @@ const updateGymStatus = async (gymId, status) => {
     return gym;
 };
 const getGymById = async (gymId) => {
-    return prisma.gym.findUnique({
+    return prisma.gym.findFirst({
         where: {
-            id: gymId
+            id: gymId,
+            status: 'APPROVED'
+        },
+        include: {
+            images: {
+                orderBy: [
+                    { isPrimary: 'desc' },
+                    { displayOrder: 'asc' }
+                ]
+            },
+            plans: {
+                orderBy: { price: 'asc' }
+            }
         }
     });
 };

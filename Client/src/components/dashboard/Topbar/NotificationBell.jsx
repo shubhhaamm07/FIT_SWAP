@@ -1,8 +1,23 @@
+import { useEffect, useState } from "react";
 import { Bell } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { getNotifications } from "../../../api/notification.api";
 
-function NotificationBell({ count = 0 }) {
+function NotificationBell() {
+  const navigate = useNavigate();
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    getNotifications().then((items) => { if (active) setCount(items.filter((item) => !item.isRead).length); }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+
   return (
     <button
+      type="button"
+      onClick={() => navigate("/notifications")}
+      aria-label="Open notifications"
       className="
         relative
         w-10

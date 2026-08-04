@@ -1,12 +1,14 @@
 import { ArrowRight, Sparkles } from "lucide-react";
 
 import { useAuth } from "../../../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 import Button from "../../ui/Button";
 
 import heroImage from "../../../assets/images/dashboard-hero.png";
 
 function DashboardHero() {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <section className="relative min-h-[300px] overflow-hidden rounded-2xl border border-white/[0.1] bg-[#100d1b] sm:min-h-[320px]">
@@ -44,12 +46,12 @@ function DashboardHero() {
           </p>
 
           <div className="mt-6 flex flex-wrap gap-3">
-            <Button className="h-11 px-5 text-sm shadow-lg shadow-violet-950/40">
+            <Button onClick={() => navigate("/marketplace")} className="h-11 px-5 text-sm shadow-lg shadow-violet-950/40">
               Explore Marketplace
               <ArrowRight size={15} />
             </Button>
 
-            <Button variant="secondary" className="h-11 px-5 text-sm">
+            <Button variant="secondary" onClick={() => navigate("/marketplace")} className="h-11 px-5 text-sm">
               Find Gyms
             </Button>
           </div>

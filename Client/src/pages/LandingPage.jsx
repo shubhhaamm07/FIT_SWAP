@@ -1,24 +1,47 @@
+import { useEffect, useState } from "react";
 import Navbar from "../components/common/Navbar";
-// import heroImage from "../assets/images/hero.png";
-// import WorkflowCard from "../components/common/WorkflowCard";
 import HeroSection from "../components/landing/HeroSection";
-// import StatsSection from "../components/landing/StatsSection";
+import StatsSection from "../components/landing/StatsSection";
 import WhyFitSwapSection from "../components/landing/WhyFitSwapSection";
 import HowItWorksSection from "../components/landing/HowItWorksSection";
 import MarketplacePreview from "../components/landing/MarketplacePreview";
 import CTASection from "../components/landing/CTASection";
 import Footer from "../components/landing/Footer";
-// import Arrow from "../components/common/Arrow";
 import FadeInSection from "../components/common/FadeInSection";
-// import CountUp from "react-countup";
-// import { motion } from "framer-motion";
+import { getAllGyms } from "../api/gym.api";
+import { getMarketplaceListings } from "../api/marketplace.api";
+
 function LandingPage() {
+  const [listings, setListings] = useState([]);
+  const [gymCount, setGymCount] = useState(0);
+
+  useEffect(() => {
+    const loadPublicData = async () => {
+      try {
+        const [gyms, marketplaceListings] = await Promise.all([
+          getAllGyms(),
+          getMarketplaceListings(),
+        ]);
+        setGymCount(gyms.length);
+        setListings(marketplaceListings);
+      } catch {
+        setGymCount(0);
+        setListings([]);
+      }
+    };
+
+    void loadPublicData();
+  }, []);
+
   return (
     <div className="bg-[#0B0B0F] text-white">
       <Navbar />
 
       <FadeInSection>
-        <HeroSection />
+        <HeroSection gymCount={gymCount} listingCount={listings.length} />
+      </FadeInSection>
+      <FadeInSection>
+        <StatsSection gymCount={gymCount} listingCount={listings.length} />
       </FadeInSection>
       <FadeInSection>
         <WhyFitSwapSection />
@@ -27,7 +50,7 @@ function LandingPage() {
         <HowItWorksSection />
       </FadeInSection>
       <FadeInSection>
-        <MarketplacePreview />
+        <MarketplacePreview listings={listings} />
       </FadeInSection>
 
       {/* <FadeInSection>

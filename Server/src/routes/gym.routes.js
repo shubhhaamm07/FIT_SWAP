@@ -19,6 +19,8 @@ router.get(
     gymController.getMyGyms
 );
 
+router.get('/:id', gymController.getGymById);
+
 router.post(
     '/',
     protect,

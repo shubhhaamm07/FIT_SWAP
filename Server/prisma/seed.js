@@ -98,6 +98,15 @@ async function main() {
             membership = await prisma.userMembership.create({ data: { userId: members[index].id, planId: plan.id, startDate, endDate, status: 'ACTIVE' } });
         }
 
+        if (index === 0) {
+            const existingListing = await prisma.marketplaceListing.findUnique({ where: { membershipId: membership.id } });
+            if (existingListing) {
+                await prisma.transferRequest.deleteMany({ where: { listingId: existingListing.id } });
+                await prisma.marketplaceListing.delete({ where: { id: existingListing.id } });
+            }
+            continue;
+        }
+
         const askingPrice = Math.round(plan.price * (0.55 + ((index % 4) * 0.1)));
         const statuses = ['ACTIVE', 'ACTIVE', 'ACTIVE', 'ACTIVE', 'PAUSED', 'RESERVED', 'SOLD'];
         const status = statuses[index % statuses.length];
@@ -113,6 +122,23 @@ async function main() {
     if (firstActive) {
         await prisma.savedListing.upsert({ where: { userId_listingId: { userId: admin.id, listingId: firstActive.id } }, update: {}, create: { userId: admin.id, listingId: firstActive.id } });
         await prisma.savedListing.upsert({ where: { userId_listingId: { userId: members[1].id, listingId: firstActive.id } }, update: {}, create: { userId: members[1].id, listingId: firstActive.id } });
+    }
+
+    const transferListing = listings.find((listing) => listing.status === 'ACTIVE' && listing.sellerId !== members[0].id);
+    if (transferListing) {
+        await prisma.transferRequest.upsert({
+            where: {
+                listingId_buyerId: {
+                    listingId: transferListing.id,
+                    buyerId: members[0].id
+                }
+            },
+            update: {},
+            create: {
+                listingId: transferListing.id,
+                buyerId: members[0].id
+            }
+        });
     }
 
     for (let index = 0; index < members.length; index += 1) {

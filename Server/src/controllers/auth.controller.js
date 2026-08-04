@@ -45,11 +45,82 @@ const login = async (req, res) => {
     }
 };
 const getMe = async (req, res) => {
-    return res.status(200).json({
-        success: true,
-        user: req.user
-    });
+    try {
+        const user = await authService.getProfile(req.user.id);
+        return res.status(200).json({
+            success: true,
+            user
+        });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
 };
+
+const updateMe = async (req, res) => {
+    try {
+        const user = await authService.updateProfile(req.user.id, req.body);
+        return res.status(200).json({
+            success: true,
+            message: 'Profile updated successfully',
+            user
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+const updateSettings = async (req, res) => {
+    try {
+        const user = await authService.updateSettings(req.user.id, req.body);
+        return res.status(200).json({
+            success: true,
+            message: 'Settings updated successfully',
+            user
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+const changePassword = async (req, res) => {
+    try {
+        await authService.changePassword(req.user.id, req.body);
+        return res.status(200).json({
+            success: true,
+            message: 'Password updated successfully'
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+const deleteMe = async (req, res) => {
+    try {
+        await authService.deleteAccount(req.user.id, req.body);
+        return res.status(200).json({
+            success: true,
+            message: 'Account deleted successfully'
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
 module.exports = {
-    register, login, getMe
+    register, login, getMe, updateMe, updateSettings, changePassword, deleteMe
 };

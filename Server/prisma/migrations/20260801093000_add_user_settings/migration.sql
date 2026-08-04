@@ -1,0 +1,3 @@
+ALTER TABLE "User"
+    ADD COLUMN IF NOT EXISTS "emailNotifications" BOOLEAN NOT NULL DEFAULT true,
+    ADD COLUMN IF NOT EXISTS "marketplaceNotifications" BOOLEAN NOT NULL DEFAULT true;

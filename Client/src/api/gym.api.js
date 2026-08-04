@@ -13,3 +13,8 @@ export const getMyGyms = async () => {
 
     return data.data;
 };
+
+export const getGymById = async (gymId) => {
+    const { data } = await axios.get(`/gyms/${gymId}`);
+    return data.data;
+};

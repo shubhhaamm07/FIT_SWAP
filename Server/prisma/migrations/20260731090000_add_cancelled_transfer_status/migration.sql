@@ -1,0 +1,1 @@
+ALTER TYPE "TransferRequestStatus" ADD VALUE IF NOT EXISTS 'CANCELLED';

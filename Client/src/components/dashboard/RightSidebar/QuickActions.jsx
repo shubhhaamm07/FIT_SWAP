@@ -1,26 +1,32 @@
 import { Plus, Store, CreditCard, Dumbbell } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 function QuickActions() {
+  const navigate = useNavigate();
   const actions = [
     {
       title: "Sell Membership",
       icon: Store,
       color: "bg-violet-600 hover:bg-violet-500",
+      to: "/marketplace/sell",
     },
     {
       title: "Buy Membership",
       icon: CreditCard,
       color: "bg-emerald-600 hover:bg-emerald-500",
+      to: "/marketplace",
     },
     {
       title: "Find Gyms",
       icon: Dumbbell,
       color: "bg-sky-600 hover:bg-sky-500",
+      to: "/marketplace",
     },
     {
       title: "Create Listing",
       icon: Plus,
       color: "bg-amber-600 hover:bg-amber-500",
+      to: "/marketplace/sell",
     },
   ];
 
@@ -37,6 +43,8 @@ function QuickActions() {
           return (
             <button
               key={action.title}
+              type="button"
+              onClick={() => navigate(action.to)}
               className={`
                 ${action.color}
                 group

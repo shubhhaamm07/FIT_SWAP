@@ -1,4 +1,4 @@
-function StatsSection() {
+function StatsSection({ gymCount, listingCount }) {
   return (
     <section className="bg-[#0B0B0F] py-20">
       <div className="max-w-7xl mx-auto px-8">
@@ -19,9 +19,9 @@ function StatsSection() {
               duration-300
             "
           >
-            <h2 className="text-4xl font-bold text-violet-500">500+</h2>
+            <h2 className="text-4xl font-bold text-violet-500">{listingCount || "—"}</h2>
 
-            <p className="text-zinc-400 mt-2">Active Members</p>
+            <p className="text-zinc-400 mt-2">Active Listings</p>
           </div>
 
           {/* Card 2 */}
@@ -40,7 +40,7 @@ function StatsSection() {
               duration-300
             "
           >
-            <h2 className="text-4xl font-bold text-violet-500">50+</h2>
+            <h2 className="text-4xl font-bold text-violet-500">{gymCount || "—"}</h2>
 
             <p className="text-zinc-400 mt-2">Partner Gyms</p>
           </div>
@@ -61,9 +61,9 @@ function StatsSection() {
               duration-300
             "
           >
-            <h2 className="text-4xl font-bold text-violet-500">1000+</h2>
+            <h2 className="text-4xl font-bold text-violet-500">100%</h2>
 
-            <p className="text-zinc-400 mt-2">Membership Listings</p>
+            <p className="text-zinc-400 mt-2">Secure Transfers</p>
           </div>
 
           {/* Card 4 */}
@@ -82,9 +82,9 @@ function StatsSection() {
               duration-300
             "
           >
-            <h2 className="text-4xl font-bold text-violet-500">₹10L+</h2>
+            <h2 className="text-4xl font-bold text-violet-500">24/7</h2>
 
-            <p className="text-zinc-400 mt-2">Saved By Users</p>
+            <p className="text-zinc-400 mt-2">Marketplace Access</p>
           </div>
         </div>
       </div>

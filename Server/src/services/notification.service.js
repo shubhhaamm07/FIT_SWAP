@@ -5,6 +5,15 @@ const createNotification = async (
     title,
     message
 ) => {
+    const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { marketplaceNotifications: true }
+    });
+
+    if (!user?.marketplaceNotifications) {
+        return null;
+    }
+
     return prisma.notification.create({
         data: {
             userId,

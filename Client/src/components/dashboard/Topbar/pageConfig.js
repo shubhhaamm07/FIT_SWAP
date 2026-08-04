@@ -14,6 +14,11 @@ export const pageConfig = {
         description: "Browse and purchase gym memberships.",
     },
 
+    "/gyms": {
+        title: "Find Gyms",
+        description: "Explore official gym memberships near you.",
+    },
+
     "/transfers": {
         title: "Transfer Requests",
         description: "Track incoming and outgoing transfers.",

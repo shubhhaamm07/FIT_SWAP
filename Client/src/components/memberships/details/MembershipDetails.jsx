@@ -8,6 +8,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
+import DashboardLayout from "../../../layouts/DashboardLayout";
 
 import MembershipOverview from "../cards/MembershipOverview";
 import MembershipBenefits from "../cards/MembershipBenefits";
@@ -57,10 +58,12 @@ function MembershipDetails() {
 
   const plan = membership.plan ?? {};
   const gym = plan.gym ?? {};
+  const gymImage = gym.images?.find((image) => image.isPrimary)?.imageUrl || gym.images?.[0]?.imageUrl;
   const isFrozen = membership.status === "FROZEN";
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#08090d] text-white">
+    <DashboardLayout>
+    <main className="relative min-h-[calc(100vh-100px)] overflow-hidden bg-[#08090d] text-white">
       <div className="pointer-events-none absolute -left-36 -top-32 h-[520px] w-[520px] rounded-full bg-violet-700/10 blur-[150px]" />
       <div className="pointer-events-none absolute right-0 top-80 h-[420px] w-[420px] rounded-full bg-fuchsia-700/10 blur-[150px]" />
 
@@ -75,7 +78,7 @@ function MembershipDetails() {
 
         <section className="relative isolate mt-5 min-h-[280px] overflow-hidden rounded-2xl border border-violet-400/20 bg-[#160d2d]">
           <img
-            src={gym.image || dashboardHero}
+            src={gymImage || dashboardHero}
             alt=""
             className="absolute inset-0 -z-20 h-full w-full object-cover object-[72%_center] opacity-45"
           />
@@ -131,6 +134,7 @@ function MembershipDetails() {
         </section>
       </div>
     </main>
+    </DashboardLayout>
   );
 }
 

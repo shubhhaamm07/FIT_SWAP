@@ -1,4 +1,5 @@
 const imageService = require("../services/image.service");
+const authService = require('../services/auth.service');
 
 const uploadGymImages = async (req, res) => {
 
@@ -115,9 +116,53 @@ const reorderGymImages = async (req, res) => {
 
 };
 
+const uploadProfileImage = async (req, res) => {
+    try {
+        await imageService.uploadProfileImage({
+            userId: req.user.id,
+            file: req.file,
+            type: req.params.type,
+        });
+        const user = await authService.getProfile(req.user.id);
+
+        return res.status(200).json({
+            success: true,
+            message: `${req.params.type === 'avatar' ? 'Profile photo' : 'Cover photo'} updated successfully.`,
+            data: user,
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+
+const getProfileImage = async (req, res) => {
+    try {
+        const image = await imageService.getProfileImage({
+            userId: req.user.id,
+            type: req.params.type,
+        });
+
+        res.set({
+            'Content-Type': image.ContentType || 'image/jpeg',
+            'Cache-Control': 'private, max-age=3600',
+        });
+        image.Body.pipe(res);
+    } catch (error) {
+        return res.status(404).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+
 module.exports = {
     uploadGymImages,
     deleteGymImage,
     setPrimaryImage,
     reorderGymImages,
+    uploadProfileImage,
+    getProfileImage,
 };

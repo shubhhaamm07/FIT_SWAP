@@ -1,7 +1,14 @@
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import heroImage from "../../assets/images/hero.png";
 
-function HeroSection() {
+function HeroSection({ gymCount, listingCount }) {
+  const navigate = useNavigate();
+
+  const scrollToHowItWorks = () => {
+    document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" });
+  };
+
   return (
     <section className="relative min-h-screen overflow-hidden flex items-center">
       {/* Background Image */}
@@ -64,11 +71,11 @@ function HeroSection() {
             }}
             className="mt-10 flex flex-wrap gap-4"
           >
-            <button className="px-8 py-4 rounded-xl bg-violet-600 hover:bg-violet-700 transition-all duration-300 font-semibold shadow-lg shadow-violet-500/30">
+            <button type="button" onClick={() => navigate("/login")} className="px-8 py-4 rounded-xl bg-violet-600 hover:bg-violet-700 transition-all duration-300 font-semibold shadow-lg shadow-violet-500/30">
               Explore Marketplace
             </button>
 
-            <button className="px-8 py-4 rounded-xl border border-zinc-700 hover:border-violet-500 hover:bg-zinc-900 transition-all duration-300">
+            <button type="button" onClick={scrollToHowItWorks} className="px-8 py-4 rounded-xl border border-zinc-700 hover:border-violet-500 hover:bg-zinc-900 transition-all duration-300">
               Learn More
             </button>
           </motion.div>
@@ -84,18 +91,18 @@ function HeroSection() {
             className="mt-12 flex gap-8 flex-wrap"
           >
             <div>
-              <h3 className="text-2xl font-bold text-violet-500">500+</h3>
-              <p className="text-zinc-400">Members</p>
+              <h3 className="text-2xl font-bold text-violet-500">{listingCount || "—"}</h3>
+              <p className="text-zinc-400">Active Listings</p>
             </div>
 
             <div>
-              <h3 className="text-2xl font-bold text-violet-500">50+</h3>
-              <p className="text-zinc-400">Gyms</p>
+              <h3 className="text-2xl font-bold text-violet-500">{gymCount || "—"}</h3>
+              <p className="text-zinc-400">Partner Gyms</p>
             </div>
 
             <div>
-              <h3 className="text-2xl font-bold text-violet-500">1000+</h3>
-              <p className="text-zinc-400">Listings</p>
+              <h3 className="text-2xl font-bold text-violet-500">100%</h3>
+              <p className="text-zinc-400">Secure Transfers</p>
             </div>
           </motion.div>
         </div>

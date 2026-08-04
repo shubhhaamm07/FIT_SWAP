@@ -1,4 +1,4 @@
-import { Eye, MapPin, Play, Snowflake, Store, Crown } from "lucide-react";
+import { Eye, MapPin, Play, Snowflake, Crown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 import { formatCurrency, formatDate, getGymLocation } from "../utils/membershipHelpers";
@@ -7,11 +7,11 @@ function MembershipCard({
   membership,
   onFreeze,
   onUnfreeze,
-  onPurchase,
 }) {
   const navigate = useNavigate();
   const plan = membership.plan ?? {};
   const gym = plan.gym ?? {};
+  const gymImage = gym.images?.find((image) => image.isPrimary)?.imageUrl || gym.images?.[0]?.imageUrl;
   const daysRemaining = Math.max(0, Math.ceil((new Date(membership.endDate) - new Date()) / 86400000));
   const status = membership.status?.toLowerCase() ?? "unknown";
   const statusStyles = {
@@ -26,8 +26,8 @@ function MembershipCard({
     <article className="group rounded-2xl border border-white/[0.1] bg-[#0D121C] p-4 transition hover:border-violet-400/30 hover:bg-[#101725] sm:p-5">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-center">
         <div className="h-28 w-full shrink-0 overflow-hidden rounded-xl bg-gradient-to-br from-violet-950 via-[#181026] to-[#06080d] sm:h-32 xl:w-40">
-          {gym.image ? (
-            <img src={gym.image} alt={gym.name ?? "Gym"} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+          {gymImage ? (
+            <img src={gymImage} alt={gym.name ?? "Gym"} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
           ) : (
             <div className="grid h-full place-items-center"><Crown size={30} className="text-violet-400/80" /></div>
           )}
@@ -65,9 +65,6 @@ function MembershipCard({
           )}
           {membership.status === "FROZEN" && (
             <button type="button" onClick={() => onUnfreeze(membership)} className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-500"><Play size={16} fill="currentColor" /> Resume</button>
-          )}
-          {membership.plan?.transferable && (
-            <button type="button" onClick={() => onPurchase(plan)} className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2.5 text-sm font-medium text-white transition hover:bg-white/[0.07]"><Store size={16} /> Sell</button>
           )}
         </div>
       </div>

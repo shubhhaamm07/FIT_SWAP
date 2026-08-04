@@ -37,4 +37,18 @@ router.patch(
     imageController.reorderGymImages
 );
 
+router.post(
+    '/profile/:type',
+    protect,
+    uploadLimiter,
+    upload.single('image'),
+    imageController.uploadProfileImage
+);
+
+router.get(
+    '/profile/:type',
+    protect,
+    imageController.getProfileImage
+);
+
 module.exports = router;
