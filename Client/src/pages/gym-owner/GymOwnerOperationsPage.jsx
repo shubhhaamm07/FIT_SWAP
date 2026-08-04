@@ -8,12 +8,20 @@ import {
   CreditCard,
   IndianRupee,
   LoaderCircle,
+  Mail,
+  Phone,
   Plus,
   RefreshCw,
+  Search,
+  SlidersHorizontal,
+  TrendingDown,
+  TrendingUp,
   UsersRound,
+  X,
 } from "lucide-react";
 
 import DashboardLayout from "../../layouts/DashboardLayout";
+import { RevenueByGymChart, RevenueTrendChart, SalesVolumeChart } from "../../components/gym-owner/OwnerRevenueCharts";
 import { createMembershipPlan, getMyGyms } from "../../api/gym.api";
 import { getGymOwnerMembers, getGymOwnerSales, getGymOwnerTransfers } from "../../api/gym-owner.api";
 
@@ -90,7 +98,7 @@ function GymOwnerOperationsPage() {
 
         {message && <p className={`rounded-xl border px-4 py-3 text-sm ${message.includes("Unable") ? "border-red-500/20 bg-red-500/5 text-red-300" : "border-emerald-500/20 bg-emerald-500/5 text-emerald-300"}`}>{message}</p>}
         {error && <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-300"><CircleAlert size={17} /> {error}<button type="button" onClick={loadData} className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-red-200"><RefreshCw size={14} /> Retry</button></div>}
-        {loading ? <div className="flex min-h-72 items-center justify-center gap-2 text-sm text-zinc-400"><LoaderCircle className="animate-spin text-violet-400" size={20} /> Loading owner data…</div> : section === "gyms" ? <GymsContent gyms={data} /> : section === "plans" ? <PlansContent gyms={data} plans={plans} showPlanForm={showPlanForm} setShowPlanForm={setShowPlanForm} savingPlan={savingPlan} onPlanCreated={onPlanCreated} /> : section === "members" ? <MembersContent memberships={data} /> : section === "sales" ? <SalesContent sales={data} /> : <TransfersContent transfers={data} />}
+        {loading ? <div className="flex min-h-72 items-center justify-center gap-2 text-sm text-zinc-400"><LoaderCircle className="animate-spin text-violet-400" size={20} /> Loading owner data…</div> : section === "gyms" ? <GymsContent gyms={data} /> : section === "plans" ? <PlansContent gyms={data} plans={plans} showPlanForm={showPlanForm} setShowPlanForm={setShowPlanForm} savingPlan={savingPlan} onPlanCreated={onPlanCreated} /> : section === "members" ? <MembersContent members={data} /> : section === "sales" ? <SalesContent salesData={data} /> : <TransfersContent transfers={data} />}
       </main>
     </DashboardLayout>
   );
@@ -113,9 +121,189 @@ function PlanForm({ gyms, saving, onCancel, onSubmit }) {
 
 function Field({ label, children }) { return <label className="block text-sm font-medium text-zinc-200"><span className="mb-2 block">{label}</span>{children && <div className="[&_input]:w-full [&_input]:rounded-lg [&_input]:border [&_input]:border-white/[0.1] [&_input]:bg-[#11121a] [&_input]:px-3 [&_input]:py-2.5 [&_input]:text-white [&_select]:w-full [&_select]:rounded-lg [&_select]:border [&_select]:border-white/[0.1] [&_select]:bg-[#11121a] [&_select]:px-3 [&_select]:py-2.5 [&_select]:text-white">{children}</div>}</label>; }
 
-function MembersContent({ memberships }) { return memberships.length ? <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#11121a]"><div className="overflow-x-auto"><table className="min-w-full text-left text-sm"><thead className="border-b border-white/[0.08] text-xs uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-4">Member</th><th className="px-5 py-4">Gym & plan</th><th className="px-5 py-4">Expires</th><th className="px-5 py-4">Status</th></tr></thead><tbody className="divide-y divide-white/[0.06]">{memberships.map((membership) => <tr key={membership.id}><td className="px-5 py-4"><p className="font-medium text-white">{name(membership.member)}</p><p className="mt-1 text-xs text-zinc-500">{membership.member.email}</p></td><td className="px-5 py-4 text-zinc-300"><p>{membership.plan.gym.name}</p><p className="mt-1 text-xs text-zinc-500">{membership.plan.name}</p></td><td className="px-5 py-4 text-zinc-400">{date(membership.endDate)}</td><td className="px-5 py-4"><Status value={membership.status} /></td></tr>)}</tbody></table></div></div> : <Empty icon={UsersRound} title="No members yet" description="Member records will appear here when people buy your plans." />; }
+function MembersContent({ members }) {
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("ALL");
+  const [gymId, setGymId] = useState("ALL");
+  const [selectedMember, setSelectedMember] = useState(null);
+  const now = new Date();
+  const expiringLimit = new Date(now);
+  expiringLimit.setDate(expiringLimit.getDate() + 30);
 
-function SalesContent({ sales }) { const total = sales.reduce((sum, sale) => sum + Number(sale.amount), 0); return <div className="space-y-5"><div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/[0.05] p-5"><p className="text-sm text-emerald-200">Recorded membership revenue</p><p className="mt-2 text-3xl font-bold text-white">{currency(total)}</p><p className="mt-1 text-sm text-zinc-400">Across {sales.length} membership sale{sales.length === 1 ? "" : "s"}</p></div>{sales.length ? <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#11121a]"><div className="divide-y divide-white/[0.06]">{sales.map((sale) => <div key={sale.id} className="flex items-center justify-between gap-4 px-5 py-4"><div className="min-w-0"><p className="truncate font-medium text-white">{name(sale.member)}</p><p className="mt-1 truncate text-xs text-zinc-500">{sale.plan.gym.name} · {sale.plan.name} · {date(sale.createdAt)}</p></div><p className="shrink-0 font-semibold text-emerald-300">{currency(sale.amount)}</p></div>)}</div></div> : <Empty icon={IndianRupee} title="No sales yet" description="Membership revenue appears here as members join your plans." />}</div>; }
+  const gyms = useMemo(() => {
+    const results = new Map();
+    members.forEach((member) => member.memberships.forEach((membership) => results.set(membership.plan.gym.id, membership.plan.gym)));
+    return Array.from(results.values()).sort((first, second) => first.name.localeCompare(second.name));
+  }, [members]);
+
+  const getMemberState = (member) => {
+    const active = member.memberships.some((membership) => membership.status === "ACTIVE" && new Date(membership.endDate) > now);
+    if (active) return "ACTIVE";
+    if (member.memberships.some((membership) => membership.status === "FROZEN")) return "FROZEN";
+    if (member.memberships.some((membership) => membership.status === "EXPIRED")) return "EXPIRED";
+    return member.memberships[0]?.status || "INACTIVE";
+  };
+
+  const membersExpiringSoon = members.filter((member) => member.memberships.some((membership) => membership.status === "ACTIVE" && new Date(membership.endDate) > now && new Date(membership.endDate) <= expiringLimit));
+  const activeMembers = members.filter((member) => getMemberState(member) === "ACTIVE");
+  const frozenMembers = members.filter((member) => getMemberState(member) === "FROZEN");
+  const visibleMembers = members.filter((member) => {
+    const text = `${member.firstName} ${member.lastName} ${member.email || ""} ${member.phone || ""} ${member.memberships.map((membership) => `${membership.plan.gym.name} ${membership.plan.name}`).join(" ")}`.toLowerCase();
+    const matchesSearch = text.includes(search.trim().toLowerCase());
+    const matchesStatus = status === "ALL" || getMemberState(member) === status;
+    const matchesGym = gymId === "ALL" || member.memberships.some((membership) => membership.plan.gym.id === gymId);
+    return matchesSearch && matchesStatus && matchesGym;
+  });
+
+  if (!members.length) return <Empty icon={UsersRound} title="No members yet" description="Member records will appear here when people buy your plans." />;
+
+  return <div className="space-y-5">
+    <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <MemberMetric label="Total members" value={members.length} note="Unique members across your gyms" icon={UsersRound} accent="violet" />
+      <MemberMetric label="Active members" value={activeMembers.length} note="Currently valid memberships" icon={UsersRound} accent="emerald" />
+      <MemberMetric label="Expiring soon" value={membersExpiringSoon.length} note="Ending within 30 days" icon={CalendarClock} accent="amber" />
+      <MemberMetric label="Frozen members" value={frozenMembers.length} note="Memberships on hold" icon={CreditCard} accent="sky" />
+    </section>
+
+    <section className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-4 sm:p-5">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center"><div className="relative min-w-0 flex-1"><Search size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search member name, email, phone, gym, or plan" className="w-full rounded-xl border border-white/[0.1] bg-black/15 py-2.5 pl-10 pr-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-violet-400/60" /></div><div className="flex flex-wrap items-center gap-2"><SlidersHorizontal size={16} className="text-zinc-500" /><select value={gymId} onChange={(event) => setGymId(event.target.value)} className="rounded-xl border border-white/[0.1] bg-black/15 px-3 py-2.5 text-sm text-zinc-300 outline-none focus:border-violet-400/60"><option value="ALL">All gyms</option>{gyms.map((gym) => <option key={gym.id} value={gym.id}>{gym.name}</option>)}</select><select value={status} onChange={(event) => setStatus(event.target.value)} className="rounded-xl border border-white/[0.1] bg-black/15 px-3 py-2.5 text-sm text-zinc-300 outline-none focus:border-violet-400/60"><option value="ALL">All statuses</option><option value="ACTIVE">Active</option><option value="FROZEN">Frozen</option><option value="EXPIRED">Expired</option></select></div></div>
+      <p className="mt-3 text-xs text-zinc-500">Showing {visibleMembers.length} of {members.length} members</p>
+    </section>
+
+    {visibleMembers.length ? <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#11121a]"><div className="overflow-x-auto"><table className="min-w-full text-left text-sm"><thead className="border-b border-white/[0.08] text-xs uppercase tracking-wide text-zinc-500"><tr><th className="px-5 py-4">Member</th><th className="px-5 py-4">Memberships</th><th className="px-5 py-4">Nearest expiry</th><th className="px-5 py-4">Status</th><th className="px-5 py-4" /></tr></thead><tbody className="divide-y divide-white/[0.06]">{visibleMembers.map((member) => { const nearestExpiry = [...member.memberships].sort((first, second) => new Date(first.endDate) - new Date(second.endDate))[0]; return <tr key={member.id} className="transition hover:bg-white/[0.025]"><td className="px-5 py-4"><div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-600 text-xs font-bold text-white">{`${member.firstName?.[0] || ""}${member.lastName?.[0] || ""}`}</span><div><p className="font-medium text-white">{name(member)}</p><p className="mt-1 text-xs text-zinc-500">{member.email}</p></div></div></td><td className="px-5 py-4"><p className="font-medium text-zinc-200">{member.memberships.length} membership{member.memberships.length === 1 ? "" : "s"}</p><p className="mt-1 max-w-[220px] truncate text-xs text-zinc-500">{member.memberships.map((membership) => membership.plan.gym.name).join(", ")}</p></td><td className="px-5 py-4 text-zinc-400">{nearestExpiry ? date(nearestExpiry.endDate) : "—"}</td><td className="px-5 py-4"><Status value={getMemberState(member)} /></td><td className="px-5 py-4 text-right"><button type="button" onClick={() => setSelectedMember(member)} className="rounded-lg border border-white/[0.1] px-3 py-2 text-xs font-semibold text-zinc-200 transition hover:border-violet-400/40 hover:bg-violet-500/10 hover:text-white">View</button></td></tr>; })}</tbody></table></div></section> : <Empty icon={Search} title="No members match these filters" description="Try another name, gym, or membership status." />}
+
+    {selectedMember && <MemberDrawer member={selectedMember} onClose={() => setSelectedMember(null)} />}
+  </div>;
+}
+
+function MemberMetric({ label, value, note, icon: Icon, accent }) { const colors = { violet: "bg-violet-500/12 text-violet-300", emerald: "bg-emerald-500/12 text-emerald-300", amber: "bg-amber-500/12 text-amber-300", sky: "bg-sky-500/12 text-sky-300" }; return <article className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5"><div className="flex items-start justify-between gap-3"><div><p className="text-sm text-zinc-400">{label}</p><p className="mt-2 text-2xl font-bold text-white">{value}</p><p className="mt-1.5 text-xs text-zinc-500">{note}</p></div><span className={`grid h-10 w-10 place-items-center rounded-xl ${colors[accent]}`}><Icon size={19} /></span></div></article>; }
+
+function MemberDrawer({ member, onClose }) { return <div role="dialog" aria-modal="true" aria-label="Member details" className="fixed inset-0 z-50 flex items-end bg-black/65 p-0 backdrop-blur-sm sm:items-center sm:justify-center sm:p-6"><div className="max-h-[88vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl border border-white/[0.1] bg-[#12131c] shadow-2xl sm:rounded-3xl"><div className="sticky top-0 flex items-start justify-between border-b border-white/[0.08] bg-[#12131c]/95 p-5 backdrop-blur sm:p-6"><div className="flex items-center gap-3"><span className="grid h-12 w-12 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-600 font-bold text-white">{`${member.firstName?.[0] || ""}${member.lastName?.[0] || ""}`}</span><div><h2 className="text-lg font-semibold text-white">{name(member)}</h2><p className="mt-1 text-sm text-zinc-500">Member profile</p></div></div><button type="button" onClick={onClose} className="grid h-9 w-9 place-items-center rounded-lg text-zinc-400 hover:bg-white/[0.08] hover:text-white"><X size={19} /></button></div><div className="p-5 sm:p-6"><div className="grid gap-3 sm:grid-cols-2"><InfoCard icon={Mail} label="Email" value={member.email || "Not provided"} /><InfoCard icon={Phone} label="Phone" value={member.phone || "Not provided"} /></div><div className="mt-6"><div className="flex items-center justify-between"><h3 className="font-semibold text-white">Membership history</h3><span className="text-xs text-zinc-500">{member.memberships.length} record{member.memberships.length === 1 ? "" : "s"}</span></div><div className="mt-3 space-y-3">{member.memberships.map((membership) => <div key={membership.id} className="rounded-xl border border-white/[0.08] bg-black/15 p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-medium text-white">{membership.plan.gym.name}</p><p className="mt-1 text-sm text-zinc-400">{membership.plan.name} · {membership.plan.durationInDays} days</p></div><Status value={membership.status} /></div><div className="mt-4 grid grid-cols-2 gap-3 border-t border-white/[0.07] pt-3 text-xs"><div><p className="text-zinc-500">Started</p><p className="mt-1 font-medium text-zinc-300">{date(membership.startDate)}</p></div><div><p className="text-zinc-500">Expires</p><p className="mt-1 font-medium text-zinc-300">{date(membership.endDate)}</p></div></div></div>)}</div></div></div></div></div>; }
+
+function InfoCard({ icon: Icon, label, value }) { return <div className="flex min-w-0 items-center gap-3 rounded-xl border border-white/[0.08] bg-black/10 p-3"><Icon size={17} className="shrink-0 text-violet-300" /><div className="min-w-0"><p className="text-xs text-zinc-500">{label}</p><p className="mt-1 truncate text-sm text-zinc-200">{value}</p></div></div>; }
+
+function SalesContent({ salesData }) {
+  const [search, setSearch] = useState("");
+  const [gymId, setGymId] = useState("ALL");
+  const {
+    summary = {
+      totalRevenue: 0,
+      totalSales: 0,
+      currentMonthRevenue: 0,
+      currentMonthSales: 0,
+      monthlyGrowth: 0,
+      averageSaleValue: 0,
+    },
+    revenueTrend = [],
+    revenueByGym = [],
+    sales = [],
+  } = salesData || {};
+
+  const gyms = useMemo(() => {
+    const results = new Map();
+    sales.forEach((sale) => results.set(sale.plan.gym.id, sale.plan.gym));
+    return Array.from(results.values()).sort((first, second) => first.name.localeCompare(second.name));
+  }, [sales]);
+
+  const visibleSales = sales.filter((sale) => {
+    const text = `${sale.member.firstName} ${sale.member.lastName} ${sale.member.email || ""} ${sale.plan.gym.name} ${sale.plan.name}`.toLowerCase();
+    const matchesSearch = text.includes(search.trim().toLowerCase());
+    const matchesGym = gymId === "ALL" || sale.plan.gym.id === gymId;
+    return matchesSearch && matchesGym;
+  });
+
+  const growthPositive = summary.monthlyGrowth >= 0;
+
+  return (
+    <div className="space-y-5">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <MemberMetric label="Total revenue" value={currency(summary.totalRevenue)} note={`${summary.totalSales} membership sale${summary.totalSales === 1 ? "" : "s"} recorded`} icon={IndianRupee} accent="emerald" />
+        <MemberMetric label="This month" value={currency(summary.currentMonthRevenue)} note={`${summary.currentMonthSales} sale${summary.currentMonthSales === 1 ? "" : "s"} in current month`} icon={CreditCard} accent="violet" />
+        <MemberMetric label="Average sale" value={currency(summary.averageSaleValue)} note="Mean value per membership sold" icon={IndianRupee} accent="sky" />
+        <article className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm text-zinc-400">Monthly growth</p>
+              <p className={`mt-2 text-2xl font-bold ${growthPositive ? "text-emerald-300" : "text-red-300"}`}>
+                {growthPositive ? "+" : ""}{summary.monthlyGrowth}%
+              </p>
+              <p className="mt-1.5 text-xs text-zinc-500">Compared to last month</p>
+            </div>
+            <span className={`grid h-10 w-10 place-items-center rounded-xl ${growthPositive ? "bg-emerald-500/12 text-emerald-300" : "bg-red-500/12 text-red-300"}`}>
+              {growthPositive ? <TrendingUp size={19} /> : <TrendingDown size={19} />}
+            </span>
+          </div>
+        </article>
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.85fr)]">
+        <RevenueTrendChart trend={revenueTrend} />
+        <SalesVolumeChart trend={revenueTrend} />
+      </section>
+
+      <RevenueByGymChart revenueByGym={revenueByGym} />
+
+      <section className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-4 sm:p-5">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="relative min-w-0 flex-1">
+            <Search size={18} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search member, gym, or plan"
+              className="w-full rounded-xl border border-white/[0.1] bg-black/15 py-2.5 pl-10 pr-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-violet-400/60"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <SlidersHorizontal size={16} className="text-zinc-500" />
+            <select value={gymId} onChange={(event) => setGymId(event.target.value)} className="rounded-xl border border-white/[0.1] bg-black/15 px-3 py-2.5 text-sm text-zinc-300 outline-none focus:border-violet-400/60">
+              <option value="ALL">All gyms</option>
+              {gyms.map((gym) => <option key={gym.id} value={gym.id}>{gym.name}</option>)}
+            </select>
+          </div>
+        </div>
+        <p className="mt-3 text-xs text-zinc-500">Showing {visibleSales.length} of {sales.length} sales</p>
+      </section>
+
+      {visibleSales.length ? (
+        <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#11121a]">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead className="border-b border-white/[0.08] text-xs uppercase tracking-wide text-zinc-500">
+                <tr>
+                  <th className="px-5 py-4">Member</th>
+                  <th className="px-5 py-4">Gym & plan</th>
+                  <th className="px-5 py-4">Date</th>
+                  <th className="px-5 py-4 text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/[0.06]">
+                {visibleSales.map((sale) => (
+                  <tr key={sale.id} className="transition hover:bg-white/[0.025]">
+                    <td className="px-5 py-4">
+                      <p className="font-medium text-white">{name(sale.member)}</p>
+                      <p className="mt-1 text-xs text-zinc-500">{sale.member.email}</p>
+                    </td>
+                    <td className="px-5 py-4">
+                      <p className="font-medium text-zinc-200">{sale.plan.gym.name}</p>
+                      <p className="mt-1 text-xs text-zinc-500">{sale.plan.name}</p>
+                    </td>
+                    <td className="px-5 py-4 text-zinc-400">{date(sale.createdAt)}</td>
+                    <td className="px-5 py-4 text-right font-semibold text-emerald-300">{currency(sale.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : sales.length ? (
+        <Empty icon={Search} title="No sales match these filters" description="Try another member name, gym, or plan." />
+      ) : (
+        <Empty icon={IndianRupee} title="No sales yet" description="Membership revenue appears here as members join your plans." />
+      )}
+    </div>
+  );
+}
 
 function TransfersContent({ transfers }) { return transfers.length ? <div className="grid gap-4">{transfers.map((transfer) => <article key={transfer.id} className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex flex-wrap items-center gap-2"><h2 className="font-semibold text-white">{transfer.listing.membership.plan.gym.name}</h2><Status value={transfer.status} /></div><p className="mt-1 text-sm text-zinc-400">{transfer.listing.membership.plan.name} · {currency(transfer.listing.askingPrice)}</p><p className="mt-3 text-xs text-zinc-500">Seller: {name(transfer.listing.seller)} · Buyer: {name(transfer.buyer)} · Requested {date(transfer.createdAt)}</p></div><span className="flex items-center gap-2 text-xs text-zinc-500"><CalendarClock size={15} /> Listing: {transfer.listing.status}</span></div></article>)}</div> : <Empty icon={ArrowUpRight} title="No transfer activity" description="Marketplace transfers involving plans from your gyms will appear here." />; }
 

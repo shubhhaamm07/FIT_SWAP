@@ -30,9 +30,21 @@ const createCollectionHandler = (serviceMethod) => async (req, res) => {
     }
 };
 
+const getSales = async (req, res) => {
+    try {
+        const data = await gymOwnerDashboardService.getGymOwnerSales(req.user.userId);
+        return res.status(200).json({ success: true, data });
+    } catch (error) {
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Unable to load gym owner sales data'
+        });
+    }
+};
+
 module.exports = {
     getDashboard,
     getMembers: createCollectionHandler(gymOwnerDashboardService.getGymOwnerMembers),
-    getSales: createCollectionHandler(gymOwnerDashboardService.getGymOwnerSales),
+    getSales,
     getTransfers: createCollectionHandler(gymOwnerDashboardService.getGymOwnerTransfers)
 };

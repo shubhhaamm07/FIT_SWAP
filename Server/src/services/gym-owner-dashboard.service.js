@@ -9,6 +9,93 @@ const addMonths = (date, count) =>
 const monthKey = (date) =>
     `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
+const buildRevenueTrend = (memberships, months = 6) => {
+    const now = new Date();
+    const currentMonthStart = startOfMonth(now);
+    const trendStart = addMonths(currentMonthStart, -(months - 1));
+    const trendBuckets = Array.from({ length: months }, (_, index) => {
+        const date = addMonths(trendStart, index);
+        return {
+            key: monthKey(date),
+            label: new Intl.DateTimeFormat('en-IN', { month: 'short' }).format(date),
+            revenue: 0,
+            sales: 0
+        };
+    });
+    const trendByMonth = new Map(trendBuckets.map((item) => [item.key, item]));
+
+    memberships.forEach((membership) => {
+        const bucket = trendByMonth.get(monthKey(new Date(membership.createdAt)));
+        if (bucket) {
+            bucket.revenue += Number(membership.plan.price);
+            bucket.sales += 1;
+        }
+    });
+
+    return trendBuckets;
+};
+
+const buildSalesSummary = (memberships) => {
+    const now = new Date();
+    const currentMonthStart = startOfMonth(now);
+    const previousMonthStart = addMonths(currentMonthStart, -1);
+    const totalRevenue = memberships.reduce(
+        (total, membership) => total + Number(membership.plan.price),
+        0
+    );
+    const currentMonthMemberships = memberships.filter(
+        (membership) => new Date(membership.createdAt) >= currentMonthStart
+    );
+    const previousMonthMemberships = memberships.filter((membership) => {
+        const createdAt = new Date(membership.createdAt);
+        return createdAt >= previousMonthStart && createdAt < currentMonthStart;
+    });
+    const currentMonthRevenue = currentMonthMemberships.reduce(
+        (total, membership) => total + Number(membership.plan.price),
+        0
+    );
+    const previousMonthRevenue = previousMonthMemberships.reduce(
+        (total, membership) => total + Number(membership.plan.price),
+        0
+    );
+    const monthlyGrowth = previousMonthRevenue
+        ? Number((((currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue) * 100).toFixed(1))
+        : currentMonthRevenue > 0
+            ? 100
+            : 0;
+
+    return {
+        totalRevenue,
+        totalSales: memberships.length,
+        currentMonthRevenue,
+        currentMonthSales: currentMonthMemberships.length,
+        monthlyGrowth,
+        averageSaleValue: memberships.length
+            ? Math.round(totalRevenue / memberships.length)
+            : 0
+    };
+};
+
+const buildRevenueByGym = (memberships) => {
+    const gyms = new Map();
+
+    memberships.forEach((membership) => {
+        const gym = membership.plan.gym;
+        const current = gyms.get(gym.id) || {
+            id: gym.id,
+            name: gym.name,
+            city: gym.city,
+            revenue: 0,
+            sales: 0
+        };
+        current.revenue += Number(membership.plan.price);
+        current.sales += 1;
+        gyms.set(gym.id, current);
+    });
+
+    return Array.from(gyms.values()).sort((first, second) => second.revenue - first.revenue);
+};
+
 const getGymOwnerDashboard = async (ownerId) => {
     const now = new Date();
     const currentMonthStart = startOfMonth(now);
@@ -103,26 +190,6 @@ const getGymOwnerDashboard = async (ownerId) => {
             ? 100
             : 0;
 
-    const trendStart = addMonths(currentMonthStart, -5);
-    const trendBuckets = Array.from({ length: 6 }, (_, index) => {
-        const date = addMonths(trendStart, index);
-        return {
-            key: monthKey(date),
-            label: new Intl.DateTimeFormat('en-IN', { month: 'short' }).format(date),
-            revenue: 0,
-            sales: 0
-        };
-    });
-    const trendByMonth = new Map(trendBuckets.map((item) => [item.key, item]));
-
-    memberships.forEach((membership) => {
-        const bucket = trendByMonth.get(monthKey(new Date(membership.createdAt)));
-        if (bucket) {
-            bucket.revenue += Number(membership.plan.price);
-            bucket.sales += 1;
-        }
-    });
-
     return {
         overview: {
             totalRevenue: revenue,
@@ -134,7 +201,7 @@ const getGymOwnerDashboard = async (ownerId) => {
             expiringMembershipCount: expiringMemberships.length,
             pendingTransferCount: pendingTransfers
         },
-        revenueTrend: trendBuckets,
+        revenueTrend: buildRevenueTrend(memberships),
         expiringMemberships: expiringMemberships
             .sort((a, b) => new Date(a.endDate) - new Date(b.endDate))
             .slice(0, 5)
@@ -194,14 +261,33 @@ const getGymOwnerMembers = async (ownerId) => {
         orderBy: { endDate: 'asc' }
     });
 
-    return memberships.map((membership) => ({
-        id: membership.id,
-        status: membership.status,
-        startDate: membership.startDate,
-        endDate: membership.endDate,
-        member: membership.user,
-        plan: membership.plan
-    }));
+    const members = new Map();
+
+    memberships.forEach((membership) => {
+        const currentMember = members.get(membership.user.id) || {
+            id: membership.user.id,
+            firstName: membership.user.firstName,
+            lastName: membership.user.lastName,
+            email: membership.user.email,
+            phone: membership.user.phone,
+            memberships: []
+        };
+
+        currentMember.memberships.push({
+            id: membership.id,
+            status: membership.status,
+            startDate: membership.startDate,
+            endDate: membership.endDate,
+            plan: membership.plan
+        });
+        members.set(membership.user.id, currentMember);
+    });
+
+    return Array.from(members.values()).sort((first, second) => {
+        const firstName = `${first.firstName} ${first.lastName}`;
+        const secondName = `${second.firstName} ${second.lastName}`;
+        return firstName.localeCompare(secondName);
+    });
 };
 
 const getGymOwnerSales = async (ownerId) => {
@@ -211,13 +297,18 @@ const getGymOwnerSales = async (ownerId) => {
         orderBy: { createdAt: 'desc' }
     });
 
-    return memberships.map((membership) => ({
-        id: membership.id,
-        createdAt: membership.createdAt,
-        amount: Number(membership.plan.price),
-        member: membership.user,
-        plan: membership.plan
-    }));
+    return {
+        summary: buildSalesSummary(memberships),
+        revenueTrend: buildRevenueTrend(memberships),
+        revenueByGym: buildRevenueByGym(memberships),
+        sales: memberships.map((membership) => ({
+            id: membership.id,
+            createdAt: membership.createdAt,
+            amount: Number(membership.plan.price),
+            member: membership.user,
+            plan: membership.plan
+        }))
+    };
 };
 
 const getGymOwnerTransfers = async (ownerId) => {
