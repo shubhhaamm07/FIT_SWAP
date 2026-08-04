@@ -21,6 +21,8 @@ import SettingsPage from "../pages/settings/SettingsPage";
 import NotificationsPage from "../pages/notifications/NotificationsPage";
 import GymsPage from "../pages/gyms/GymsPage";
 import GymDetailsPage from "../pages/gyms/GymDetailsPage";
+import GymOwnerDashboardPage from "../pages/gym-owner/GymOwnerDashboardPage";
+import GymOwnerOperationsPage from "../pages/gym-owner/GymOwnerOperationsPage";
 
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -154,6 +156,16 @@ function AppRoutes() {
         <Route
           path="/gyms/:gymId"
           element={<ProtectedRoute><GymDetailsPage /></ProtectedRoute>}
+        />
+
+        <Route
+          path="/owner/dashboard"
+          element={<ProtectedRoute><GymOwnerDashboardPage /></ProtectedRoute>}
+        />
+
+        <Route
+          path="/owner/:section"
+          element={<ProtectedRoute><GymOwnerOperationsPage /></ProtectedRoute>}
         />
       </Routes>
     </BrowserRouter>

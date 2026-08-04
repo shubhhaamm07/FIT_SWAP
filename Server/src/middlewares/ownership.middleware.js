@@ -24,7 +24,7 @@ const verifyPlanOwnership = async (
         if (plan.gym.ownerId !== req.user.id) {
             return res.status(403).json({
                 success: false,
-                message: 'Chl na Lode'
+                message: 'You do not own this membership plan'
             });
         }
 

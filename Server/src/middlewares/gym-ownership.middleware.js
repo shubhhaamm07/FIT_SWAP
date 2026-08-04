@@ -1,4 +1,4 @@
-const gymService = require('../services/gym.service');
+const prisma = require('../lib/prisma');
 
 const verifyGymOwnership = async (
     req,
@@ -6,9 +6,9 @@ const verifyGymOwnership = async (
     next
 ) => {
     try {
-        const gym = await gymService.getGymById(
-            req.params.gymId
-        );
+        const gym = await prisma.gym.findUnique({
+            where: { id: req.params.gymId }
+        });
 
         if (!gym) {
             return res.status(404).json({

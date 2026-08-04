@@ -14,7 +14,19 @@ const getMyGyms = async (ownerId) => {
     const gyms = await prisma.gym.findMany({
         where: {
             ownerId
-        }
+        },
+        include: {
+            images: {
+                orderBy: [
+                    { isPrimary: 'desc' },
+                    { displayOrder: 'asc' }
+                ]
+            },
+            plans: {
+                orderBy: { createdAt: 'desc' }
+            }
+        },
+        orderBy: { createdAt: 'desc' }
     });
 
     return gyms;
