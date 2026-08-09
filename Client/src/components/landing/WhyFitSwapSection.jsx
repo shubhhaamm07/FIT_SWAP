@@ -1,103 +1,15 @@
+import { motion } from "framer-motion";
+import { BadgeCheck, BrainCircuit, ShieldCheck, Sparkles, WalletCards } from "lucide-react";
+
+const features = [
+  { icon: ShieldCheck, title: "Secure transfers", text: "Membership ownership moves through controlled, auditable steps.", color: "text-sky-200 bg-sky-500/12" },
+  { icon: BadgeCheck, title: "Verified gyms", text: "Gym profiles and plans are reviewed before appearing in FitSwap.", color: "text-emerald-200 bg-emerald-500/12" },
+  { icon: WalletCards, title: "Better value", text: "Sell unused time or discover premium plans at a fairer price.", color: "text-violet-200 bg-violet-500/12" },
+  { icon: BrainCircuit, title: "Built for smarter policy", text: "A growing system for transfer rules, insights, and risk signals.", color: "text-fuchsia-200 bg-fuchsia-500/12" },
+];
+
 function WhyFitSwapSection() {
-  return (
-    <section className="py-24 bg-[#0B0B0F]">
-      <div className="max-w-7xl mx-auto px-8">
-        <div className="text-center mb-16">
-          <h2 className="text-5xl font-bold">
-            Why
-            <span className="text-violet-500"> FitSwap?</span>
-          </h2>
-
-          <p className="text-zinc-400 mt-5 text-lg">
-            A smarter way to manage gym memberships.
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-8">
-          {/* Buy */}
-          <div
-            className="
-              bg-[#16161D]/80
-              backdrop-blur-md
-              border
-              border-zinc-800
-              rounded-3xl
-              p-8
-
-              hover:border-violet-500
-              hover:-translate-y-2
-
-              transition-all
-              duration-300
-            "
-          >
-            <div className="text-5xl mb-6">💳</div>
-
-            <h3 className="text-2xl font-semibold">Buy Memberships</h3>
-
-            <p className="text-zinc-400 mt-4">
-              Purchase active memberships at discounted prices from verified
-              users.
-            </p>
-          </div>
-
-          {/* Sell */}
-          <div
-            className="
-              bg-[#16161D]/80
-              backdrop-blur-md
-              border
-              border-zinc-800
-              rounded-3xl
-              p-8
-
-              hover:border-violet-500
-              hover:-translate-y-2
-
-              transition-all
-              duration-300
-            "
-          >
-            <div className="text-5xl mb-6">💰</div>
-
-            <h3 className="text-2xl font-semibold">Sell Memberships</h3>
-
-            <p className="text-zinc-400 mt-4">
-              Recover your money by listing unused memberships in the
-              marketplace.
-            </p>
-          </div>
-
-          {/* Transfer */}
-          <div
-            className="
-              bg-[#16161D]/80
-              backdrop-blur-md
-              border
-              border-zinc-800
-              rounded-3xl
-              p-8
-
-              hover:border-violet-500
-              hover:-translate-y-2
-
-              transition-all
-              duration-300
-            "
-          >
-            <div className="text-5xl mb-6">🔄</div>
-
-            <h3 className="text-2xl font-semibold">Easy Transfers</h3>
-
-            <p className="text-zinc-400 mt-4">
-              Secure transfer workflow with approvals, notifications and
-              ownership updates.
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
+  return <section className="relative bg-[#0b0b10] py-24 sm:py-32"><div className="landing-orb landing-orb-left" /><div className="mx-auto max-w-7xl px-6 sm:px-8"><div className="grid items-end gap-8 lg:grid-cols-[.75fr_1.25fr]"><motion.div initial={{ opacity: 0, y: 22 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.25 }}><p className="text-xs font-bold uppercase tracking-[0.2em] text-violet-300">Designed for confidence</p><h2 className="mt-4 text-4xl font-bold tracking-tight text-white sm:text-5xl">More useful than a listing board.</h2><p className="mt-5 max-w-md text-base leading-7 text-zinc-400">A purpose-built marketplace for memberships that need a secure ownership handover—not just another classifieds page.</p><div className="mt-8 inline-flex items-center gap-2 rounded-full border border-violet-300/15 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-200"><Sparkles size={14} /> Built around real transfer logic</div></motion.div><div className="grid gap-4 sm:grid-cols-2">{features.map((feature, index) => <motion.article key={feature.title} initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.25 }} transition={{ delay: index * 0.08 }} whileHover={{ y: -6, rotateX: 2, rotateY: index % 2 ? -2 : 2 }} className="landing-glass-card min-h-[190px] p-6 [transform-style:preserve-3d]"><span className={`grid h-11 w-11 place-items-center rounded-2xl ${feature.color}`}><feature.icon size={21} /></span><h3 className="mt-6 text-lg font-semibold text-white">{feature.title}</h3><p className="mt-3 text-sm leading-6 text-zinc-400">{feature.text}</p></motion.article>)}</div></div></div></section>;
 }
 
 export default WhyFitSwapSection;

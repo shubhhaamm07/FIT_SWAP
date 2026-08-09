@@ -3,7 +3,7 @@ import { BellRing, ChevronRight, CircleAlert, KeyRound, LoaderCircle, Mail, Shie
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../layouts/DashboardLayout";
 import { changeUserPassword, deleteCurrentUser, getCurrentUser, updateUserSettings } from "../../api/auth.api";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../hooks/useAuth";
 
 function SettingsPage() {
   const navigate = useNavigate();

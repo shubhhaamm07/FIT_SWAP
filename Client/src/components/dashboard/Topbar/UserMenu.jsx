@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown, LogOut, Settings, UserRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../../../context/AuthContext";
+import { useAuth } from "../../../hooks/useAuth";
 import { getCurrentUser, getProfileImage } from "../../../api/auth.api";
 
 function UserMenu() {

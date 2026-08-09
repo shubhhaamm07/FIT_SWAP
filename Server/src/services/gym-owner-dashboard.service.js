@@ -9,6 +9,9 @@ const addMonths = (date, count) =>
 const monthKey = (date) =>
     `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 
+const membershipRevenue = (membership) =>
+    Number(membership.purchasePrice ?? membership.plan.price);
+
 const buildRevenueTrend = (memberships, months = 6) => {
     const now = new Date();
     const currentMonthStart = startOfMonth(now);
@@ -27,7 +30,7 @@ const buildRevenueTrend = (memberships, months = 6) => {
     memberships.forEach((membership) => {
         const bucket = trendByMonth.get(monthKey(new Date(membership.createdAt)));
         if (bucket) {
-            bucket.revenue += Number(membership.plan.price);
+            bucket.revenue += membershipRevenue(membership);
             bucket.sales += 1;
         }
     });
@@ -40,7 +43,7 @@ const buildSalesSummary = (memberships) => {
     const currentMonthStart = startOfMonth(now);
     const previousMonthStart = addMonths(currentMonthStart, -1);
     const totalRevenue = memberships.reduce(
-        (total, membership) => total + Number(membership.plan.price),
+        (total, membership) => total + membershipRevenue(membership),
         0
     );
     const currentMonthMemberships = memberships.filter(
@@ -51,11 +54,11 @@ const buildSalesSummary = (memberships) => {
         return createdAt >= previousMonthStart && createdAt < currentMonthStart;
     });
     const currentMonthRevenue = currentMonthMemberships.reduce(
-        (total, membership) => total + Number(membership.plan.price),
+        (total, membership) => total + membershipRevenue(membership),
         0
     );
     const previousMonthRevenue = previousMonthMemberships.reduce(
-        (total, membership) => total + Number(membership.plan.price),
+        (total, membership) => total + membershipRevenue(membership),
         0
     );
     const monthlyGrowth = previousMonthRevenue
@@ -88,7 +91,7 @@ const buildRevenueByGym = (memberships) => {
             revenue: 0,
             sales: 0
         };
-        current.revenue += Number(membership.plan.price);
+        current.revenue += membershipRevenue(membership);
         current.sales += 1;
         gyms.set(gym.id, current);
     });
@@ -124,6 +127,7 @@ const getGymOwnerDashboard = async (ownerId) => {
             select: {
                 id: true,
                 createdAt: true,
+                purchasePrice: true,
                 endDate: true,
                 status: true,
                 plan: {
@@ -166,7 +170,7 @@ const getGymOwnerDashboard = async (ownerId) => {
         (membership) => new Date(membership.endDate) <= expiringDate
     );
     const revenue = memberships.reduce(
-        (total, membership) => total + Number(membership.plan.price),
+        (total, membership) => total + membershipRevenue(membership),
         0
     );
     const currentMonthMemberships = memberships.filter(
@@ -177,11 +181,11 @@ const getGymOwnerDashboard = async (ownerId) => {
         return createdAt >= previousMonthStart && createdAt < currentMonthStart;
     });
     const currentMonthRevenue = currentMonthMemberships.reduce(
-        (total, membership) => total + Number(membership.plan.price),
+        (total, membership) => total + membershipRevenue(membership),
         0
     );
     const previousMonthRevenue = previousMonthMemberships.reduce(
-        (total, membership) => total + Number(membership.plan.price),
+        (total, membership) => total + membershipRevenue(membership),
         0
     );
     const monthlyGrowth = previousMonthRevenue
@@ -218,7 +222,7 @@ const getGymOwnerDashboard = async (ownerId) => {
             memberName: `${membership.user.firstName} ${membership.user.lastName}`.trim(),
             gymName: membership.plan.gym.name,
             planName: membership.plan.name,
-            price: Number(membership.plan.price),
+            price: membershipRevenue(membership),
             createdAt: membership.createdAt
         })),
         gyms: gyms.map((gym) => ({
@@ -232,6 +236,7 @@ const ownerMembershipSelect = {
     id: true,
     status: true,
     createdAt: true,
+    purchasePrice: true,
     startDate: true,
     endDate: true,
     user: {
@@ -304,7 +309,7 @@ const getGymOwnerSales = async (ownerId) => {
         sales: memberships.map((membership) => ({
             id: membership.id,
             createdAt: membership.createdAt,
-            amount: Number(membership.plan.price),
+            amount: membershipRevenue(membership),
             member: membership.user,
             plan: membership.plan
         }))

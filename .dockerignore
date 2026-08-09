@@ -1,0 +1,8 @@
+.git
+.DS_Store
+fitswap-server_accessKeys.csv
+.env
+Client/node_modules
+Client/dist
+Server/node_modules
+Server/.env

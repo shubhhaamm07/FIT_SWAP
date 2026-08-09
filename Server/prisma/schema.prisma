@@ -31,6 +31,8 @@ model User {
   transferRequests TransferRequest[]
   notifications    Notification[]
   savedListings    SavedListing[]
+  announcements    Announcement[] @relation("AnnouncementAuthor")
+  adminAuditLogs   AdminAuditLog[] @relation("AdminAuditAuthor")
 }
 
 model Gym {
@@ -87,6 +89,9 @@ model UserMembership {
 
   startDate DateTime
   endDate   DateTime
+
+  // Keeps historical sales reporting correct if a plan price changes later.
+  purchasePrice Float?
 
   status MembershipStatus @default(ACTIVE)
 
@@ -162,6 +167,36 @@ model Notification {
   createdAt DateTime @default(now())
 }
 
+model Announcement {
+  id             String               @id @default(cuid())
+  adminId        String
+  admin          User                 @relation("AnnouncementAuthor", fields: [adminId], references: [id])
+  title          String
+  message        String
+  audience       AnnouncementAudience
+  recipientCount Int                  @default(0)
+  createdAt      DateTime             @default(now())
+
+  @@index([createdAt])
+  @@index([audience])
+}
+
+model AdminAuditLog {
+  id         String          @id @default(cuid())
+  adminId    String
+  admin      User            @relation("AdminAuditAuthor", fields: [adminId], references: [id])
+  action     AdminAuditAction
+  targetType String
+  targetId   String?
+  summary    String
+  metadata   Json?
+  createdAt  DateTime        @default(now())
+
+  @@index([createdAt])
+  @@index([adminId])
+  @@index([action])
+}
+
 model GymImage {
   id String @id @default(cuid())
 
@@ -222,4 +257,19 @@ enum TransferRequestStatus {
   APPROVED
   REJECTED
   CANCELLED
+}
+
+enum AnnouncementAudience {
+  ALL_USERS
+  MEMBERS
+  GYM_OWNERS
+  SELECTED_USERS
+}
+
+enum AdminAuditAction {
+  ANNOUNCEMENT_SENT
+  GYM_STATUS_UPDATED
+  LISTING_STATUS_UPDATED
+  USER_ROLE_UPDATED
+  TRANSFER_RESOLVED
 }

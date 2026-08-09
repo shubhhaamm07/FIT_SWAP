@@ -30,6 +30,7 @@ const ListingCard = ({ listing, isSaved = false, onSavedChange }) => {
     <article
       className="
         overflow-hidden
+        portal-card
         rounded-xl
         border
         border-white/10

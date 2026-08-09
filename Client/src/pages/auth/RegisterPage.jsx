@@ -10,6 +10,7 @@ function RegisterPage() {
           w-full
           max-w-[460px]
 
+          portal-card
           rounded-[32px]
 
           bg-black/35

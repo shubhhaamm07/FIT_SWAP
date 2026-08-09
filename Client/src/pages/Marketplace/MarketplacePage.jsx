@@ -5,10 +5,8 @@ import MarketplaceFilters from "../../components/marketplace/filters/Marketplace
 import MarketplaceGrid from "../../components/marketplace/grid/MarketplaceGrid";
 import MarketplaceSidebar from "../../components/marketplace/MarketplaceSidebar";
 import DashboardLayout from "../../layouts/DashboardLayout";
-import {
-  MarketplaceProvider,
-  useMarketplaceContext,
-} from "../../components/marketplace/hooks/MarketplaceProvider";
+import { MarketplaceProvider } from "../../components/marketplace/hooks/MarketplaceProvider";
+import { useMarketplaceContext } from "../../components/marketplace/hooks/useMarketplaceContext";
 
 const MarketplaceContent = () => {
   const { filters, updateFilter, resetFilters } = useMarketplaceContext();
@@ -40,7 +38,7 @@ const MarketplacePage = () => {
   return (
     <MarketplaceProvider>
       <DashboardLayout rightSidebar={<MarketplaceSidebar />}>
-        <div className="flex flex-col gap-4 lg:gap-5">
+        <div className="marketplace-page flex flex-col gap-4 lg:gap-5">
           <MarketplaceContent />
         </div>
       </DashboardLayout>

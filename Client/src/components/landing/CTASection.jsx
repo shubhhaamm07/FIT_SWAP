@@ -1,101 +1,10 @@
+import { motion } from "framer-motion";
+import { ArrowRight, BadgeCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 function CTASection() {
   const navigate = useNavigate();
-  return (
-    <section className="py-28 bg-[#0B0B0F]">
-      <div className="max-w-6xl mx-auto px-8">
-        <div
-          className="
-            relative
-            overflow-hidden
-            rounded-[32px]
-
-            border
-            border-violet-500/20
-
-            bg-gradient-to-r
-            from-violet-600/20
-            via-[#18181B]
-            to-[#18181B]
-
-            p-12
-            md:p-16
-          "
-        >
-          {/* Purple Glow */}
-          <div
-            className="
-              absolute
-              -top-24
-              -right-24
-
-              h-72
-              w-72
-
-              rounded-full
-              bg-violet-600/20
-
-              blur-3xl
-            "
-          />
-
-          <div className="relative z-10 text-center">
-            <h2 className="text-5xl font-bold leading-tight">
-              Ready to Save on Your
-              <span className="text-violet-500"> Next Gym Membership?</span>
-            </h2>
-
-            <p className="mt-6 text-zinc-400 text-lg max-w-2xl mx-auto">
-              Join thousands of fitness enthusiasts buying and selling verified
-              memberships securely on FitSwap.
-            </p>
-
-            <div className="mt-10 flex justify-center gap-5 flex-wrap">
-              <button type="button" onClick={() => navigate("/login")}
-                className="
-                  px-8
-                  py-4
-
-                  rounded-xl
-
-                  bg-violet-600
-                  hover:bg-violet-700
-
-                  font-semibold
-
-                  transition-all
-                  duration-300
-                "
-              >
-                Explore Marketplace
-              </button>
-
-              <button type="button" onClick={() => navigate("/register")}
-                className="
-                  px-8
-                  py-4
-
-                  rounded-xl
-
-                  border
-                  border-zinc-700
-
-                  hover:border-violet-500
-                  hover:bg-zinc-900
-
-                  transition-all
-                  duration-300
-                "
-              >
-                Join FitSwap
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
+  return <section className="bg-[#0b0b10] py-20 sm:py-32"><div className="mx-auto max-w-6xl px-5 sm:px-8"><motion.div initial={{ opacity: 0, y: 22 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.35 }} className="landing-footer-wave relative overflow-hidden rounded-[1.5rem] border border-white/[0.11] bg-[#11121b] px-5 py-10 text-center shadow-2xl shadow-black/30 sm:rounded-[2rem] sm:px-14 sm:py-16"><div className="absolute -right-20 top-1/2 h-64 w-64 -translate-y-1/2 rounded-full border border-sky-300/15" /><div className="absolute -left-14 -top-14 h-40 w-40 rounded-full border border-violet-300/15" /><div className="relative"><span className="inline-flex max-w-full items-center gap-2 rounded-full border border-emerald-300/15 bg-emerald-500/10 px-3 py-1.5 text-center text-xs font-semibold text-emerald-200"><BadgeCheck size={14} className="shrink-0" /> Membership transfers, made clearer</span><h2 className="mx-auto mt-5 max-w-3xl text-3xl font-bold tracking-tight text-white sm:text-5xl">Your unused membership can be someone else’s next start.</h2><p className="mx-auto mt-5 max-w-xl text-base leading-7 text-zinc-300">Create an account to explore verified listings, manage your own pass, or begin selling unused membership time.</p><div className="mt-9 flex flex-col justify-center gap-3 sm:flex-row"><button type="button" onClick={() => navigate("/login")} className="landing-primary-button inline-flex w-full items-center justify-center gap-2 rounded-xl px-5 py-3.5 text-sm font-semibold text-white sm:w-auto">Explore marketplace <ArrowRight size={17} /></button><button type="button" onClick={() => navigate("/register")} className="w-full rounded-xl border border-white/[0.15] bg-white/[0.05] px-5 py-3.5 text-sm font-semibold text-zinc-100 transition hover:bg-white/[0.1] sm:w-auto">Create free account</button></div></div></motion.div></div></section>;
 }
 
 export default CTASection;

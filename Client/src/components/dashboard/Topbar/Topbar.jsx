@@ -27,7 +27,7 @@ function Topbar({ actions = null }) {
   const marketplace = pathname.startsWith("/marketplace");
 
   return (
-    <header className={`flex flex-col gap-4 border-b border-white/[0.08] pb-4 lg:flex-row lg:items-center ${marketplace ? "lg:justify-end" : "lg:justify-between"}`}>
+    <header className={`portal-topbar flex flex-col gap-4 border-b border-white/[0.08] pb-4 lg:flex-row lg:items-center ${marketplace ? "lg:justify-end" : "lg:justify-between"}`}>
       {!marketplace && <div>
         <h1 className="text-3xl font-bold text-white">{currentPage.title}</h1>
 

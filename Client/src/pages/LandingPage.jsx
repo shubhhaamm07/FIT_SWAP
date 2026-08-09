@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import Navbar from "../components/common/Navbar";
 import HeroSection from "../components/landing/HeroSection";
-import StatsSection from "../components/landing/StatsSection";
 import WhyFitSwapSection from "../components/landing/WhyFitSwapSection";
 import HowItWorksSection from "../components/landing/HowItWorksSection";
 import MarketplacePreview from "../components/landing/MarketplacePreview";
 import CTASection from "../components/landing/CTASection";
 import Footer from "../components/landing/Footer";
+import ResearchInnovationSection from "../components/landing/ResearchInnovationSection";
 import FadeInSection from "../components/common/FadeInSection";
 import { getAllGyms } from "../api/gym.api";
 import { getMarketplaceListings } from "../api/marketplace.api";
@@ -34,15 +34,15 @@ function LandingPage() {
   }, []);
 
   return (
-    <div className="bg-[#0B0B0F] text-white">
+    <div className="site-shell bg-[#0B0B0F] text-white">
       <Navbar />
 
       <FadeInSection>
         <HeroSection gymCount={gymCount} listingCount={listings.length} />
       </FadeInSection>
-      <FadeInSection>
+      {/* <FadeInSection>
         <StatsSection gymCount={gymCount} listingCount={listings.length} />
-      </FadeInSection>
+      </FadeInSection> */}
       <FadeInSection>
         <WhyFitSwapSection />
       </FadeInSection>
@@ -51,6 +51,10 @@ function LandingPage() {
       </FadeInSection>
       <FadeInSection>
         <MarketplacePreview listings={listings} />
+      </FadeInSection>
+
+      <FadeInSection>
+        <ResearchInnovationSection />
       </FadeInSection>
 
       {/* <FadeInSection>

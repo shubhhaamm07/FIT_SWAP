@@ -29,6 +29,19 @@ router.get(
     adminController.getDashboard
 );
 
+router.get('/analytics', protect, authorize('ADMIN'), adminController.getAnalytics);
+
+/*
+|--------------------------------------------------------------------------
+| Announcements & audit history
+|--------------------------------------------------------------------------
+*/
+
+router.get('/announcement-recipients', protect, authorize('ADMIN'), adminController.getAnnouncementRecipients);
+router.get('/announcements', protect, authorize('ADMIN'), adminController.getAnnouncements);
+router.post('/announcements', protect, authorize('ADMIN'), adminController.createAnnouncement);
+router.get('/audit-logs', protect, authorize('ADMIN'), adminController.getAuditLogs);
+
 /*
 |--------------------------------------------------------------------------
 | Gym Management

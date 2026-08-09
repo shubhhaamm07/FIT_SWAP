@@ -1,6 +1,7 @@
 const marketplaceListingService = require(
     '../services/marketplace-listing.service'
 );
+const adminService = require('../services/admin.service');
 
 const createListing = async (
     req,
@@ -430,6 +431,19 @@ const updateListingStatusByAdmin = async (
                 req.params.listingId,
                 req.body.status
             );
+
+        try {
+            await adminService.createAuditLog({
+                adminId: req.user.id,
+                action: 'LISTING_STATUS_UPDATED',
+                targetType: 'MARKETPLACE_LISTING',
+                targetId: listing.id,
+                summary: `Marketplace listing ${listing.id} was marked ${req.body.status.toLowerCase()}`,
+                metadata: { status: req.body.status }
+            });
+        } catch (auditError) {
+            // The moderation change succeeded; preserve that result if audit storage is unavailable.
+        }
 
         return res.status(200).json({
 

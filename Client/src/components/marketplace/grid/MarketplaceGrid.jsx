@@ -3,7 +3,7 @@ import ListingCard from "../cards/ListingCard";
 import EmptyState from "../states/EmptyState";
 import ErrorState from "../states/ErrorState";
 import GridSkeleton from "../skeletons/GridSkeleton";
-import { useMarketplaceContext } from "../hooks/MarketplaceProvider";
+import { useMarketplaceContext } from "../hooks/useMarketplaceContext";
 import Pagination from "../pagination/Pagination";
 
 const MarketplaceGrid = () => {

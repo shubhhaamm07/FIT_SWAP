@@ -40,7 +40,13 @@ function useMembership() {
     }, []);
 
     useEffect(() => {
-        fetchMemberships();
+        // Schedule the initial request after mount so it cannot synchronously
+        // trigger a render from within the effect itself.
+        const timer = setTimeout(() => {
+            void fetchMemberships();
+        }, 0);
+
+        return () => clearTimeout(timer);
     }, [fetchMemberships]);
 
     const handlePurchaseMembership = async (planId) => {

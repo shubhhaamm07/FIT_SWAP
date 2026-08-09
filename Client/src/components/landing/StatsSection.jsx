@@ -1,95 +1,16 @@
+import { motion } from "framer-motion";
+import { Activity, Building2, ShieldCheck, Store } from "lucide-react";
+
+const stats = [
+  { label: "Active listings", icon: Store, accent: "text-violet-200" },
+  { label: "Partner gyms", icon: Building2, accent: "text-sky-200" },
+  { label: "Transfer workflow", icon: ShieldCheck, accent: "text-emerald-200", staticValue: "Protected" },
+  { label: "Marketplace access", icon: Activity, accent: "text-cyan-200", staticValue: "24/7" },
+];
+
 function StatsSection({ gymCount, listingCount }) {
-  return (
-    <section className="bg-[#0B0B0F] py-20">
-      <div className="max-w-7xl mx-auto px-8">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {/* Card 1 */}
-          <div
-            className="
-              bg-[#16161D]
-              rounded-2xl
-              p-6
-              border
-              border-zinc-800
-
-              hover:border-violet-500
-              hover:-translate-y-2
-
-              transition-all
-              duration-300
-            "
-          >
-            <h2 className="text-4xl font-bold text-violet-500">{listingCount || "—"}</h2>
-
-            <p className="text-zinc-400 mt-2">Active Listings</p>
-          </div>
-
-          {/* Card 2 */}
-          <div
-            className="
-              bg-[#16161D]
-              rounded-2xl
-              p-6
-              border
-              border-zinc-800
-
-              hover:border-violet-500
-              hover:-translate-y-2
-
-              transition-all
-              duration-300
-            "
-          >
-            <h2 className="text-4xl font-bold text-violet-500">{gymCount || "—"}</h2>
-
-            <p className="text-zinc-400 mt-2">Partner Gyms</p>
-          </div>
-
-          {/* Card 3 */}
-          <div
-            className="
-              bg-[#16161D]
-              rounded-2xl
-              p-6
-              border
-              border-zinc-800
-
-              hover:border-violet-500
-              hover:-translate-y-2
-
-              transition-all
-              duration-300
-            "
-          >
-            <h2 className="text-4xl font-bold text-violet-500">100%</h2>
-
-            <p className="text-zinc-400 mt-2">Secure Transfers</p>
-          </div>
-
-          {/* Card 4 */}
-          <div
-            className="
-              bg-[#16161D]
-              rounded-2xl
-              p-6
-              border
-              border-zinc-800
-
-              hover:border-violet-500
-              hover:-translate-y-2
-
-              transition-all
-              duration-300
-            "
-          >
-            <h2 className="text-4xl font-bold text-violet-500">24/7</h2>
-
-            <p className="text-zinc-400 mt-2">Marketplace Access</p>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
+  const values = [listingCount, gymCount, null, null];
+  return <section className="relative z-20 -mt-10 pb-16"><div className="mx-auto max-w-7xl px-6 sm:px-8"><div className="grid gap-3 rounded-3xl border border-white/[0.1] bg-[#11131c]/80 p-3 shadow-2xl shadow-black/25 backdrop-blur-xl sm:grid-cols-2 lg:grid-cols-4">{stats.map((stat, index) => <motion.article key={stat.label} initial={{ opacity: 0, y: 18 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.3 }} transition={{ delay: index * 0.08 }} whileHover={{ y: -3 }} className="rounded-2xl border border-transparent p-5 transition hover:border-white/[0.1] hover:bg-white/[0.035]"><stat.icon size={19} className={stat.accent} /><p className={`mt-4 text-2xl font-bold ${stat.accent}`}>{stat.staticValue || Number(values[index] || 0)}</p><p className="mt-1.5 text-sm text-zinc-500">{stat.label}</p></motion.article>)}</div></div></section>;
 }
 
 export default StatsSection;

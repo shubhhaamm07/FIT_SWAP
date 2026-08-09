@@ -97,9 +97,11 @@ const registerUser = async ({
     return user;
 };
 const loginUser = async ({ email, password }) => {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+
     const user = await prisma.user.findUnique({
         where: {
-            email
+            email: normalizedEmail
         }
     });
 

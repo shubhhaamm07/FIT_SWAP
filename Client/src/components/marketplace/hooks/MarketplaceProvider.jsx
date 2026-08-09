@@ -1,7 +1,5 @@
-import { createContext, useContext } from "react";
+import { MarketplaceContext } from "./marketplace-context";
 import useMarketplace from "./useMarketplace";
-
-const MarketplaceContext = createContext(null);
 
 export const MarketplaceProvider = ({ children }) => {
   const marketplace = useMarketplace();
@@ -11,16 +9,4 @@ export const MarketplaceProvider = ({ children }) => {
       {children}
     </MarketplaceContext.Provider>
   );
-};
-
-export const useMarketplaceContext = () => {
-  const context = useContext(MarketplaceContext);
-
-  if (!context) {
-    throw new Error(
-      "useMarketplaceContext must be used inside MarketplaceProvider",
-    );
-  }
-
-  return context;
 };

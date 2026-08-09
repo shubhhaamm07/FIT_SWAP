@@ -54,7 +54,8 @@ const purchaseMembership = async (
             userId,
             planId,
             startDate,
-            endDate
+            endDate,
+            purchasePrice: plan.price
         }
     });
 };

@@ -3,7 +3,7 @@ import loginBg from "../assets/images/login-bg.png";
 
 function AuthLayout({ children }) {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#0B0B0F] text-white">
+    <div className="auth-shell relative min-h-screen overflow-hidden bg-[#0B0B0F] text-white">
       {/* Background */}
       <img
         src={loginBg}
@@ -32,7 +32,7 @@ function AuthLayout({ children }) {
           initial={{ opacity: 0, x: 36 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.7, ease: "easeOut" }}
-          className="w-full max-w-md"
+          className="auth-panel-enter w-full max-w-md"
         >
           {children}
         </motion.div>

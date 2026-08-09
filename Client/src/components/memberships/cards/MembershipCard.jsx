@@ -23,7 +23,7 @@ function MembershipCard({
   };
 
   return (
-    <article className="group rounded-2xl border border-white/[0.1] bg-[#0D121C] p-4 transition hover:border-violet-400/30 hover:bg-[#101725] sm:p-5">
+    <article className="portal-card group rounded-2xl border border-white/[0.1] bg-[#0D121C] p-4 transition hover:-translate-y-0.5 hover:border-violet-400/30 hover:bg-[#101725] sm:p-5">
       <div className="flex flex-col gap-5 xl:flex-row xl:items-center">
         <div className="h-28 w-full shrink-0 overflow-hidden rounded-xl bg-gradient-to-br from-violet-950 via-[#181026] to-[#06080d] sm:h-32 xl:w-40">
           {gymImage ? (

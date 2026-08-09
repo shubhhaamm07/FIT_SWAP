@@ -1,4 +1,4 @@
-import { BadgeCheck, UserRound } from "lucide-react";
+import { BadgeCheck } from "lucide-react";
 
 const SellerInfo = ({ listing }) => {
   return (

@@ -10,6 +10,7 @@ function LoginPage() {
           w-full
           max-w-[460px]
 
+          portal-card
           rounded-[32px]
 
           border

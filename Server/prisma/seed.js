@@ -120,6 +120,7 @@ async function seedOwnerDashboardData(members, gymData) {
                     startDate,
                     endDate,
                     status,
+                    purchasePrice: plan.price,
                     createdAt
                 }
             });
@@ -173,7 +174,7 @@ async function main() {
             startDate.setDate(startDate.getDate() - 25);
             const endDate = new Date();
             endDate.setDate(endDate.getDate() + 60 + (index * 7));
-            membership = await prisma.userMembership.create({ data: { userId: members[index].id, planId: plan.id, startDate, endDate, status: 'ACTIVE' } });
+            membership = await prisma.userMembership.create({ data: { userId: members[index].id, planId: plan.id, startDate, endDate, status: 'ACTIVE', purchasePrice: plan.price } });
         }
 
         if (index === 0) {

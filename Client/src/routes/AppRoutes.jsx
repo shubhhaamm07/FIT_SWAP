@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 
 import LandingPage from "../pages/LandingPage";
 
@@ -23,8 +23,13 @@ import GymsPage from "../pages/gyms/GymsPage";
 import GymDetailsPage from "../pages/gyms/GymDetailsPage";
 import GymOwnerDashboardPage from "../pages/gym-owner/GymOwnerDashboardPage";
 import GymOwnerOperationsPage from "../pages/gym-owner/GymOwnerOperationsPage";
+import AdminPortalPage from "../pages/admin/AdminPortalPage";
+import AdminAnalyticsPage from "../pages/admin/AdminAnalyticsPage";
+import AdminNotificationCentrePage from "../pages/admin/AdminNotificationCentrePage";
+import AdminAuditLogsPage from "../pages/admin/AdminAuditLogsPage";
 
 import ProtectedRoute from "./ProtectedRoute";
+import RoleRoute from "./RoleRoute";
 
 function AppRoutes() {
   return (
@@ -160,13 +165,36 @@ function AppRoutes() {
 
         <Route
           path="/owner/dashboard"
-          element={<ProtectedRoute><GymOwnerDashboardPage /></ProtectedRoute>}
+          element={<RoleRoute allowedRoles={["GYM_OWNER"]}><GymOwnerDashboardPage /></RoleRoute>}
         />
 
         <Route
           path="/owner/:section"
-          element={<ProtectedRoute><GymOwnerOperationsPage /></ProtectedRoute>}
+          element={<RoleRoute allowedRoles={["GYM_OWNER"]}><GymOwnerOperationsPage /></RoleRoute>}
         />
+
+        <Route
+          path="/admin/:section"
+          element={<RoleRoute allowedRoles={["ADMIN"]}><AdminPortalPage /></RoleRoute>}
+        />
+
+        <Route
+          path="/admin/analytics"
+          element={<RoleRoute allowedRoles={["ADMIN"]}><AdminAnalyticsPage /></RoleRoute>}
+        />
+
+        <Route
+          path="/admin/announcements"
+          element={<RoleRoute allowedRoles={["ADMIN"]}><AdminNotificationCentrePage /></RoleRoute>}
+        />
+
+        <Route
+          path="/admin/audit-logs"
+          element={<RoleRoute allowedRoles={["ADMIN"]}><AdminAuditLogsPage /></RoleRoute>}
+        />
+
+        {/* Keep an outdated sidebar URL or a mistyped path from rendering an empty screen. */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

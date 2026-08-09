@@ -1,6 +1,6 @@
 import { ArrowRight, Sparkles } from "lucide-react";
 
-import { useAuth } from "../../../context/AuthContext";
+import { useAuth } from "../../../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import Button from "../../ui/Button";
 
@@ -11,11 +11,11 @@ function DashboardHero() {
   const navigate = useNavigate();
 
   return (
-    <section className="relative min-h-[300px] overflow-hidden rounded-2xl border border-white/[0.1] bg-[#100d1b] sm:min-h-[320px]">
+    <section className="portal-hero relative min-h-[300px] overflow-hidden rounded-3xl border border-violet-400/15 bg-[#100d1b] shadow-2xl shadow-violet-950/20 sm:min-h-[320px]">
       <img
         src={heroImage}
         alt=""
-        className="absolute inset-0 h-full w-full object-cover object-[72%_center]"
+        className="portal-hero-image absolute inset-0 h-full w-full scale-[1.025] object-cover object-[72%_center]"
       />
       <div className="absolute inset-0 bg-gradient-to-r from-[#100b18] via-[#100b18]/90 to-[#100b18]/10" />
       <div className="absolute inset-0 opacity-[0.05] [background-image:linear-gradient(to_right,#fff_1px,transparent_1px),linear-gradient(to_bottom,#fff_1px,transparent_1px)] [background-size:40px_40px]" />

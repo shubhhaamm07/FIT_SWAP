@@ -1,4 +1,5 @@
 const gymService = require('../services/gym.service');
+const adminService = require('../services/admin.service');
 
 const createGym = async (req, res) => {
     try {
@@ -74,6 +75,19 @@ const updateGymStatus = async (req, res) => {
             req.params.id,
             status
         );
+
+        try {
+            await adminService.createAuditLog({
+                adminId: req.user.id,
+                action: 'GYM_STATUS_UPDATED',
+                targetType: 'GYM',
+                targetId: gym.id,
+                summary: `${gym.name} was marked ${status.toLowerCase()}`,
+                metadata: { status }
+            });
+        } catch (auditError) {
+            // The approval succeeded; audit logging must not turn it into a failed request.
+        }
 
         return res.status(200).json({
             success: true,

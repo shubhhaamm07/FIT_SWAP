@@ -18,8 +18,6 @@ function DashboardPage() {
   const {
     stats,
 
-    memberships,
-
     notifications,
 
     activities,

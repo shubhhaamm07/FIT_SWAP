@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 
 import DashboardLayout from "../../layouts/DashboardLayout";
-import { RevenueTrendChart } from "../../components/gym-owner/OwnerRevenueCharts";
 import { getGymOwnerDashboard } from "../../api/gym-owner.api";
 
 const formatCurrency = (value) =>
@@ -94,22 +93,27 @@ function GymOwnerDashboardPage() {
     );
   }
 
-  const { overview, revenueTrend, recentSales, expiringMemberships, gyms } = dashboard;
+  const { overview, recentSales, expiringMemberships, gyms } = dashboard;
   const gymCount = gyms.length;
+  const currentMonthAverage = overview.currentMonthSales
+    ? overview.currentMonthRevenue / overview.currentMonthSales
+    : 0;
 
   return (
     <DashboardLayout>
       <main className="space-y-6">
-        <section className="overflow-hidden rounded-2xl border border-violet-500/20 bg-[radial-gradient(circle_at_82%_18%,rgba(139,92,246,0.32),transparent_25%),linear-gradient(120deg,#171029,#10111a_58%,#10111a)] p-6 sm:p-8">
+        <section className="relative overflow-hidden rounded-3xl border border-violet-400/20 bg-[radial-gradient(circle_at_84%_18%,rgba(168,85,247,0.38),transparent_23%),radial-gradient(circle_at_65%_120%,rgba(59,130,246,0.18),transparent_33%),linear-gradient(120deg,#17102a,#10111a_58%,#0d1018)] p-6 shadow-2xl shadow-violet-950/20 sm:p-8">
+          <div className="pointer-events-none absolute -right-10 -top-12 h-44 w-44 rounded-full border border-violet-300/15" />
+          <div className="pointer-events-none absolute right-14 top-9 h-24 w-24 rounded-full border border-fuchsia-300/10" />
           <div className="flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
             <div>
-              <p className="text-sm font-semibold text-violet-300">OWNER CENTRE</p>
-              <h2 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">Your gyms, at a glance.</h2>
-              <p className="mt-3 max-w-xl text-sm leading-6 text-zinc-300">Track sales, member activity, renewals and membership performance from one secure workspace.</p>
+              <p className="inline-flex rounded-full border border-violet-300/20 bg-violet-300/10 px-3 py-1 text-[11px] font-bold tracking-[0.16em] text-violet-200">FITSWAP FOR BUSINESS</p>
+              <h2 className="mt-4 text-3xl font-bold tracking-tight text-white sm:text-4xl">Run your gyms with clarity.</h2>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-zinc-300">A focused workspace for memberships, revenue, member retention and marketplace oversight.</p>
             </div>
             <div className="flex flex-wrap gap-3">
-              <Link to="/gyms" className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.07] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10"><Building2 size={17} /> View gyms</Link>
-              <Link to="/transfers" className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-950/40 transition hover:bg-violet-500">Review transfers <ArrowRight size={17} /></Link>
+              <Link to="/owner/gyms" className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.07] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/10"><Building2 size={17} /> My gyms</Link>
+              <Link to="/owner/sales" className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-violet-950/40 transition hover:bg-violet-500">Open sales report <ArrowRight size={17} /></Link>
             </div>
           </div>
         </section>
@@ -129,8 +133,16 @@ function GymOwnerDashboardPage() {
               <MetricCard label="Monthly growth" value={`${overview.monthlyGrowth > 0 ? "+" : ""}${overview.monthlyGrowth}%`} note={`${formatCurrency(overview.currentMonthRevenue)} earned this month`} icon={TrendingUp} accent="amber" />
             </section>
 
-            <section className="grid gap-5 xl:grid-cols-[minmax(0,1.65fr)_minmax(280px,0.85fr)]">
-              <RevenueTrendChart trend={revenueTrend} compact />
+            <section className="grid gap-5 xl:grid-cols-[minmax(0,1.55fr)_minmax(280px,0.85fr)]">
+              <article className="rounded-2xl border border-white/[0.08] bg-[linear-gradient(135deg,rgba(124,58,237,0.13),rgba(17,18,26,0.94)_48%,rgba(17,18,26,1))] p-5 sm:p-6">
+                <div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-base font-semibold text-white">Business pulse</p><p className="mt-1 text-sm text-zinc-500">Today’s most useful performance signals</p></div><Link to="/owner/sales" className="inline-flex items-center gap-1.5 text-sm font-semibold text-violet-300 hover:text-violet-200">Full report <ArrowUpRight size={16} /></Link></div>
+                <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                  <PulseCard label="This month" value={formatCurrency(overview.currentMonthRevenue)} note={`${overview.currentMonthSales} recorded sales`} tone="violet" />
+                  <PulseCard label="Average sale" value={formatCurrency(currentMonthAverage)} note="Current month" tone="sky" />
+                  <PulseCard label="Transfer review" value={overview.pendingTransferCount || 0} note="Requests to monitor" tone="amber" />
+                </div>
+                <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.08] bg-black/15 px-4 py-3"><p className="text-sm text-zinc-400">Detailed revenue charts and gym comparison are available in Sales & Revenue.</p><Link to="/owner/sales" className="text-xs font-semibold text-violet-300 hover:text-violet-200">View analytics →</Link></div>
+              </article>
               <article className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5 sm:p-6">
                 <div className="flex items-start justify-between gap-3"><div><p className="text-base font-semibold text-white">Memberships expiring soon</p><p className="mt-1 text-sm text-zinc-500">Within the next 30 days</p></div><span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-500/10 text-amber-300"><CalendarClock size={19} /></span></div>
                 <p className="mt-6 text-4xl font-bold tracking-tight text-white">{overview.expiringMembershipCount}</p>
@@ -150,7 +162,7 @@ function GymOwnerDashboardPage() {
               <aside className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5 sm:p-6">
                 <div className="flex items-start justify-between gap-4"><div><p className="font-semibold text-white">Your gyms</p><p className="mt-1 text-sm text-zinc-500">Plans and approval status</p></div><span className="rounded-lg bg-violet-500/10 px-2.5 py-1 text-xs font-semibold text-violet-300">{gymCount} total</span></div>
                 <div className="mt-5 space-y-3">{gyms.map((gym) => <div key={gym.id} className="rounded-xl border border-white/[0.07] bg-black/10 p-3.5"><div className="flex items-start justify-between gap-3"><div className="min-w-0"><p className="truncate text-sm font-medium text-zinc-100">{gym.name}</p><p className="mt-1 text-xs text-zinc-500">{gym.city} · {gym.planCount} plan{gym.planCount === 1 ? "" : "s"}</p></div><span className={`rounded-full px-2 py-1 text-[10px] font-semibold ${gym.status === "APPROVED" ? "bg-emerald-500/10 text-emerald-300" : gym.status === "REJECTED" ? "bg-red-500/10 text-red-300" : "bg-amber-500/10 text-amber-300"}`}>{gym.status}</span></div></div>)}</div>
-                <Link to="/gyms" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-violet-300 hover:text-violet-200">Manage gyms <ArrowUpRight size={16} /></Link>
+                <Link to="/owner/gyms" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-violet-300 hover:text-violet-200">Manage gyms <ArrowUpRight size={16} /></Link>
               </aside>
             </section>
           </>
@@ -158,6 +170,15 @@ function GymOwnerDashboardPage() {
       </main>
     </DashboardLayout>
   );
+}
+
+function PulseCard({ label, value, note, tone }) {
+  const tones = {
+    violet: "border-violet-500/20 bg-violet-500/[0.08]",
+    sky: "border-sky-500/20 bg-sky-500/[0.07]",
+    amber: "border-amber-500/20 bg-amber-500/[0.07]",
+  };
+  return <div className={`rounded-xl border p-4 ${tones[tone]}`}><p className="text-xs font-medium text-zinc-400">{label}</p><p className="mt-2 text-xl font-bold tracking-tight text-white">{value}</p><p className="mt-1 text-xs text-zinc-500">{note}</p></div>;
 }
 
 export default GymOwnerDashboardPage;

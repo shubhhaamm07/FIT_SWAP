@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
+import { useAuth } from "../../hooks/useAuth";
 import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
 import { loginUser } from "../../api/auth.api";
@@ -10,6 +10,7 @@ function LoginForm() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const [errors, setErrors] = useState({});
 
@@ -44,9 +45,10 @@ function LoginForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!validateForm()) return;
+    if (submitting || !validateForm()) return;
 
     try {
+      setSubmitting(true);
       const response = await loginUser(formData);
 
       // console.log(response);
@@ -55,9 +57,11 @@ function LoginForm() {
 
       alert("Login Successful!");
 
-      navigate("/dashboard");
+      navigate(response.user.role === "ADMIN" ? "/admin/dashboard" : response.user.role === "GYM_OWNER" ? "/owner/dashboard" : "/dashboard");
     } catch (error) {
       alert(error.response?.data?.message || "Invalid email or password.");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -101,8 +105,8 @@ function LoginForm() {
         </Link>
       </div>
 
-      <Button type="submit" size="lg" className="w-full">
-        Login to FitSwap
+      <Button type="submit" size="lg" disabled={submitting} className="w-full">
+        {submitting ? "Signing you in…" : "Login to FitSwap"}
       </Button>
 
       <p className="text-center text-zinc-400">

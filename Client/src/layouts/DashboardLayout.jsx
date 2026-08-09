@@ -3,9 +3,9 @@ import Topbar from "../components/dashboard/Topbar/Topbar";
 
 function DashboardLayout({ children, rightSidebar }) {
   return (
-    <div className="h-screen overflow-hidden bg-[#08090d] text-white">
+    <div className="app-dashboard h-screen overflow-hidden text-white">
       <div className="flex h-full">
-        <aside className="hidden h-full w-[248px] shrink-0 overflow-hidden border-r border-white/[0.08] bg-[#0c0d13] lg:block">
+        <aside className="app-sidebar hidden h-full w-[248px] shrink-0 overflow-hidden border-r border-white/[0.08] bg-[#0c0d13] lg:block">
           <Sidebar />
         </aside>
 
@@ -15,7 +15,7 @@ function DashboardLayout({ children, rightSidebar }) {
               <Topbar />
             </div>
 
-            <div className="mx-auto w-full max-w-[1320px] px-4 py-6 sm:px-6 xl:px-8">{children}</div>
+            <div className="app-page mx-auto w-full max-w-[1320px] px-4 py-6 sm:px-6 xl:px-8">{children}</div>
           </main>
         </div>
 
@@ -23,7 +23,7 @@ function DashboardLayout({ children, rightSidebar }) {
           <aside
             className="
               hidden h-full w-[320px] shrink-0 overflow-y-auto border-l border-white/[0.08]
-              bg-[#0c0d13]/95 p-5 xl:block
+              bg-[#0c0d13]/95 p-5 shadow-[-14px_0_40px_rgba(0,0,0,0.12)] xl:block
             "
           >
             <div className="space-y-5">{rightSidebar}</div>
