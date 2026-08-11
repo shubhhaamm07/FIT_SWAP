@@ -24,7 +24,11 @@ axios.interceptors.request.use(
 axios.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response?.status === 401) {
+        // Some authenticated actions can receive a 401 from a third-party
+        // provider (for example, Razorpay credentials on the API server).
+        // Those errors must be displayed in context instead of logging the
+        // member out of FitSwap.
+        if (error.response?.status === 401 && !error.config?.skipAuthLogout) {
             localStorage.removeItem("token");
             localStorage.removeItem("user");
 

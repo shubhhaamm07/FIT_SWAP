@@ -33,6 +33,18 @@ router.get('/analytics', protect, authorize('ADMIN'), adminController.getAnalyti
 
 /*
 |--------------------------------------------------------------------------
+| User, payment and security operations
+|--------------------------------------------------------------------------
+*/
+
+router.get('/users', protect, authorize('ADMIN'), adminController.getUsers);
+router.patch('/users/:userId/role', protect, authorize('ADMIN'), adminController.updateUserRole);
+router.patch('/users/:userId/access', protect, authorize('ADMIN'), adminController.updateUserAccess);
+router.get('/payments', protect, authorize('ADMIN'), adminController.getPayments);
+router.get('/security-overview', protect, authorize('ADMIN'), adminController.getSecurityOverview);
+
+/*
+|--------------------------------------------------------------------------
 | Announcements & audit history
 |--------------------------------------------------------------------------
 */

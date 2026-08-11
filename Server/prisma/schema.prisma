@@ -8,19 +8,25 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  firstName String
-  lastName  String
-  email     String   @unique
-  phone     String?  @unique
-  password  String
-  role      UserRole @default(USER)
-  avatarUrl String?
-  avatarKey String?
-  coverUrl  String?
-  coverKey  String?
-  emailNotifications       Boolean @default(true)
-  marketplaceNotifications Boolean @default(true)
+  id                       String    @id @default(cuid())
+  firstName                String
+  lastName                 String
+  email                    String    @unique
+  phone                    String?   @unique
+  password                 String
+  role                     UserRole  @default(USER)
+  isActive                 Boolean   @default(true)
+  username                 String?   @unique
+  bio                      String?
+  city                     String?
+  isProfilePublic          Boolean   @default(true)
+  emailVerifiedAt          DateTime?
+  avatarUrl                String?
+  avatarKey                String?
+  coverUrl                 String?
+  coverKey                 String?
+  emailNotifications       Boolean   @default(true)
+  marketplaceNotifications Boolean   @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -31,8 +37,10 @@ model User {
   transferRequests TransferRequest[]
   notifications    Notification[]
   savedListings    SavedListing[]
-  announcements    Announcement[] @relation("AnnouncementAuthor")
-  adminAuditLogs   AdminAuditLog[] @relation("AdminAuditAuthor")
+  payments         Payment[]
+  announcements    Announcement[]       @relation("AnnouncementAuthor")
+  adminAuditLogs   AdminAuditLog[]      @relation("AdminAuditAuthor")
+  authTokens       AuthToken[]
 }
 
 model Gym {
@@ -121,6 +129,7 @@ model MarketplaceListing {
 
   transferRequests TransferRequest[]
   savedBy          SavedListing[]
+  payments         Payment[]
 }
 
 model SavedListing {
@@ -129,7 +138,7 @@ model SavedListing {
   listingId String
   createdAt DateTime @default(now())
 
-  user    User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user    User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   listing MarketplaceListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
   @@unique([userId, listingId])
@@ -151,6 +160,31 @@ model TransferRequest {
   updatedAt DateTime @updatedAt
 
   @@unique([listingId, buyerId])
+}
+
+model Payment {
+  id String @id @default(cuid())
+
+  listingId String
+  listing   MarketplaceListing @relation(fields: [listingId], references: [id])
+
+  buyerId String
+  buyer   User   @relation(fields: [buyerId], references: [id])
+
+  razorpayOrderId   String  @unique
+  razorpayPaymentId String? @unique
+  razorpaySignature String?
+
+  amount   Int
+  currency String        @default("INR")
+  status   PaymentStatus @default(CREATED)
+
+  createdAt  DateTime  @default(now())
+  verifiedAt DateTime?
+
+  @@index([listingId])
+  @@index([buyerId])
+  @@index([status])
 }
 
 model Notification {
@@ -182,19 +216,33 @@ model Announcement {
 }
 
 model AdminAuditLog {
-  id         String          @id @default(cuid())
+  id         String           @id @default(cuid())
   adminId    String
-  admin      User            @relation("AdminAuditAuthor", fields: [adminId], references: [id])
+  admin      User             @relation("AdminAuditAuthor", fields: [adminId], references: [id])
   action     AdminAuditAction
   targetType String
   targetId   String?
   summary    String
   metadata   Json?
-  createdAt  DateTime        @default(now())
+  createdAt  DateTime         @default(now())
 
   @@index([createdAt])
   @@index([adminId])
   @@index([action])
+}
+
+model AuthToken {
+  id        String        @id @default(cuid())
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String        @unique
+  type      AuthTokenType
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime      @default(now())
+
+  @@index([userId, type])
+  @@index([expiresAt])
 }
 
 model GymImage {
@@ -259,6 +307,12 @@ enum TransferRequestStatus {
   CANCELLED
 }
 
+enum PaymentStatus {
+  CREATED
+  PAID
+  FAILED
+}
+
 enum AnnouncementAudience {
   ALL_USERS
   MEMBERS
@@ -266,10 +320,16 @@ enum AnnouncementAudience {
   SELECTED_USERS
 }
 
+enum AuthTokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+}
+
 enum AdminAuditAction {
   ANNOUNCEMENT_SENT
   GYM_STATUS_UPDATED
   LISTING_STATUS_UPDATED
   USER_ROLE_UPDATED
+  USER_ACCESS_UPDATED
   TRANSFER_RESOLVED
 }

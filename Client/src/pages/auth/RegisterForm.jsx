@@ -96,9 +96,9 @@ function RegisterForm() {
         role,
       });
 
-      console.log(response);
-
-      alert("Registration Successful!");
+      alert(response.data?.verificationEmailSent
+        ? "Registration successful. Please check your inbox to verify your email."
+        : "Registration successful. You can verify your email later from Settings once email delivery is configured.");
 
       navigate("/login");
     } catch (error) {

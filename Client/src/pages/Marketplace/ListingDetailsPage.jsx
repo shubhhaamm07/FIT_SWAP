@@ -1,16 +1,20 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, BadgeCheck, CalendarDays, CircleCheck, Clock3, Dumbbell, MapPin, ShieldCheck, Ticket, UserRound } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, ArrowRight, BadgeCheck, CalendarDays, CircleCheck, Clock3, Dumbbell, MapPin, ShieldCheck, Ticket, UserRound } from "lucide-react";
 import DashboardLayout from "../../layouts/DashboardLayout";
 import { getListingById } from "../../api/marketplace.api";
+import { useAuth } from "../../hooks/useAuth";
 import PurchaseCard from "../../components/marketplace/details/PurchaseCard";
 import formatPrice from "../../components/marketplace/utils/formatPrice";
 import calculateDiscount from "../../components/marketplace/utils/calculateDiscount";
 
 const ListingDetailsPage = () => {
   const { listingId } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [listing, setListing] = useState(null);
   const [error, setError] = useState("");
+  const [purchased, setPurchased] = useState(false);
 
   useEffect(() => {
     const loadListing = async () => {
@@ -29,11 +33,27 @@ const ListingDetailsPage = () => {
   if (!listing) return <PageState message={error || "Listing not found."} error />;
 
   const discount = calculateDiscount(listing.originalPrice, listing.price);
+  const membershipOwnerId = listing.raw?.membership?.user?.id;
+  const hasPurchased = purchased || (
+    listing.status === "SOLD"
+    && Boolean(user?.id)
+    && membershipOwnerId === user.id
+  );
 
   return (
     <DashboardLayout>
       <main className="mx-auto w-full max-w-6xl pb-10">
         <Link to="/marketplace" className="mb-5 inline-flex items-center gap-2 text-sm font-medium text-zinc-400 transition hover:text-white"><ArrowLeft size={16} /> Back to marketplace</Link>
+
+        {hasPurchased && (
+          <section className="mb-6 flex flex-col gap-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.07] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
+            <div className="flex items-start gap-3">
+              <CircleCheck className="mt-0.5 shrink-0 text-emerald-300" size={22} />
+              <div><h2 className="font-semibold text-emerald-100">This membership is now yours</h2><p className="mt-1 text-sm text-emerald-100/70">Your online payment was verified and the membership was transferred to your account.</p></div>
+            </div>
+            <button type="button" onClick={() => navigate("/memberships")} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400">View memberships <ArrowRight size={16} /></button>
+          </section>
+        )}
 
         <section className="overflow-hidden rounded-2xl border border-white/[0.1] bg-[#11121a] lg:grid lg:grid-cols-[1.05fr_1fr]">
           <div className="relative min-h-[280px] overflow-hidden lg:min-h-[420px]">
@@ -69,7 +89,7 @@ const ListingDetailsPage = () => {
               <div className="mt-5 flex items-center gap-4 rounded-xl border border-white/[0.07] bg-black/10 p-4"><div className="grid h-12 w-12 place-items-center rounded-full bg-violet-600 text-lg font-bold text-white">{listing.seller?.charAt(0)}</div><div><p className="font-semibold text-white">{listing.seller}</p><p className="mt-1 flex items-center gap-1 text-xs text-emerald-400"><BadgeCheck size={14} /> Verified seller</p></div></div>
             </section>
           </div>
-          <aside><PurchaseCard listing={listing} /></aside>
+          <aside><PurchaseCard listing={listing} onPurchased={() => setPurchased(true)} isPurchased={hasPurchased} /></aside>
         </div>
       </main>
     </DashboardLayout>

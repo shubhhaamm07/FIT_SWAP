@@ -10,6 +10,7 @@ import {
   LoaderCircle,
   Mail,
   Phone,
+  Pencil,
   Plus,
   RefreshCw,
   Search,
@@ -22,7 +23,7 @@ import {
 
 import DashboardLayout from "../../layouts/DashboardLayout";
 import { RevenueByGymChart, RevenueTrendChart, SalesVolumeChart } from "../../components/gym-owner/OwnerRevenueCharts";
-import { createMembershipPlan, getMyGyms } from "../../api/gym.api";
+import { createMembershipPlan, getMyGyms, updateMyGym } from "../../api/gym.api";
 import { getGymOwnerMembers, getGymOwnerSales, getGymOwnerTransfers } from "../../api/gym-owner.api";
 
 const currency = (value) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Number(value || 0));
@@ -49,6 +50,8 @@ function GymOwnerOperationsPage() {
   const [error, setError] = useState("");
   const [showPlanForm, setShowPlanForm] = useState(false);
   const [savingPlan, setSavingPlan] = useState(false);
+  const [editingGym, setEditingGym] = useState(null);
+  const [savingGym, setSavingGym] = useState(false);
   const [message, setMessage] = useState("");
 
   const loadData = useCallback(async () => {
@@ -94,6 +97,19 @@ function GymOwnerOperationsPage() {
       setSavingPlan(false);
     }
   };
+  const onGymUpdated = async (gymData) => {
+    try {
+      setSavingGym(true);
+      await updateMyGym(editingGym.id, gymData);
+      setEditingGym(null);
+      setMessage("Gym profile updated successfully.");
+      await loadData();
+    } catch (requestError) {
+      setMessage(requestError.response?.data?.message || "Unable to update the gym profile.");
+    } finally {
+      setSavingGym(false);
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -104,7 +120,8 @@ function GymOwnerOperationsPage() {
 
         {message && <p className={`rounded-xl border px-4 py-3 text-sm ${message.includes("Unable") ? "border-red-500/20 bg-red-500/5 text-red-300" : "border-emerald-500/20 bg-emerald-500/5 text-emerald-300"}`}>{message}</p>}
         {error && <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-300"><CircleAlert size={17} /> {error}<button type="button" onClick={loadData} className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-red-200"><RefreshCw size={14} /> Retry</button></div>}
-        {loading ? <div className="flex min-h-72 items-center justify-center gap-2 text-sm text-zinc-400"><LoaderCircle className="animate-spin text-violet-400" size={20} /> Loading owner data…</div> : <OwnerContentBoundary resetKey={section}>{section === "gyms" ? <GymsContent gyms={gymsData} /> : section === "plans" ? <PlansContent gyms={gymsData} plans={plans} showPlanForm={showPlanForm} setShowPlanForm={setShowPlanForm} savingPlan={savingPlan} onPlanCreated={onPlanCreated} /> : section === "members" ? <MembersContent members={gymsData} /> : section === "sales" ? <SalesContent salesData={data} /> : <TransfersContent transfers={gymsData} />}</OwnerContentBoundary>}
+        {loading ? <div className="flex min-h-72 items-center justify-center gap-2 text-sm text-zinc-400"><LoaderCircle className="animate-spin text-violet-400" size={20} /> Loading owner data…</div> : <OwnerContentBoundary resetKey={section}>{section === "gyms" ? <GymsContent gyms={gymsData} onEdit={setEditingGym} /> : section === "plans" ? <PlansContent gyms={gymsData} plans={plans} showPlanForm={showPlanForm} setShowPlanForm={setShowPlanForm} savingPlan={savingPlan} onPlanCreated={onPlanCreated} /> : section === "members" ? <MembersContent members={gymsData} /> : section === "sales" ? <SalesContent salesData={data} /> : <TransfersContent transfers={gymsData} />}</OwnerContentBoundary>}
+        {editingGym && <GymProfileForm gym={editingGym} saving={savingGym} onCancel={() => setEditingGym(null)} onSubmit={onGymUpdated} />}
       </main>
     </DashboardLayout>
   );
@@ -130,8 +147,15 @@ class OwnerContentBoundary extends Component {
   }
 }
 
-function GymsContent({ gyms }) {
-  return gyms.length ? <div className="grid gap-5 md:grid-cols-2">{gyms.map((gym) => <article key={gym.id} className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5"><div className="flex gap-4"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-violet-500/12 text-violet-300"><Building2 size={20} /></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-start justify-between gap-2"><h2 className="truncate font-semibold text-white">{gym.name}</h2><Status value={gym.status} /></div><p className="mt-1 text-sm text-zinc-500">{gym.city}, {gym.state}</p><p className="mt-4 text-sm leading-6 text-zinc-400">{gym.description || "No description added yet."}</p><div className="mt-5 flex items-center justify-between border-t border-white/[0.08] pt-4"><span className="text-xs text-zinc-500">{gym.plans?.length || 0} membership plan{gym.plans?.length === 1 ? "" : "s"}</span><span className="text-xs text-zinc-500">Created {date(gym.createdAt)}</span></div></div></div></article>)}</div> : <Empty icon={Building2} title="No gyms yet" description="Create a gym profile to start offering official memberships." />;
+function GymsContent({ gyms, onEdit }) {
+  return gyms.length ? <div className="grid gap-5 md:grid-cols-2">{gyms.map((gym) => <article key={gym.id} className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5"><div className="flex gap-4"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-violet-500/12 text-violet-300"><Building2 size={20} /></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-start justify-between gap-2"><h2 className="truncate font-semibold text-white">{gym.name}</h2><Status value={gym.status} /></div><p className="mt-1 text-sm text-zinc-500">{gym.city}, {gym.state}</p><p className="mt-4 text-sm leading-6 text-zinc-400">{gym.description || "No description added yet."}</p><div className="mt-5 flex items-center justify-between border-t border-white/[0.08] pt-4"><span className="text-xs text-zinc-500">{gym.plans?.length || 0} membership plan{gym.plans?.length === 1 ? "" : "s"}</span><button type="button" onClick={() => onEdit(gym)} className="inline-flex items-center gap-1.5 rounded-lg border border-violet-400/25 px-3 py-2 text-xs font-semibold text-violet-200 transition hover:bg-violet-500/10"><Pencil size={14} /> Edit profile</button></div></div></div></article>)}</div> : <Empty icon={Building2} title="No gyms yet" description="Create a gym profile to start offering official memberships." />;
+}
+
+function GymProfileForm({ gym, saving, onCancel, onSubmit }) {
+  const [form, setForm] = useState({ name: gym.name || "", description: gym.description || "", address: gym.address || "", city: gym.city || "", state: gym.state || "", pincode: gym.pincode || "", phone: gym.phone || "", email: gym.email || "" });
+  const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
+  const submit = (event) => { event.preventDefault(); onSubmit(form); };
+  return <div role="dialog" aria-modal="true" aria-label="Edit gym profile" className="fixed inset-0 z-50 overflow-y-auto bg-black/70 p-4 backdrop-blur-sm sm:p-8"><form onSubmit={submit} className="mx-auto my-6 max-w-3xl rounded-3xl border border-white/[0.1] bg-[#12131c] p-5 shadow-2xl sm:p-7"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-300">Gym profile</p><h2 className="mt-2 text-2xl font-bold text-white">Edit {gym.name}</h2><p className="mt-2 text-sm text-zinc-500">Your details are visible to members. Approval status can only be changed by FitSwap admins.</p></div><button type="button" onClick={onCancel} className="grid h-9 w-9 place-items-center rounded-lg text-zinc-400 hover:bg-white/[0.08] hover:text-white"><X size={19} /></button></div><div className="mt-6 grid gap-4 sm:grid-cols-2"><Field label="Gym name"><input required value={form.name} onChange={(event) => update("name", event.target.value)} /></Field><Field label="Phone"><input required value={form.phone} onChange={(event) => update("phone", event.target.value)} /></Field><Field label="Email"><input type="email" value={form.email} onChange={(event) => update("email", event.target.value)} placeholder="optional" /></Field><Field label="Pincode"><input required value={form.pincode} onChange={(event) => update("pincode", event.target.value)} /></Field><Field label="Address"><input required value={form.address} onChange={(event) => update("address", event.target.value)} /></Field><Field label="City"><input required value={form.city} onChange={(event) => update("city", event.target.value)} /></Field><Field label="State"><input required value={form.state} onChange={(event) => update("state", event.target.value)} /></Field><label className="block text-sm font-medium text-zinc-200 sm:col-span-2"><span className="mb-2 block">Description</span><textarea rows="4" value={form.description} onChange={(event) => update("description", event.target.value)} className="w-full rounded-lg border border-white/[0.1] bg-[#11121a] px-3 py-2.5 text-white outline-none focus:border-violet-400" placeholder="Tell members about your gym" /></label></div><div className="mt-6 flex flex-wrap gap-3"><button disabled={saving} className="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50">{saving ? "Saving profile…" : "Save changes"}</button><button type="button" onClick={onCancel} className="rounded-xl border border-white/[0.1] px-4 py-2.5 text-sm font-semibold text-zinc-300 hover:bg-white/[0.05]">Cancel</button></div></form></div>;
 }
 
 function PlansContent({ gyms, plans, showPlanForm, setShowPlanForm, savingPlan, onPlanCreated }) {

@@ -32,6 +32,7 @@ const chartRoutes = require(
 const imageRoutes = require("./routes/image.routes");
 const savedListingRoutes = require('./routes/saved-listing.routes');
 const gymOwnerDashboardRoutes = require('./routes/gym-owner-dashboard.routes');
+const paymentRoutes = require('./routes/payment.routes');
 const {
     apiLimiter,
 } = require("./middlewares/rateLimiter.middleware");
@@ -72,4 +73,5 @@ app.use("/api", chartRoutes);
 app.use("/api", imageRoutes);
 app.use('/api', savedListingRoutes);
 app.use('/api', gymOwnerDashboardRoutes);
+app.use('/api', paymentRoutes);
 module.exports = app;

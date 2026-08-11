@@ -28,13 +28,13 @@ const protect = async (req, res, next) => {
 
         const user = await prisma.user.findUnique({
             where: { id: decoded.userId },
-            select: { id: true, role: true }
+            select: { id: true, role: true, isActive: true }
         });
 
-        if (!user) {
+        if (!user || !user.isActive) {
             return res.status(401).json({
                 success: false,
-                message: 'Invalid token'
+                message: user ? 'This account has been suspended' : 'Invalid token'
             });
         }
 

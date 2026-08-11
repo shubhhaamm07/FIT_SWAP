@@ -53,3 +53,23 @@ export const deleteCurrentUser = async (confirmation) => {
     const response = await api.delete("/auth/me", { data: confirmation });
     return response.data;
 };
+
+export const requestPasswordReset = async (email) => {
+    const response = await api.post("/auth/forgot-password", { email });
+    return response.data;
+};
+
+export const resetPasswordWithToken = async ({ token, newPassword }) => {
+    const response = await api.post("/auth/reset-password", { token, newPassword });
+    return response.data;
+};
+
+export const verifyEmailAddress = async (token) => {
+    const response = await api.post("/auth/verify-email", { token });
+    return response.data;
+};
+
+export const resendVerificationEmail = async () => {
+    const response = await api.post("/auth/send-verification");
+    return response.data;
+};

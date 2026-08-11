@@ -109,15 +109,16 @@ const getPendingGyms = async () => {
     });
 };
 
-const getPlatformAnalytics = async () => {
+const getPlatformAnalytics = async ({ months } = {}) => {
+    const periodMonths = [3, 6, 12].includes(Number(months)) ? Number(months) : 6;
     const now = new Date();
     const currentMonthStart = startOfMonth(now);
     const previousMonthStart = addMonths(currentMonthStart, -1);
-    const sixMonthStart = addMonths(currentMonthStart, -5);
+    const periodStart = addMonths(currentMonthStart, -(periodMonths - 1));
 
     const [memberships, totalUsers, newRegistrations, activeMemberships, totalListings, soldListings] = await Promise.all([
         prisma.userMembership.findMany({
-            where: { createdAt: { gte: sixMonthStart } },
+            where: { createdAt: { gte: periodStart } },
             select: {
                 id: true,
                 userId: true,
@@ -143,8 +144,8 @@ const getPlatformAnalytics = async () => {
         prisma.marketplaceListing.count({ where: { status: 'SOLD', deletedAt: null } })
     ]);
 
-    const revenueTrend = Array.from({ length: 6 }, (_, index) => {
-        const start = addMonths(currentMonthStart, index - 5);
+    const revenueTrend = Array.from({ length: periodMonths }, (_, index) => {
+        const start = addMonths(currentMonthStart, index - (periodMonths - 1));
         const end = addMonths(start, 1);
         const monthMemberships = memberships.filter((membership) =>
             membership.createdAt >= start && membership.createdAt < end
@@ -191,6 +192,7 @@ const getPlatformAnalytics = async () => {
             monthlyGrowth,
             currentMonthRevenue: currentMonth?.revenue || 0
         },
+        periodMonths,
         revenueTrend,
         topGyms: Array.from(gymTotals.values()).sort((first, second) => second.revenue - first.revenue).slice(0, 5),
         topPlans: Array.from(planTotals.values()).sort((first, second) => second.sales - first.sales || second.revenue - first.revenue).slice(0, 5)
@@ -263,12 +265,206 @@ const getAnnouncements = async () =>
         include: { admin: { select: { firstName: true, lastName: true } } }
     });
 
-const getAuditLogs = async () =>
-    prisma.adminAuditLog.findMany({
+const getAuditLogs = async ({ action, search = '' } = {}) => {
+    const validActions = ['ANNOUNCEMENT_SENT', 'GYM_STATUS_UPDATED', 'LISTING_STATUS_UPDATED', 'USER_ROLE_UPDATED', 'USER_ACCESS_UPDATED', 'TRANSFER_RESOLVED'];
+    const cleanSearch = String(search || '').trim();
+    const where = {};
+
+    if (validActions.includes(action)) where.action = action;
+    if (cleanSearch) {
+        where.OR = [
+            { summary: { contains: cleanSearch, mode: 'insensitive' } },
+            { targetType: { contains: cleanSearch, mode: 'insensitive' } },
+            {
+                admin: {
+                    is: {
+                        OR: [
+                            { firstName: { contains: cleanSearch, mode: 'insensitive' } },
+                            { lastName: { contains: cleanSearch, mode: 'insensitive' } },
+                            { email: { contains: cleanSearch, mode: 'insensitive' } }
+                        ]
+                    }
+                }
+            }
+        ];
+    }
+
+    return prisma.adminAuditLog.findMany({
+        where,
         take: 100,
         orderBy: { createdAt: 'desc' },
         include: { admin: { select: { firstName: true, lastName: true, email: true } } }
     });
+};
+
+const userDirectorySelect = {
+    id: true,
+    firstName: true,
+    lastName: true,
+    email: true,
+    phone: true,
+    role: true,
+    isActive: true,
+    createdAt: true,
+    _count: {
+        select: {
+            memberships: true,
+            listings: true,
+            gyms: true,
+            payments: true
+        }
+    }
+};
+
+const getUsers = async ({ search = '', role, status } = {}) => {
+    const where = {};
+    const cleanSearch = String(search || '').trim();
+
+    if (cleanSearch) {
+        where.OR = [
+            { firstName: { contains: cleanSearch, mode: 'insensitive' } },
+            { lastName: { contains: cleanSearch, mode: 'insensitive' } },
+            { email: { contains: cleanSearch, mode: 'insensitive' } },
+            { phone: { contains: cleanSearch, mode: 'insensitive' } }
+        ];
+    }
+
+    if (['USER', 'GYM_OWNER', 'GYM_STAFF', 'ADMIN'].includes(role)) {
+        where.role = role;
+    }
+
+    if (status === 'ACTIVE') where.isActive = true;
+    if (status === 'SUSPENDED') where.isActive = false;
+
+    return prisma.user.findMany({
+        where,
+        select: userDirectorySelect,
+        orderBy: { createdAt: 'desc' },
+        take: 250
+    });
+};
+
+const getActiveAdminCount = () =>
+    prisma.user.count({ where: { role: 'ADMIN', isActive: true } });
+
+const updateUserRole = async ({ adminId, userId, role }) => {
+    const validRoles = ['USER', 'GYM_OWNER', 'GYM_STAFF', 'ADMIN'];
+    if (!validRoles.includes(role)) throw new Error('Invalid user role');
+    if (adminId === userId) throw new Error('You cannot change your own administrator role');
+
+    const target = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, firstName: true, lastName: true, role: true, isActive: true, _count: { select: { gyms: true } } }
+    });
+    if (!target) throw new Error('User not found');
+    if (target.role === role) return target;
+
+    if (target.role === 'ADMIN' && target.isActive && role !== 'ADMIN' && await getActiveAdminCount() <= 1) {
+        throw new Error('FitSwap must keep at least one active administrator');
+    }
+
+    if (target._count.gyms > 0 && role !== 'GYM_OWNER') {
+        throw new Error('Transfer or close this user’s gyms before removing the Gym Owner role');
+    }
+
+    return prisma.$transaction(async (transaction) => {
+        const updated = await transaction.user.update({
+            where: { id: userId },
+            data: { role },
+            select: userDirectorySelect
+        });
+
+        await transaction.adminAuditLog.create({
+            data: {
+                adminId,
+                action: 'USER_ROLE_UPDATED',
+                targetType: 'USER',
+                targetId: userId,
+                summary: `${target.firstName} ${target.lastName} role changed from ${target.role} to ${role}`,
+                metadata: { previousRole: target.role, nextRole: role }
+            }
+        });
+
+        return updated;
+    });
+};
+
+const updateUserAccess = async ({ adminId, userId, isActive }) => {
+    if (typeof isActive !== 'boolean') throw new Error('Account access must be true or false');
+    if (adminId === userId) throw new Error('You cannot change your own account access');
+
+    const target = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true, firstName: true, lastName: true, role: true, isActive: true }
+    });
+    if (!target) throw new Error('User not found');
+    if (target.isActive === isActive) return prisma.user.findUnique({ where: { id: userId }, select: userDirectorySelect });
+
+    if (!isActive && target.role === 'ADMIN' && await getActiveAdminCount() <= 1) {
+        throw new Error('FitSwap must keep at least one active administrator');
+    }
+
+    return prisma.$transaction(async (transaction) => {
+        const updated = await transaction.user.update({
+            where: { id: userId },
+            data: { isActive },
+            select: userDirectorySelect
+        });
+
+        await transaction.adminAuditLog.create({
+            data: {
+                adminId,
+                action: 'USER_ACCESS_UPDATED',
+                targetType: 'USER',
+                targetId: userId,
+                summary: `${target.firstName} ${target.lastName} account ${isActive ? 'restored' : 'suspended'}`,
+                metadata: { isActive }
+            }
+        });
+
+        return updated;
+    });
+};
+
+const getPayments = async ({ status } = {}) => {
+    const where = ['CREATED', 'PAID', 'FAILED'].includes(status) ? { status } : {};
+
+    return prisma.payment.findMany({
+        where,
+        take: 250,
+        orderBy: { createdAt: 'desc' },
+        select: {
+            id: true,
+            amount: true,
+            currency: true,
+            status: true,
+            createdAt: true,
+            verifiedAt: true,
+            razorpayPaymentId: true,
+            buyer: { select: { id: true, firstName: true, lastName: true, email: true } },
+            listing: {
+                select: {
+                    id: true,
+                    askingPrice: true,
+                    status: true,
+                    membership: { select: { plan: { select: { name: true, gym: { select: { name: true } } } } } }
+                }
+            }
+        }
+    });
+};
+
+const getSecurityOverview = async () => {
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [suspendedAccounts, failedPayments, pendingTransfers, recentAdminActions] = await Promise.all([
+        prisma.user.count({ where: { isActive: false } }),
+        prisma.payment.count({ where: { status: 'FAILED' } }),
+        prisma.transferRequest.count({ where: { status: 'PENDING' } }),
+        prisma.adminAuditLog.count({ where: { createdAt: { gte: oneDayAgo } } })
+    ]);
+
+    return { suspendedAccounts, failedPayments, pendingTransfers, recentAdminActions };
+};
 
 module.exports = {
     getAdminDashboard,
@@ -278,5 +474,10 @@ module.exports = {
     sendAnnouncement,
     getAnnouncements,
     getAuditLogs,
-    createAuditLog
+    createAuditLog,
+    getUsers,
+    updateUserRole,
+    updateUserAccess,
+    getPayments,
+    getSecurityOverview
 };

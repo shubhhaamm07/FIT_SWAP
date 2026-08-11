@@ -56,6 +56,8 @@ function Sidebar() {
               to: "/admin/listings",
               icon: Store,
             },
+            { label: "People & Access", to: "/admin/users", icon: UsersRound },
+            { label: "Payment Ledger", to: "/admin/payments", icon: CreditCard },
           ],
         },
         {

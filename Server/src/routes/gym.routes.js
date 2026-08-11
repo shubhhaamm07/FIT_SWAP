@@ -28,6 +28,12 @@ router.post(
     gymController.createGym
 );
 router.patch(
+    '/:id',
+    protect,
+    authorize('GYM_OWNER'),
+    gymController.updateGym
+);
+router.patch(
     '/:id/status',
     protect,
     authorize('ADMIN'),

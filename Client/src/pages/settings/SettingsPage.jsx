@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { BellRing, ChevronRight, CircleAlert, KeyRound, LoaderCircle, Mail, ShieldCheck, Trash2, UserRound, X } from "lucide-react";
+import { BadgeCheck, BellRing, ChevronRight, CircleAlert, KeyRound, LoaderCircle, Mail, Send, ShieldCheck, Trash2, UserRound, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../layouts/DashboardLayout";
-import { changeUserPassword, deleteCurrentUser, getCurrentUser, updateUserSettings } from "../../api/auth.api";
+import { changeUserPassword, deleteCurrentUser, getCurrentUser, resendVerificationEmail, updateUserSettings } from "../../api/auth.api";
 import { useAuth } from "../../hooks/useAuth";
 
 function SettingsPage() {
@@ -43,6 +43,18 @@ function SettingsPage() {
     }
   };
 
+  const sendVerification = async () => {
+    try {
+      setSaving("verification");
+      const response = await resendVerificationEmail();
+      setMessage(response.message || "Verification email sent.");
+    } catch (error) {
+      setMessage(`Unable to send verification email. ${error.response?.data?.message || "Please try again."}`);
+    } finally {
+      setSaving("");
+    }
+  };
+
   const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(" ") || "FitSwap Member";
   const initials = [profile.firstName, profile.lastName].filter(Boolean).map((name) => name[0]).join("").slice(0, 2).toUpperCase() || "FS";
 
@@ -55,6 +67,10 @@ function SettingsPage() {
       {loading ? <div className="flex min-h-72 items-center justify-center gap-2 text-sm text-zinc-400"><LoaderCircle size={18} className="animate-spin" /> Loading settings…</div> : <div className="mt-6 space-y-6">
         <SettingsSection title="Account" description="Your public FitSwap identity.">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-4"><div className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 font-bold text-white">{initials}</div><div><p className="font-semibold text-white">{displayName}</p><p className="mt-1 flex items-center gap-1.5 text-sm text-zinc-500"><Mail size={14} /> {profile.email}</p></div></div><button type="button" onClick={() => navigate("/profile")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/[0.08]"><UserRound size={16} /> Edit profile <ChevronRight size={15} /></button></div>
+        </SettingsSection>
+
+        <SettingsSection title="Email verification" description="A verified email keeps password recovery and important account updates secure.">
+          <div className="flex flex-col gap-4 rounded-2xl border border-white/[0.07] bg-black/10 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${profile.emailVerifiedAt ? "bg-emerald-500/10 text-emerald-300" : "bg-amber-500/10 text-amber-300"}`}><BadgeCheck size={19} /></div><div><p className="font-medium text-white">{profile.emailVerifiedAt ? "Email verified" : "Email verification needed"}</p><p className="mt-1 text-sm leading-5 text-zinc-500">{profile.emailVerifiedAt ? "Your email is confirmed and ready for account recovery." : `Verify ${profile.email || "your email"} to protect your account.`}</p></div></div>{!profile.emailVerifiedAt && <button type="button" disabled={saving === "verification"} onClick={sendVerification} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-violet-400/30 bg-violet-500/10 px-4 py-2.5 text-sm font-semibold text-violet-200 transition hover:bg-violet-500/20 disabled:opacity-60"><Send size={16} /> {saving === "verification" ? "Sending…" : "Send verification"}</button>}</div>
         </SettingsSection>
 
         <SettingsSection title="Notifications" description="Choose the updates that matter to you.">

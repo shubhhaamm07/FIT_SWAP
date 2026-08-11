@@ -25,8 +25,8 @@ export const updateAdminListingStatus = async (listingId, status) => {
   return data.data;
 };
 
-export const getPlatformAnalytics = async () => {
-  const { data } = await axios.get("/admin/analytics");
+export const getPlatformAnalytics = async (filters = {}) => {
+  const { data } = await axios.get("/admin/analytics", { params: filters });
   return data.data;
 };
 
@@ -45,7 +45,32 @@ export const getAnnouncements = async () => {
   return data.data;
 };
 
-export const getAuditLogs = async () => {
-  const { data } = await axios.get("/admin/audit-logs");
+export const getAuditLogs = async (filters = {}) => {
+  const { data } = await axios.get("/admin/audit-logs", { params: filters });
+  return data.data;
+};
+
+export const getAdminUsers = async (filters = {}) => {
+  const { data } = await axios.get("/admin/users", { params: filters });
+  return data.data;
+};
+
+export const updateAdminUserRole = async (userId, role) => {
+  const { data } = await axios.patch(`/admin/users/${userId}/role`, { role });
+  return data.data;
+};
+
+export const updateAdminUserAccess = async (userId, isActive) => {
+  const { data } = await axios.patch(`/admin/users/${userId}/access`, { isActive });
+  return data.data;
+};
+
+export const getAdminPayments = async (filters = {}) => {
+  const { data } = await axios.get("/admin/payments", { params: filters });
+  return data.data;
+};
+
+export const getSecurityOverview = async () => {
+  const { data } = await axios.get("/admin/security-overview");
   return data.data;
 };

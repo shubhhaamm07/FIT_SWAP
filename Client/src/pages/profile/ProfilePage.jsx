@@ -11,6 +11,7 @@ import {
   LoaderCircle,
   Mail,
   MapPin,
+  Phone,
   Save,
   Store,
   X,
@@ -114,7 +115,7 @@ function ProfilePage() {
     [currentProfile.firstName, currentProfile.lastName]
       .filter(Boolean)
       .join(" ") || "FitSwap Member";
-  const handle = (currentProfile.email || "member@fitswap")
+  const handle = currentProfile.username || (currentProfile.email || "member@fitswap")
     .split("@")[0]
     .replace(/[^a-zA-Z0-9_]/g, "_");
   const initials =
@@ -282,17 +283,21 @@ function ProfilePage() {
             <div className="mt-6 grid gap-4 border-y border-white/[0.08] py-5 sm:grid-cols-[1fr_auto] sm:items-center">
               <div>
                 <p className="text-sm leading-6 text-zinc-300">
-                  A FitSwap member finding better value in every workout. Manage
-                  memberships, resell unused time, and discover your next gym.
+                  {currentProfile.bio || "A FitSwap member finding better value in every workout. Manage memberships, resell unused time, and discover your next gym."}
                 </p>
                 <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-zinc-500">
                   <span className="inline-flex items-center gap-1.5">
                     <Mail size={13} />{" "}
                     {currentProfile.email || "Email not available"}
                   </span>
+                  {currentProfile.city && (
+                    <span className="inline-flex items-center gap-1.5">
+                      <MapPin size={13} /> {currentProfile.city}
+                    </span>
+                  )}
                   {currentProfile.phone && (
                     <span className="inline-flex items-center gap-1.5">
-                      <MapPin size={13} /> {currentProfile.phone}
+                      <Phone size={13} /> {currentProfile.phone}
                     </span>
                   )}
                   <span className="inline-flex items-center gap-1.5">
@@ -301,9 +306,7 @@ function ProfilePage() {
                   </span>
                 </div>
               </div>
-              <span className="w-fit rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-300">
-                {roleLabel(currentProfile.role)}
-              </span>
+              <div className="flex flex-wrap gap-2"><span className="w-fit rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-300">{roleLabel(currentProfile.role)}</span><span className={`w-fit rounded-full border px-3 py-1.5 text-xs font-semibold ${currentProfile.isProfilePublic ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300" : "border-zinc-500/20 bg-zinc-500/10 text-zinc-300"}`}>{currentProfile.isProfilePublic ? "Public profile" : "Private profile"}</span></div>
             </div>
 
             <div className="mt-5 grid grid-cols-3 divide-x divide-white/[0.08] rounded-2xl border border-white/[0.07] bg-black/10 py-3">
@@ -517,6 +520,10 @@ function EditProfileModal({ profile, saving, onClose, onSave }) {
     firstName: profile.firstName || "",
     lastName: profile.lastName || "",
     phone: profile.phone || "",
+    username: profile.username || "",
+    bio: profile.bio || "",
+    city: profile.city || "",
+    isProfilePublic: profile.isProfilePublic !== false,
   });
   const submit = (event) => {
     event.preventDefault();
@@ -563,6 +570,9 @@ function EditProfileModal({ profile, saving, onClose, onSave }) {
             placeholder="Add a phone number"
           />
         </div>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2"><Field label="Username" value={form.username} onChange={(value) => setForm({ ...form, username: value.toLowerCase() })} placeholder="your_handle" /><Field label="City" value={form.city} onChange={(value) => setForm({ ...form, city: value })} placeholder="e.g. Bangalore" /></div>
+        <label className="mt-4 block text-xs font-medium text-zinc-400">Bio<textarea maxLength="280" rows="4" value={form.bio} onChange={(event) => setForm({ ...form, bio: event.target.value })} placeholder="Tell the FitSwap community about yourself" className="mt-2 w-full resize-y rounded-xl border border-white/[0.1] bg-black/20 px-3 py-2.5 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-violet-400/60" /></label>
+        <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-white/[0.07] bg-black/15 p-3"><input checked={form.isProfilePublic} onChange={(event) => setForm({ ...form, isProfilePublic: event.target.checked })} type="checkbox" className="mt-0.5 accent-violet-500" /><span><span className="block text-sm font-medium text-zinc-200">Public seller profile</span><span className="mt-1 block text-xs leading-5 text-zinc-500">Allow marketplace buyers to see your profile identity when you list a membership.</span></span></label>
         <div className="mt-4 rounded-xl border border-white/[0.07] bg-black/15 px-3 py-3">
           <p className="text-xs text-zinc-500">Email address</p>
           <p className="mt-1 text-sm text-zinc-300">{profile.email}</p>

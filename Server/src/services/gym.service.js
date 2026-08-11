@@ -66,6 +66,39 @@ const updateGymStatus = async (gymId, status) => {
 
     return gym;
 };
+
+const updateGymByOwner = async (gymId, ownerId, gymData) => {
+    const gym = await prisma.gym.findFirst({
+        where: { id: gymId, ownerId },
+        select: { id: true }
+    });
+
+    if (!gym) {
+        throw new Error('Gym not found or you do not have permission to edit it');
+    }
+
+    const name = String(gymData.name || '').trim();
+    const address = String(gymData.address || '').trim();
+    const city = String(gymData.city || '').trim();
+    const state = String(gymData.state || '').trim();
+    const pincode = String(gymData.pincode || '').trim();
+    const phone = String(gymData.phone || '').trim();
+    const email = gymData.email ? String(gymData.email).trim().toLowerCase() : null;
+    const description = gymData.description ? String(gymData.description).trim() : null;
+
+    if (!name || !address || !city || !state || !pincode || !phone) {
+        throw new Error('Name, address, city, state, pincode, and phone are required');
+    }
+
+    if (email && !/^\S+@\S+\.\S+$/.test(email)) {
+        throw new Error('Please provide a valid gym email address');
+    }
+
+    return prisma.gym.update({
+        where: { id: gymId },
+        data: { name, address, city, state, pincode, phone, email, description }
+    });
+};
 const getGymById = async (gymId) => {
     return prisma.gym.findFirst({
         where: {
@@ -86,5 +119,5 @@ const getGymById = async (gymId) => {
     });
 };
 module.exports = {
-    createGym, getMyGyms, getAllGyms, updateGymStatus, getGymById
+    createGym, getMyGyms, getAllGyms, updateGymStatus, updateGymByOwner, getGymById
 };

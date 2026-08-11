@@ -101,6 +101,18 @@ const updateGymStatus = async (req, res) => {
         });
     }
 };
+const updateGym = async (req, res) => {
+    try {
+        const gym = await gymService.updateGymByOwner(req.params.id, req.user.userId, req.body);
+        return res.status(200).json({
+            success: true,
+            message: 'Gym profile updated successfully',
+            data: gym
+        });
+    } catch (error) {
+        return res.status(400).json({ success: false, message: error.message });
+    }
+};
 const getGymById = async (req, res) => {
     try {
         const gym = await gymService.getGymById(req.params.id);
@@ -123,5 +135,5 @@ const getGymById = async (req, res) => {
     }
 };
 module.exports = {
-    createGym, getMyGyms, getAllGyms, getGymById, updateGymStatus
+    createGym, getMyGyms, getAllGyms, getGymById, updateGymStatus, updateGym
 };
