@@ -107,7 +107,7 @@ function RegisterForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="auth-form space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <Input
           label="First Name"
@@ -175,9 +175,9 @@ function RegisterForm() {
       />
 
       <div>
-        <label className="mb-4 block text-sm text-zinc-400">Register As</label>
+        <label className="mb-3 block text-sm font-medium text-zinc-300">I want to join as</label>
 
-        <div className="grid grid-cols-2 gap-5">
+        <div className="grid grid-cols-2 gap-3">
           <RoleCard
             title="Member"
             description="Buy & sell memberships, book trainers and access the marketplace."
@@ -202,7 +202,7 @@ function RegisterForm() {
             type="checkbox"
             checked={acceptedTerms}
             onChange={(e) => setAcceptedTerms(e.target.checked)}
-            className="accent-violet-600"
+            className="auth-terms-checkbox"
           />
 
           <p className="text-sm text-zinc-400">
@@ -215,15 +215,15 @@ function RegisterForm() {
         )}
       </div>
 
-      <Button type="submit" size="lg" className="w-full">
+      <Button type="submit" size="lg" className="auth-submit-button w-full">
         Create Account
       </Button>
 
-      <p className="text-center text-zinc-400">
+      <p className="text-center text-sm text-zinc-500">
         Already have an account?
         <Link
           to="/login"
-          className="ml-2 text-violet-400 hover:text-violet-300 transition-colors"
+          className="auth-text-link ml-2 transition-colors"
         >
           Login
         </Link>

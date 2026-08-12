@@ -1,38 +1,49 @@
 import { motion } from "framer-motion";
-import loginBg from "../assets/images/login-bg.png";
+import { ArrowUpRight, BadgeCheck, Dumbbell, ShieldCheck } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import authBackground from "../assets/images/auth-fitness-studio.png";
 
 function AuthLayout({ children }) {
+  const { pathname } = useLocation();
+  const isRegister = pathname === "/register";
+
   return (
-    <div className="auth-shell relative min-h-screen overflow-hidden bg-[#0B0B0F] text-white">
-      {/* Background */}
-      <img
-        src={loginBg}
-        alt="Login Background"
-        className="
-          absolute inset-0 h-full w-full scale-110 object-cover brightness-[0.38]
-          transition-transform duration-[10000]
-        "
-      />
+    <div className="auth-shell auth-editorial-shell relative min-h-screen overflow-hidden text-white">
+      <img src={authBackground} alt="" className="auth-editorial-image absolute inset-0 h-full w-full object-cover" />
+      <div className="auth-editorial-wash absolute inset-0" />
+      <div className="auth-editorial-grid absolute inset-0" />
+      <div className="auth-editorial-glow auth-editorial-glow-one absolute" />
+      <div className="auth-editorial-glow auth-editorial-glow-two absolute" />
 
-      {/* Overlay */}
-      <div className="absolute inset-0 bg-[#07070B]/65" />
+      <header className="relative z-30 mx-auto flex w-full max-w-[1480px] items-center justify-between px-5 py-5 sm:px-8 lg:px-12">
+        <Link to="/" className="group flex items-center gap-3" aria-label="Go to FitSwap home page">
+          <span className="auth-brand-mark grid h-10 w-10 place-items-center rounded-2xl text-white transition group-hover:rotate-6 group-hover:scale-105"><Dumbbell size={20} /></span>
+          <span><strong className="block text-xl font-black tracking-tight">Fit<span className="auth-brand-accent">Swap</span></strong><small className="-mt-0.5 block text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-500">Membership marketplace</small></span>
+        </Link>
 
-      {/* Gradient */}
-      <div className="absolute inset-0 bg-gradient-to-br from-[#0B0B0F] via-[#0B0B0F]/65 to-[#09090B]/20" />
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.025)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.025)_1px,transparent_1px)] bg-[size:36px_36px] [mask-image:linear-gradient(to_bottom,black,transparent_75%)]" />
+        <Link to={isRegister ? "/login" : "/register"} className="auth-header-link hidden items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold sm:inline-flex">
+          {isRegister ? "Already a member? Sign in" : "New here? Create account"} <ArrowUpRight size={15} />
+        </Link>
+      </header>
 
-      {/* Glow */}
-      <div className="absolute -right-24 -top-20 h-[520px] w-[520px] rounded-full bg-violet-600/20 blur-[180px]" />
-
-      <div className="absolute -bottom-16 -left-16 h-[380px] w-[380px] rounded-full bg-fuchsia-500/10 blur-[160px]" />
-
-      {/* Content */}
-      <div className="relative z-20 flex min-h-screen items-center justify-center px-4 py-10 sm:px-8 lg:justify-end lg:px-16 xl:px-24">
-        <motion.div
-          initial={{ opacity: 0, x: 36 }}
+      <div className="relative z-20 mx-auto grid min-h-[calc(100vh-84px)] w-full max-w-[1480px] items-center gap-10 px-5 pb-8 sm:px-8 lg:grid-cols-[1fr_minmax(420px,520px)] lg:px-12 lg:pb-12">
+        <motion.section
+          initial={{ opacity: 0, x: -24 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.7, ease: "easeOut" }}
-          className="auth-panel-enter w-full max-w-md"
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+          className="auth-editorial-story hidden max-w-xl self-stretch justify-center lg:flex lg:flex-col"
+        >
+          <span className="auth-story-kicker inline-flex w-fit items-center gap-2 rounded-full px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.18em]"><BadgeCheck size={13} /> Verified membership marketplace</span>
+          <h2 className="mt-6 text-5xl font-black leading-[.93] tracking-[-0.055em] text-white xl:text-6xl">Your fitness routine should never be left behind.</h2>
+          <p className="mt-6 max-w-md text-base leading-7 text-zinc-300">Find a verified membership, unlock unused value, and move every gym pass through a clear transfer flow.</p>
+          <div className="auth-story-proof mt-9 flex w-fit items-center gap-3 rounded-2xl px-4 py-3.5"><span className="grid h-10 w-10 place-items-center rounded-xl bg-emerald-400/10 text-emerald-300"><ShieldCheck size={19} /></span><span><strong className="block text-sm text-white">A secure step forward</strong><small className="mt-0.5 block text-xs text-zinc-400">Clear ownership, clear next steps.</small></span></div>
+        </motion.section>
+
+        <motion.div
+          initial={{ opacity: 0, y: 24, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.65, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+          className="auth-panel-enter w-full justify-self-center"
         >
           {children}
         </motion.div>

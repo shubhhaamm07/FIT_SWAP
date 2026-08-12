@@ -12,7 +12,7 @@ function Input({
   onRightIconClick,
 }) {
   return (
-    <div className="space-y-2">
+    <div className="auth-input-group space-y-2">
       {/* Label */}
       {label && (
         <label className="text-sm font-medium text-zinc-300">
@@ -23,7 +23,7 @@ function Input({
       )}
 
       {/* Input Container */}
-      <div className="relative group">
+      <div className="auth-input-wrap relative group">
         {/* Left Icon */}
 
         {icon && (
@@ -34,9 +34,9 @@ function Input({
               top-1/2
               -translate-y-1/2
 
-              text-zinc-500
+            text-zinc-500
 
-              group-focus-within:text-violet-400
+            group-focus-within:text-[#ffb18c]
 
               transition-colors
             "
@@ -64,11 +64,11 @@ function Input({
 
             rounded-xl
 
-            bg-[#16161D]
+            auth-input-field
 
             border
 
-            ${error ? "border-red-500" : "border-zinc-700"}
+            ${error ? "border-red-500" : "border-white/[0.1]"}
 
             text-white
 
@@ -79,9 +79,9 @@ function Input({
             transition-all
             duration-300
 
-            focus:border-violet-500
+            focus:border-[#ff8c63]
             focus:ring-4
-            focus:ring-violet-500/20
+            focus:ring-[#ff8c63]/15
           `}
         />
 
@@ -98,7 +98,7 @@ function Input({
               -translate-y-1/2
 
               text-zinc-500
-              hover:text-violet-400
+              hover:text-[#ffb18c]
 
               transition-colors
             "

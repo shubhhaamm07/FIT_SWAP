@@ -7,6 +7,7 @@ import MarketplacePreview from "../components/landing/MarketplacePreview";
 import CTASection from "../components/landing/CTASection";
 import Footer from "../components/landing/Footer";
 import ResearchInnovationSection from "../components/landing/ResearchInnovationSection";
+import StatsSection from "../components/landing/StatsSection";
 import FadeInSection from "../components/common/FadeInSection";
 import { getAllGyms } from "../api/gym.api";
 import { getMarketplaceListings } from "../api/marketplace.api";
@@ -34,7 +35,7 @@ function LandingPage() {
   }, []);
 
   return (
-    <div className="site-shell bg-[#0B0B0F] text-white">
+    <div className="site-shell fitswap-web3 bg-[#0B0B0F] text-white">
       <Navbar />
 
       <FadeInSection>

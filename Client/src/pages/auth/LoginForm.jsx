@@ -66,7 +66,7 @@ function LoginForm() {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className="auth-form space-y-5">
       <Input
         label="Email Address"
         name="email"
@@ -94,31 +94,21 @@ function LoginForm() {
       <div className="flex justify-end">
         <Link
           to="/forgot-password"
-          className="
-            text-sm
-            text-violet-400
-            hover:text-violet-300
-            transition-colors
-          "
+          className="auth-text-link text-sm transition-colors"
         >
           Forgot Password?
         </Link>
       </div>
 
-      <Button type="submit" size="lg" disabled={submitting} className="w-full">
+      <Button type="submit" size="lg" disabled={submitting} className="auth-submit-button w-full">
         {submitting ? "Signing you in…" : "Login to FitSwap"}
       </Button>
 
-      <p className="text-center text-zinc-400">
+      <p className="text-center text-sm text-zinc-500">
         Don't have an account?
         <Link
           to="/register"
-          className="
-            ml-2
-            text-violet-400
-            hover:text-violet-300
-            transition-colors
-          "
+          className="auth-text-link ml-2 transition-colors"
         >
           Register
         </Link>

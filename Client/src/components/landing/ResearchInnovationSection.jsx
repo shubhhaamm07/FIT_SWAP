@@ -1,14 +1,65 @@
 import { motion } from "framer-motion";
-import { BrainCircuit, ChevronRight, DatabaseZap, ShieldAlert, Sparkles } from "lucide-react";
+import { ArrowRight, BadgeCheck, CircleCheckBig, Dumbbell, ShieldCheck, Sparkles } from "lucide-react";
 
-const milestones = [
-  { icon: DatabaseZap, title: "Dynamic policy engine", text: "Transfer rules are evaluated from the membership, gym, and listing state." },
-  { icon: ShieldAlert, title: "Fraud-aware workflow", text: "Controlled status changes create a clearer record for every handover." },
-  { icon: BrainCircuit, title: "Smarter pricing direction", text: "Marketplace data can guide future fair-value suggestions for sellers." },
+const transferSteps = [
+  { icon: Dumbbell, title: "List your pass", text: "Membership details, remaining validity and price are all visible." },
+  { icon: ShieldCheck, title: "Verify the handover", text: "Requests, payment status and approvals stay tied to one record." },
+  { icon: CircleCheckBig, title: "Keep moving", text: "Once complete, the membership moves to its next verified owner." },
 ];
 
 function ResearchInnovationSection() {
-  return <section className="relative overflow-hidden bg-[#090a10] py-24 sm:py-32"><div className="absolute inset-0 bg-[radial-gradient(circle_at_74%_44%,rgba(124,58,237,.16),transparent_24%),radial-gradient(circle_at_28%_86%,rgba(14,165,233,.11),transparent_22%)]" /><div className="relative mx-auto max-w-7xl px-6 sm:px-8"><div className="grid gap-12 lg:grid-cols-[.78fr_1.22fr] lg:items-center"><motion.div initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: 0.25 }}><div className="inline-flex items-center gap-2 rounded-full border border-fuchsia-300/15 bg-fuchsia-500/10 px-3 py-1.5 text-xs font-semibold text-fuchsia-200"><Sparkles size={14} /> Research direction</div><h2 className="mt-5 text-4xl font-bold tracking-tight text-white sm:text-5xl">A marketplace that learns how transfers work.</h2><p className="mt-5 max-w-lg text-base leading-7 text-zinc-400">FitSwap is designed as more than a buying and selling interface. Its workflow is a foundation for policy controls, risk signals, and better marketplace decisions.</p></motion.div><div className="relative space-y-4 before:absolute before:bottom-8 before:left-6 before:top-8 before:w-px before:bg-gradient-to-b before:from-violet-400/80 before:via-sky-400/50 before:to-transparent">{milestones.map((milestone, index) => <motion.article key={milestone.title} initial={{ opacity: 0, x: 24 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true, amount: 0.3 }} transition={{ delay: index * 0.12 }} className="landing-glass-card relative ml-0 flex gap-5 p-5 pl-20 sm:p-6 sm:pl-20"><span className="absolute left-3 top-6 z-10 grid h-11 w-11 place-items-center rounded-2xl border border-violet-300/20 bg-[#151426] text-violet-200 shadow-lg shadow-violet-950/40"><milestone.icon size={20} /></span><div><h3 className="text-lg font-semibold text-white">{milestone.title}</h3><p className="mt-2 text-sm leading-6 text-zinc-400">{milestone.text}</p></div><ChevronRight size={18} className="ml-auto shrink-0 self-center text-sky-300" /></motion.article>)}</div></div></div></section>;
+  return (
+    <section className="landing-system-section relative overflow-hidden py-20 sm:py-28">
+      <div className="landing-system-aura absolute inset-0" />
+      <div className="relative mx-auto max-w-7xl px-5 sm:px-8">
+        <div className="grid gap-10 lg:grid-cols-[.74fr_1.26fr] lg:items-center">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true, amount: 0.25 }}
+          >
+            <p className="landing-section-label inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.18em]"><Sparkles size={13} /> The FitSwap workflow</p>
+            <h2 className="mt-5 text-4xl font-black leading-[.98] tracking-[-0.045em] text-white sm:text-5xl">A transfer should feel simple.</h2>
+            <p className="mt-5 max-w-lg text-base leading-7 text-zinc-400">Behind every listing is a clear record of who owns the pass, what happens next, and when the handover is complete.</p>
+            <div className="mt-7 inline-flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.035] px-3.5 py-3">
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-400/10 text-emerald-300"><BadgeCheck size={18} /></span>
+              <span><strong className="block text-sm text-white">One visible transfer trail</strong><span className="mt-0.5 block text-xs text-zinc-500">Clear for buyers, sellers, and gym owners.</span></span>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 22 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.25 }}
+            className="landing-system-board relative overflow-hidden rounded-[2rem] p-5 sm:p-7"
+          >
+            <div className="landing-system-board-grid absolute inset-0" />
+            <div className="relative flex items-center justify-between gap-4 border-b border-white/[0.08] pb-5">
+              <div><p className="text-[10px] font-bold uppercase tracking-[0.17em] text-[#f7bedf]">Transfer timeline</p><p className="mt-1 text-lg font-bold text-white">Every step stays in sync</p></div>
+              <span className="rounded-full border border-emerald-300/15 bg-emerald-400/10 px-3 py-1.5 text-[10px] font-bold text-emerald-200">Live status</span>
+            </div>
+
+            <div className="relative mt-6 space-y-3 before:absolute before:bottom-8 before:left-[1.35rem] before:top-8 before:w-px before:bg-gradient-to-b before:from-[#ff8c63] via-[#f257b7] to-[#a78bfa]">
+              {transferSteps.map((step, index) => (
+                <motion.article
+                  key={step.title}
+                  initial={{ opacity: 0, x: 20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true, amount: 0.2 }}
+                  transition={{ delay: index * 0.1 }}
+                  className="landing-system-step relative flex items-center gap-4 rounded-2xl p-4 sm:p-5"
+                >
+                  <span className="landing-system-icon z-10 grid h-11 w-11 shrink-0 place-items-center rounded-2xl"><step.icon size={19} /></span>
+                  <div><p className="text-base font-bold text-white">{step.title}</p><p className="mt-1 text-sm leading-6 text-zinc-400">{step.text}</p></div>
+                  <ArrowRight size={17} className="ml-auto shrink-0 text-[#ff9671]" />
+                </motion.article>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  );
 }
 
 export default ResearchInnovationSection;

@@ -6,13 +6,14 @@ function RoleCard({ title, description, icon, selected, onClick }) {
       type="button"
       onClick={onClick}
       className={`
+        auth-role-card
         relative
 
         rounded-3xl
 
         border
 
-        p-6
+        p-4
 
         text-left
 
@@ -22,16 +23,11 @@ function RoleCard({ title, description, icon, selected, onClick }) {
         ${
           selected
             ? `
-              border-violet-500
-              bg-violet-600/10
-              shadow-xl
-              shadow-violet-600/20
-              scale-[1.03]
+              is-selected
             `
             : `
-              border-zinc-700
-              bg-[#16161D]
-              hover:border-violet-500
+              border-white/[0.08]
+              bg-white/[0.03]
               hover:-translate-y-1
             `
         }
@@ -44,33 +40,33 @@ function RoleCard({ title, description, icon, selected, onClick }) {
             absolute
             top-4
             right-4
-            text-violet-500
+            text-[#d9ff4b]
           "
         />
       )}
 
       <div
         className="
-          h-14
-          w-14
+          h-11
+          w-11
 
           rounded-2xl
 
-          bg-violet-600/15
+          auth-role-icon
 
           flex
           items-center
           justify-center
 
-          text-violet-400
+          text-[#ffb18c]
         "
       >
         {icon}
       </div>
 
-      <h3 className="mt-6 text-xl font-semibold">{title}</h3>
+      <h3 className="mt-4 text-base font-bold text-white">{title}</h3>
 
-      <p className="mt-3 text-zinc-400 text-sm leading-6">{description}</p>
+      <p className="mt-2 text-xs leading-5 text-zinc-400">{description}</p>
     </button>
   );
 }

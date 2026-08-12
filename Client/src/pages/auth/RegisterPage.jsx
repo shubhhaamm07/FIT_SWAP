@@ -5,33 +5,9 @@ import RegisterForm from "./RegisterForm";
 function RegisterPage() {
   return (
     <AuthLayout>
-      <div
-        className="
-          w-full
-          max-w-[460px]
-
-          portal-card
-          rounded-[32px]
-
-          bg-black/35
-          backdrop-blur-2xl
-
-          border
-          border-white/10
-
-          p-8
-
-          shadow-[0_20px_60px_rgba(0,0,0,0.45)]
-        "
-      >
-        <AuthHeader
-          title="Create Account"
-          subtitle="Join India's Gym Membership Marketplace"
-        />
-
-        <div className="mt-8">
-          <RegisterForm />
-        </div>
+      <div className="auth-editorial-card auth-register-card rounded-[28px] p-6 sm:p-8">
+        <AuthHeader title="Make fitness work around you." subtitle="Create a FitSwap account to buy, sell, and manage memberships with clarity." />
+        <div className="mt-7"><RegisterForm /></div>
       </div>
     </AuthLayout>
   );
