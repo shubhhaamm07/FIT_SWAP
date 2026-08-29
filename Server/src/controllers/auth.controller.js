@@ -1,28 +1,42 @@
 const authService = require('../services/auth.service');
 const generateToken = require('../utils/generate-token');
+
+const authResponseUser = (user) => ({
+    id: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    email: user.email,
+    phone: user.phone,
+    role: user.role,
+    emailVerifiedAt: user.emailVerifiedAt
+});
 const register = async (req, res) => {
     try {
         const user = await authService.registerUser(req.body);
-        let verificationEmailSent = false;
 
-        // A missing SMTP configuration must not prevent a user from creating
-        // an account. They can resend verification from Settings once it is set.
-        try {
-            await authService.sendVerificationEmail(user.id);
-            verificationEmailSent = true;
-        } catch (emailError) {
-            console.warn(`Verification email was not sent for user ${user.id}: ${emailError.message}`);
-        }
-
-        return res.status(201).json({
+        // Registration must never wait on an SMTP connection. An unreachable
+        // mail server used to leave the browser stuck at "Creating account…"
+        // even though the account had already been inserted in PostgreSQL.
+        const response = res.status(201).json({
             success: true,
             message: 'User registered successfully',
             data: {
                 id: user.id,
                 email: user.email,
-                verificationEmailSent
+                verificationEmailQueued: true
             }
         });
+
+        // Email is a convenience after account creation, not part of the
+        // account-creation transaction. Users can resend it from Settings.
+        setImmediate(() => {
+            authService.sendVerificationEmail(user.id)
+                .catch((emailError) => {
+                    console.warn(`Verification email was not sent for user ${user.id}: ${emailError.message}`);
+                });
+        });
+
+        return response;
     } catch (error) {
         return res.status(400).json({
             success: false,
@@ -39,20 +53,32 @@ const login = async (req, res) => {
         return res.status(200).json({
             success: true,
             token,
-            user: {
-                id: user.id,
-                firstName: user.firstName,
-                lastName: user.lastName,
-                email: user.email,
-                phone: user.phone,
-                role: user.role,
-                emailVerifiedAt: user.emailVerifiedAt
-            }
+            user: authResponseUser(user)
         });
     } catch (error) {
-        return res.status(401).json({
+        return res.status(error.statusCode || 401).json({
             success: false,
-            message: error.message
+            message: error.message,
+            code: error.code
+        });
+    }
+};
+
+const googleLogin = async (req, res) => {
+    try {
+        const user = await authService.loginWithGoogleCredential(req.body?.credential);
+        const token = generateToken(user);
+
+        return res.status(200).json({
+            success: true,
+            token,
+            user: authResponseUser(user)
+        });
+    } catch (error) {
+        return res.status(error.statusCode || 401).json({
+            success: false,
+            message: error.message,
+            code: error.code
         });
     }
 };
@@ -108,6 +134,21 @@ const resendVerificationEmail = async (req, res) => {
         return res.status(200).json({
             success: true,
             message: result.alreadyVerified ? 'Your email is already verified.' : 'Verification email sent.'
+        });
+    } catch (error) {
+        return res.status(error.statusCode || 400).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+const requestVerificationEmail = async (req, res) => {
+    try {
+        await authService.requestEmailVerification(req.body?.email);
+        return res.status(200).json({
+            success: true,
+            message: 'If an active unverified FitSwap account uses that email, a verification link has been sent.'
         });
     } catch (error) {
         return res.status(error.statusCode || 400).json({
@@ -196,6 +237,7 @@ const deleteMe = async (req, res) => {
 module.exports = {
     register,
     login,
+    googleLogin,
     getMe,
     updateMe,
     updateSettings,
@@ -204,5 +246,6 @@ module.exports = {
     requestPasswordReset,
     resetPassword,
     verifyEmail,
-    resendVerificationEmail
+    resendVerificationEmail,
+    requestVerificationEmail
 };

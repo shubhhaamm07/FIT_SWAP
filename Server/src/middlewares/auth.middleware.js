@@ -28,13 +28,35 @@ const protect = async (req, res, next) => {
 
         const user = await prisma.user.findUnique({
             where: { id: decoded.userId },
-            select: { id: true, role: true, isActive: true }
+            select: { id: true, role: true, isActive: true, emailVerifiedAt: true, passwordChangedAt: true }
         });
 
         if (!user || !user.isActive) {
             return res.status(401).json({
                 success: false,
                 message: user ? 'This account has been suspended' : 'Invalid token'
+            });
+        }
+
+        if (!user.emailVerifiedAt) {
+            return res.status(403).json({
+                success: false,
+                code: 'EMAIL_NOT_VERIFIED',
+                message: 'Verify your email address before using your FitSwap account.'
+            });
+        }
+
+        // Password resets must end sessions created with the old password.
+        // JWT `iat` is expressed in whole seconds, so a token issued during
+        // the same second as a fresh login remains valid.
+        if (
+            user.passwordChangedAt &&
+            decoded.iat &&
+            Math.floor(user.passwordChangedAt.getTime() / 1000) > decoded.iat
+        ) {
+            return res.status(401).json({
+                success: false,
+                message: 'Your password was changed. Please sign in again.'
             });
         }
 

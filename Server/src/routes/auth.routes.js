@@ -9,9 +9,11 @@ const { authLimiter, emailActionLimiter } = require('../middlewares/rateLimiter.
 
 router.post('/register', authLimiter, authController.register);
 router.post('/login', authLimiter, authController.login);
+router.post('/google', authLimiter, authController.googleLogin);
 router.post('/forgot-password', emailActionLimiter, authController.requestPasswordReset);
 router.post('/reset-password', emailActionLimiter, authController.resetPassword);
 router.post('/verify-email', emailActionLimiter, authController.verifyEmail);
+router.post('/resend-verification', emailActionLimiter, authController.requestVerificationEmail);
 router.get('/me', protect, authController.getMe);
 router.patch('/me', protect, authController.updateMe);
 router.patch('/me/settings', protect, authController.updateSettings);

@@ -10,6 +10,11 @@ export const loginUser = async (credentials) => {
     return response.data;
 };
 
+export const loginWithGoogle = async (credential) => {
+    const response = await api.post("/auth/google", { credential }, { skipAuthLogout: true });
+    return response.data;
+};
+
 export const getCurrentUser = async () => {
     const response = await api.get("/auth/me");
     return response.data;
@@ -71,5 +76,10 @@ export const verifyEmailAddress = async (token) => {
 
 export const resendVerificationEmail = async () => {
     const response = await api.post("/auth/send-verification");
+    return response.data;
+};
+
+export const requestVerificationEmail = async (email) => {
+    const response = await api.post("/auth/resend-verification", { email });
     return response.data;
 };

@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
-import { User, Mail, Phone, Lock, Eye, EyeOff, Dumbbell } from "lucide-react";
+import { User, Mail, Phone, Lock, Eye, EyeOff, Dumbbell, CheckCircle2 } from "lucide-react";
 
 import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
@@ -9,15 +9,15 @@ import RoleCard from "./RoleCard";
 import { registerUser } from "../../api/auth.api";
 
 function RegisterForm() {
-  const navigate = useNavigate();
-
   const [showPassword, setShowPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const [role, setRole] = useState("USER");
 
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [errors, setErrors] = useState({});
+  const [registeredEmail, setRegisteredEmail] = useState("");
 
   const [formData, setFormData] = useState({
     firstName: "",
@@ -29,10 +29,12 @@ function RegisterForm() {
   });
 
   const handleChange = (e) => {
+    const { name, value } = e.target;
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
+    setErrors((current) => ({ ...current, [name]: "", form: "" }));
   };
 
   const validateForm = () => {
@@ -84,10 +86,11 @@ function RegisterForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!validateForm()) return;
+    if (submitting || !validateForm()) return;
 
     try {
-      const response = await registerUser({
+      setSubmitting(true);
+      await registerUser({
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
@@ -96,15 +99,45 @@ function RegisterForm() {
         role,
       });
 
-      alert(response.data?.verificationEmailSent
-        ? "Registration successful. Please check your inbox to verify your email."
-        : "Registration successful. You can verify your email later from Settings once email delivery is configured.");
-
-      navigate("/login");
+      setRegisteredEmail(formData.email.trim());
     } catch (error) {
-      alert(error.response?.data?.message || "Registration Failed");
+      const message = error.response?.data?.message || "Registration failed. Please try again.";
+      setErrors((current) => ({ ...current, form: message }));
+    } finally {
+      setSubmitting(false);
     }
   };
+
+  if (registeredEmail) {
+    return (
+      <section className="py-5 text-center">
+        <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-emerald-500/15 text-emerald-300">
+          <CheckCircle2 size={32} />
+        </span>
+        <h2 className="mt-5 text-2xl font-bold text-white">Account created</h2>
+        <p className="mt-3 text-sm leading-6 text-zinc-400">
+          Your account for <span className="font-medium text-zinc-200">{registeredEmail}</span> is ready.
+          We&apos;ve queued a verification email; check your inbox and spam folder.
+        </p>
+        <p className="mt-3 text-xs leading-5 text-zinc-500">
+          You are not signed in yet. If the email does not arrive, you can resend it after signing in from Settings.
+        </p>
+        <Link
+          to="/login"
+          className="mt-7 inline-flex w-full items-center justify-center rounded-xl bg-violet-600 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-violet-500"
+        >
+          Go to login
+        </Link>
+        <button
+          type="button"
+          onClick={() => setRegisteredEmail("")}
+          className="mt-4 text-sm font-medium text-zinc-400 transition hover:text-violet-300"
+        >
+          Create another account
+        </button>
+      </section>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="auth-form space-y-4">
@@ -201,7 +234,10 @@ function RegisterForm() {
           <input
             type="checkbox"
             checked={acceptedTerms}
-            onChange={(e) => setAcceptedTerms(e.target.checked)}
+            onChange={(e) => {
+              setAcceptedTerms(e.target.checked);
+              setErrors((current) => ({ ...current, terms: "", form: "" }));
+            }}
             className="auth-terms-checkbox"
           />
 
@@ -215,8 +251,14 @@ function RegisterForm() {
         )}
       </div>
 
-      <Button type="submit" size="lg" className="auth-submit-button w-full">
-        Create Account
+      {errors.form && (
+        <p role="alert" className="rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm leading-6 text-red-200">
+          {errors.form}
+        </p>
+      )}
+
+      <Button type="submit" size="lg" disabled={submitting} className="auth-submit-button w-full">
+        {submitting ? "Creating account…" : "Create Account"}
       </Button>
 
       <p className="text-center text-sm text-zinc-500">

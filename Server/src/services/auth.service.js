@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const { OAuth2Client } = require('google-auth-library');
 const validator = require('validator');
 const prisma = require('../lib/prisma');
 const { sendEmail, assertEmailConfigured } = require('./email.service');
@@ -38,6 +39,26 @@ const authError = (message, statusCode = 400) => {
     const error = new Error(message);
     error.statusCode = statusCode;
     return error;
+};
+
+const getGoogleClientId = () => String(process.env.GOOGLE_CLIENT_ID || '').trim();
+
+const getGoogleProfileName = (payload) => {
+    const givenName = String(payload.given_name || '').trim();
+    const familyName = String(payload.family_name || '').trim();
+
+    if (givenName) {
+        return {
+            firstName: givenName.slice(0, 80),
+            lastName: (familyName || 'Member').slice(0, 80)
+        };
+    }
+
+    const parts = String(payload.name || 'FitSwap Member').trim().split(/\s+/).filter(Boolean);
+    return {
+        firstName: (parts.shift() || 'FitSwap').slice(0, 80),
+        lastName: (parts.join(' ') || 'Member').slice(0, 80)
+    };
 };
 
 const hashAuthToken = (token) => crypto.createHash('sha256').update(token).digest('hex');
@@ -120,6 +141,31 @@ const sendVerificationEmail = async (userId) => {
     });
 
     return { alreadyVerified: false };
+};
+
+const requestEmailVerification = async (email) => {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    if (!validator.isEmail(normalizedEmail)) {
+        throw authError('Please provide a valid email address');
+    }
+
+    // Check configuration before issuing a token. This makes it impossible to
+    // produce a verification URL that can never be delivered.
+    assertEmailConfigured();
+
+    const user = await prisma.user.findUnique({
+        where: { email: normalizedEmail },
+        select: { id: true, isActive: true, emailVerifiedAt: true },
+    });
+
+    // Keep this result intentionally generic so the endpoint cannot be used
+    // to discover which email addresses have FitSwap accounts.
+    if (!user || !user.isActive || user.emailVerifiedAt) {
+        return { delivered: false };
+    }
+
+    await sendVerificationEmail(user.id);
+    return { delivered: true };
 };
 
 const requestPasswordReset = async (email) => {
@@ -210,7 +256,7 @@ const resetPasswordWithToken = async ({ token, newPassword }) => {
 
         await tx.user.update({
             where: { id: authToken.userId },
-            data: { password }
+            data: { password, passwordChangedAt: new Date() }
         });
         await tx.authToken.deleteMany({
             where: { userId: authToken.userId, type: 'PASSWORD_RESET' }
@@ -239,6 +285,7 @@ const registerUser = async ({
     role
 }) => {
     const normalizedEmail = String(email || '').trim().toLowerCase();
+    const normalizedPhone = String(phone || '').trim() || null;
     const normalizedRole = role === 'GYM_OWNER' ? 'GYM_OWNER' : 'USER';
 
     if (!firstName?.trim() || !lastName?.trim()) {
@@ -253,39 +300,57 @@ const registerUser = async ({
         throw new Error('Password must be at least 8 characters long');
     }
 
+    if (normalizedPhone && !/^\d{10}$/.test(normalizedPhone)) {
+        throw new Error('Phone number must contain exactly 10 digits');
+    }
+
     const existingUser = await prisma.user.findUnique({
         where: {
             email: normalizedEmail
         }
     });
-    if (phone) {
+    if (existingUser) {
+        throw new Error('An account already exists with this email address. Try signing in or reset your password.');
+    }
+
+    if (normalizedPhone) {
         const existingPhone = await prisma.user.findUnique({
             where: {
-                phone
+                phone: normalizedPhone
             }
         });
 
         if (existingPhone) {
-            throw new Error("Phone number already exists");
+            throw new Error('An account already exists with this phone number. Try signing in or use another number.');
         }
     }
-    if (existingUser) {
-        throw new Error('User already exists');
-    }
-
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = await prisma.user.create({
-        data: {
-            firstName: firstName.trim(),
-            lastName: lastName.trim(),
-            email: normalizedEmail,
-            phone,
-            password: hashedPassword,
-            // Public registration must never be able to create an admin or staff account.
-            role: normalizedRole
+    let user;
+    try {
+        user = await prisma.user.create({
+            data: {
+                firstName: firstName.trim(),
+                lastName: lastName.trim(),
+                email: normalizedEmail,
+                phone: normalizedPhone,
+                password: hashedPassword,
+                // Public registration must never be able to create an admin or staff account.
+                role: normalizedRole
+            }
+        });
+    } catch (error) {
+        // The pre-check is for a friendly answer, while the database constraint
+        // remains the race-safe source of truth if two sign-ups arrive together.
+        if (error?.code === 'P2002') {
+            const target = Array.isArray(error.meta?.target) ? error.meta.target.join(',') : String(error.meta?.target || '');
+            if (target.includes('phone')) {
+                throw new Error('An account already exists with this phone number. Try signing in or use another number.');
+            }
+            throw new Error('An account already exists with this email address. Try signing in or reset your password.');
         }
-    });
+        throw error;
+    }
 
     return user;
 };
@@ -315,7 +380,135 @@ const loginUser = async ({ email, password }) => {
         throw new Error('Invalid credentials');
     }
 
+    if (!user.emailVerifiedAt) {
+        const error = authError(
+            'Verify your email address before signing in. You can request a new verification link below.',
+            403
+        );
+        error.code = 'EMAIL_NOT_VERIFIED';
+        throw error;
+    }
+
     return user;
+};
+
+const loginWithGoogleCredential = async (credential) => {
+    const googleClientId = getGoogleClientId();
+
+    if (!googleClientId) {
+        throw authError('Google sign-in is not configured on the server yet.', 503);
+    }
+
+    if (typeof credential !== 'string' || credential.trim().split('.').length !== 3) {
+        const error = authError('Google sign-in could not be verified. Please try again.', 401);
+        error.code = 'GOOGLE_TOKEN_INVALID';
+        throw error;
+    }
+
+    let payload;
+    try {
+        const googleClient = new OAuth2Client(googleClientId);
+        const ticket = await googleClient.verifyIdToken({
+            idToken: credential.trim(),
+            audience: googleClientId
+        });
+        payload = ticket.getPayload();
+    } catch (verificationError) {
+        const error = authError('Google sign-in could not be verified. Please try again.', 401);
+        error.code = 'GOOGLE_TOKEN_INVALID';
+        throw error;
+    }
+
+    const subject = String(payload?.sub || '').trim();
+    const email = String(payload?.email || '').trim().toLowerCase();
+
+    // Only trust a signed Google identity with a verified email address. The
+    // immutable `sub` is stored for every later sign-in and account link.
+    if (!subject || !validator.isEmail(email) || payload?.email_verified !== true) {
+        const error = authError('Google did not provide a verified email address for this account.', 401);
+        error.code = 'GOOGLE_EMAIL_UNVERIFIED';
+        throw error;
+    }
+
+    let user = await prisma.user.findUnique({
+        where: { googleSubject: subject }
+    });
+
+    if (user) {
+        if (!user.isActive) {
+            throw authError('This account has been suspended. Please contact FitSwap support.', 403);
+        }
+        return user;
+    }
+
+    const accountWithEmail = await prisma.user.findUnique({
+        where: { email }
+    });
+
+    if (accountWithEmail) {
+        if (!accountWithEmail.isActive) {
+            throw authError('This account has been suspended. Please contact FitSwap support.', 403);
+        }
+
+        // Do not silently replace an existing Google identity with another
+        // account, even if both claim the same email address.
+        if (accountWithEmail.googleSubject && accountWithEmail.googleSubject !== subject) {
+            throw authError('This FitSwap account is already linked to another Google account.', 409);
+        }
+
+        return prisma.user.update({
+            where: { id: accountWithEmail.id },
+            data: {
+                googleSubject: subject,
+                emailVerifiedAt: accountWithEmail.emailVerifiedAt || new Date()
+            }
+        });
+    }
+
+    const { firstName, lastName } = getGoogleProfileName(payload);
+
+    try {
+        return await prisma.user.create({
+            data: {
+                firstName,
+                lastName,
+                email,
+                googleSubject: subject,
+                // Google has already verified the signed-in email address.
+                emailVerifiedAt: new Date(),
+                // Password remains mandatory in the current schema. This is a
+                // random, non-user-facing value; Google users can add a
+                // password later through account recovery if that is enabled.
+                password: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12),
+                role: 'USER'
+            }
+        });
+    } catch (error) {
+        if (error?.code !== 'P2002') throw error;
+
+        // Handle two first-time sign-ins arriving at almost the same moment.
+        const concurrentUser = await prisma.user.findFirst({
+            where: {
+                OR: [{ googleSubject: subject }, { email }]
+            }
+        });
+
+        if (!concurrentUser || !concurrentUser.isActive) {
+            throw authError('Google sign-in could not be completed. Please try again.', 409);
+        }
+
+        if (concurrentUser.googleSubject && concurrentUser.googleSubject !== subject) {
+            throw authError('This FitSwap account is already linked to another Google account.', 409);
+        }
+
+        return prisma.user.update({
+            where: { id: concurrentUser.id },
+            data: {
+                googleSubject: subject,
+                emailVerifiedAt: concurrentUser.emailVerifiedAt || new Date()
+            }
+        });
+    }
 };
 
 const getProfile = async (userId) => {
@@ -453,7 +646,10 @@ const changePassword = async (userId, { currentPassword, newPassword }) => {
 
     await prisma.user.update({
         where: { id: userId },
-        data: { password: await bcrypt.hash(newPassword, 10) }
+        data: {
+            password: await bcrypt.hash(newPassword, 10),
+            passwordChangedAt: new Date()
+        }
     });
 };
 
@@ -502,12 +698,14 @@ const deleteAccount = async (userId, { password, confirmation }) => {
 module.exports = {
     registerUser,
     loginUser,
+    loginWithGoogleCredential,
     getProfile,
     updateProfile,
     updateSettings,
     changePassword,
     deleteAccount,
     sendVerificationEmail,
+    requestEmailVerification,
     requestPasswordReset,
     verifyEmail,
     resetPasswordWithToken

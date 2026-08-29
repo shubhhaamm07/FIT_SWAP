@@ -12,6 +12,9 @@ model User {
   firstName                String
   lastName                 String
   email                    String    @unique
+  // Stable Google account identifier (`sub`). Email addresses are not used as
+  // the long-term Google identity because they can change.
+  googleSubject            String?   @unique
   phone                    String?   @unique
   password                 String
   role                     UserRole  @default(USER)
@@ -21,6 +24,8 @@ model User {
   city                     String?
   isProfilePublic          Boolean   @default(true)
   emailVerifiedAt          DateTime?
+  // Used to invalidate JWTs issued before a password reset or change.
+  passwordChangedAt        DateTime?
   avatarUrl                String?
   avatarKey                String?
   coverUrl                 String?
