@@ -22,6 +22,8 @@ const profileSelect = {
     coverKey: true,
     emailNotifications: true,
     marketplaceNotifications: true,
+    upiId: true,
+    upiPayeeName: true,
     createdAt: true,
     _count: {
         select: {
@@ -399,6 +401,27 @@ const updateSettings = async (userId, settings) => {
     }
     if (typeof settings.marketplaceNotifications === 'boolean') {
         data.marketplaceNotifications = settings.marketplaceNotifications;
+    }
+
+    const hasUpiChange = Object.prototype.hasOwnProperty.call(settings, 'upiId')
+        || Object.prototype.hasOwnProperty.call(settings, 'upiPayeeName');
+    if (hasUpiChange) {
+        const upiId = String(settings.upiId || '').trim().toLowerCase();
+        const upiPayeeName = String(settings.upiPayeeName || '').trim();
+
+        if (!upiId && !upiPayeeName) {
+            data.upiId = null;
+            data.upiPayeeName = null;
+        } else {
+            if (!/^[a-z0-9._-]{2,100}@[a-z0-9._-]{2,100}$/.test(upiId)) {
+                throw new Error('Enter a valid UPI ID, for example gymname@okaxis');
+            }
+            if (upiPayeeName.length < 2 || upiPayeeName.length > 120) {
+                throw new Error('Enter the 2–120 character name shown to payers in your UPI app');
+            }
+            data.upiId = upiId;
+            data.upiPayeeName = upiPayeeName;
+        }
     }
 
     if (!Object.keys(data).length) {

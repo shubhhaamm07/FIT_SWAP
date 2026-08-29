@@ -6,23 +6,10 @@ const purchaseMembership = async (
     req,
     res
 ) => {
-    try {
-        const membership =
-            await userMembershipService.purchaseMembership(
-                req.user.id,
-                req.body.planId
-            );
-
-        return res.status(201).json({
-            success: true,
-            data: membership
-        });
-    } catch (error) {
-        return res.status(400).json({
-            success: false,
-            message: error.message
-        });
-    }
+    return res.status(410).json({
+        success: false,
+        message: 'Direct membership activation is unavailable. Open the gym page and complete secure online checkout.',
+    });
 };
 const getMyMemberships = async (
     req,

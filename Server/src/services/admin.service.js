@@ -34,7 +34,8 @@ const getAdminDashboard = async () => {
         totalListings,
         pendingTransfers,
         recentGyms,
-        recentListings
+        recentListings,
+        completedPlatformFees
     ] = await Promise.all([
         prisma.user.count({ where: { role: 'USER' } }),
         prisma.user.count({ where: { role: 'GYM_OWNER' } }),
@@ -71,6 +72,10 @@ const getAdminDashboard = async () => {
                     }
                 }
             }
+        }),
+        prisma.platformPaymentRequest.aggregate({
+            where: { status: 'COMPLETED' },
+            _sum: { amount: true }
         })
     ]);
 
@@ -82,7 +87,10 @@ const getAdminDashboard = async () => {
             approvedGyms,
             activeListings,
             totalListings,
-            pendingTransfers
+            pendingTransfers,
+            // Platform fees are stored in paise; dashboard values are returned
+            // in rupees to match the rest of the admin UI.
+            platformRevenue: Number(completedPlatformFees._sum.amount || 0) / 100
         },
         recentGyms,
         recentListings
@@ -427,10 +435,14 @@ const updateUserAccess = async ({ adminId, userId, isActive }) => {
 };
 
 const getPayments = async ({ status } = {}) => {
-    const where = ['CREATED', 'PAID', 'FAILED'].includes(status) ? { status } : {};
+    const legacyWhere = ['CREATED', 'PAID', 'FAILED'].includes(status) ? { status } : {};
+    const upiWhere = ['AWAITING_PAYMENT', 'BUYER_MARKED_PAID', 'AWAITING_GYM_APPROVAL', 'COMPLETED', 'REJECTED', 'CANCELLED', 'EXPIRED'].includes(status)
+        ? { status }
+        : {};
 
-    return prisma.payment.findMany({
-        where,
+    const [legacyPayments, upiPayments, platformPayments] = await Promise.all([
+        prisma.payment.findMany({
+        where: legacyWhere,
         take: 250,
         orderBy: { createdAt: 'desc' },
         select: {
@@ -438,6 +450,7 @@ const getPayments = async ({ status } = {}) => {
             amount: true,
             currency: true,
             status: true,
+            type: true,
             createdAt: true,
             verifiedAt: true,
             razorpayPaymentId: true,
@@ -449,9 +462,101 @@ const getPayments = async ({ status } = {}) => {
                     status: true,
                     membership: { select: { plan: { select: { name: true, gym: { select: { name: true } } } } } }
                 }
-            }
+            },
+            plan: {
+                select: {
+                    id: true,
+                    name: true,
+                    gym: { select: { name: true } }
+                }
+            },
         }
-    });
+        }),
+        prisma.upiPaymentRequest.findMany({
+            where: upiWhere,
+            take: 250,
+            orderBy: { createdAt: 'desc' },
+            select: {
+                id: true,
+                amount: true,
+                currency: true,
+                status: true,
+                kind: true,
+                createdAt: true,
+                buyerMarkedPaidAt: true,
+                recipientConfirmedAt: true,
+                gymApprovedAt: true,
+                completedAt: true,
+                paymentRef: true,
+                utr: true,
+                buyer: { select: { id: true, firstName: true, lastName: true, email: true } },
+                listing: {
+                    select: {
+                        id: true,
+                        askingPrice: true,
+                        status: true,
+                        membership: { select: { plan: { select: { name: true, gym: { select: { name: true } } } } } },
+                    },
+                },
+                plan: {
+                    select: {
+                        id: true,
+                        name: true,
+                        gym: { select: { name: true } },
+                    },
+                },
+            },
+        }),
+        prisma.platformPaymentRequest.findMany({
+            take: 250,
+            orderBy: { createdAt: 'desc' },
+            select: {
+                id: true,
+                amount: true,
+                currency: true,
+                status: true,
+                kind: true,
+                planCode: true,
+                paymentRef: true,
+                utr: true,
+                createdAt: true,
+                buyerMarkedPaidAt: true,
+                adminConfirmedAt: true,
+                completedAt: true,
+                buyer: { select: { id: true, firstName: true, lastName: true, email: true } },
+                listing: {
+                    select: {
+                        id: true,
+                        askingPrice: true,
+                        status: true,
+                        membership: { select: { plan: { select: { name: true, gym: { select: { name: true } } } } } },
+                    },
+                },
+            },
+        }),
+    ]);
+
+    return [
+        ...legacyPayments.map((payment) => ({ ...payment, provider: 'RAZORPAY_LEGACY' })),
+        ...upiPayments.map((payment) => ({
+            ...payment,
+            id: `upi-${payment.id}`,
+            type: payment.kind,
+            provider: 'MANUAL_UPI',
+            verifiedAt: payment.completedAt || payment.gymApprovedAt || payment.recipientConfirmedAt || payment.buyerMarkedPaidAt,
+        })),
+        ...platformPayments.map((payment) => ({
+            ...payment,
+            id: `platform-${payment.id}`,
+            sourcePaymentId: payment.id,
+            type: payment.kind,
+            provider: 'PLATFORM_UPI',
+            plan: payment.listing ? null : { name: payment.planCode, gym: { name: 'FitSwap platform' } },
+            verifiedAt: payment.completedAt || payment.adminConfirmedAt || payment.buyerMarkedPaidAt,
+        })),
+    ]
+        .sort((first, second) => new Date(second.createdAt) - new Date(first.createdAt))
+        .slice(0, 250);
 };
 
 const getSecurityOverview = async () => {

@@ -19,10 +19,16 @@ const {
 } = require(
     './src/jobs/stale-transfer-request.job'
 );
+const {
+    startExpiredUpiPaymentRequestJob
+} = require(
+    './src/jobs/expired-upi-payment-request.job'
+);
 
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
     startMembershipExpiryJob();
     startExpiredListingJob();
     startStaleTransferRequestJob();
+    startExpiredUpiPaymentRequestJob();
 });

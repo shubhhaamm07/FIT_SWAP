@@ -153,8 +153,7 @@ const createListing = async (
 };
 
 const getAllListings = async () => {
-
-    return prisma.marketplaceListing.findMany({
+    const listings = await prisma.marketplaceListing.findMany({
 
         where: {
 
@@ -214,6 +213,16 @@ const getAllListings = async () => {
 
         }
 
+    });
+
+    // A confirmed boost affects discovery only; it never changes the asking
+    // price or the normal transfer workflow. Keep currently boosted listings
+    // ahead of regular listings and preserve newest-first ordering within each.
+    const now = Date.now();
+    return listings.sort((first, second) => {
+        const firstBoosted = Number(first.boostedUntil && new Date(first.boostedUntil).getTime() > now);
+        const secondBoosted = Number(second.boostedUntil && new Date(second.boostedUntil).getTime() > now);
+        return secondBoosted - firstBoosted;
     });
 
 };

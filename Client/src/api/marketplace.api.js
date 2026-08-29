@@ -25,7 +25,10 @@ export const mapMarketplaceListing = (listing) => {
         remainingDays,
         transferFee: Number(plan.transferFee || 0),
         verified: gym.status === "APPROVED",
-        featured: false,
+        featured:
+            Boolean(listing.boostedUntil) &&
+            new Date(listing.boostedUntil).getTime() > Date.now(),
+        boostedUntil: listing.boostedUntil || null,
         status: listing.status || "ACTIVE",
         image: primaryImage?.imageUrl || gym.images?.[0]?.imageUrl || fallbackImage,
         validTill: endDate

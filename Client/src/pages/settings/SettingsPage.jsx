@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BadgeCheck, BellRing, ChevronRight, CircleAlert, KeyRound, LoaderCircle, Mail, Send, ShieldCheck, Trash2, UserRound, X } from "lucide-react";
+import { BadgeCheck, BellRing, ChevronRight, CircleAlert, KeyRound, LoaderCircle, Mail, Send, ShieldCheck, Trash2, UserRound, WalletCards, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../layouts/DashboardLayout";
 import { changeUserPassword, deleteCurrentUser, getCurrentUser, resendVerificationEmail, updateUserSettings } from "../../api/auth.api";
@@ -14,12 +14,14 @@ function SettingsPage() {
   const [message, setMessage] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [upiForm, setUpiForm] = useState({ upiId: "", upiPayeeName: "" });
 
   useEffect(() => {
     const timer = window.setTimeout(async () => {
       try {
         const response = await getCurrentUser();
         setProfile(response.user);
+        setUpiForm({ upiId: response.user?.upiId || "", upiPayeeName: response.user?.upiPayeeName || "" });
       } catch (error) {
         setMessage(error.response?.data?.message || "Unable to load settings.");
       } finally {
@@ -55,6 +57,21 @@ function SettingsPage() {
     }
   };
 
+  const saveUpiDetails = async (event) => {
+    event.preventDefault();
+    try {
+      setSaving("upi");
+      const response = await updateUserSettings(upiForm);
+      setProfile(response.user);
+      updateUser(response.user);
+      setMessage(upiForm.upiId ? "UPI payment details saved. Buyers will see a transaction-specific QR only when they start a payment." : "UPI payment details removed.");
+    } catch (error) {
+      setMessage(error.response?.data?.message || "Unable to save UPI payment details.");
+    } finally {
+      setSaving("");
+    }
+  };
+
   const displayName = [profile.firstName, profile.lastName].filter(Boolean).join(" ") || "FitSwap Member";
   const initials = [profile.firstName, profile.lastName].filter(Boolean).map((name) => name[0]).join("").slice(0, 2).toUpperCase() || "FS";
 
@@ -62,7 +79,7 @@ function SettingsPage() {
     <main className="mx-auto w-full max-w-4xl pb-8">
       <section className="rounded-[28px] border border-white/[0.08] bg-[radial-gradient(circle_at_top_right,rgba(124,58,237,.2),transparent_34%),#11121a] p-6 sm:p-8"><p className="text-sm font-semibold text-violet-300">Account centre</p><h1 className="mt-2 text-3xl font-bold tracking-tight text-white">Your space, your rules.</h1><p className="mt-2 max-w-xl text-sm leading-6 text-zinc-400">Control your FitSwap account, security, and the updates you want to receive.</p></section>
 
-      {message && <div className={`mt-5 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm ${message.includes("Unable") || message.includes("incorrect") || message.includes("required") || message.includes("least") || message.includes("DELETE") ? "border-red-500/20 bg-red-500/5 text-red-300" : "border-emerald-500/20 bg-emerald-500/5 text-emerald-300"}`}><CircleAlert size={16} />{message}</div>}
+      {message && <div className={`mt-5 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm ${/unable|incorrect|required|least|delete|enter a valid|shown to payers|upi id|payee name|both a upi/i.test(message) ? "border-red-500/20 bg-red-500/5 text-red-300" : "border-emerald-500/20 bg-emerald-500/5 text-emerald-300"}`}><CircleAlert size={16} />{message}</div>}
 
       {loading ? <div className="flex min-h-72 items-center justify-center gap-2 text-sm text-zinc-400"><LoaderCircle size={18} className="animate-spin" /> Loading settings…</div> : <div className="mt-6 space-y-6">
         <SettingsSection title="Account" description="Your public FitSwap identity.">
@@ -76,6 +93,14 @@ function SettingsPage() {
         <SettingsSection title="Notifications" description="Choose the updates that matter to you.">
           <ToggleRow icon={BellRing} title="Marketplace activity" description="Transfer requests, listing updates, and saved-listing activity." checked={Boolean(profile.marketplaceNotifications)} busy={saving === "marketplaceNotifications"} onChange={(checked) => updatePreference("marketplaceNotifications", checked)} />
           <ToggleRow icon={Mail} title="Email updates" description="Important account information and FitSwap updates by email." checked={Boolean(profile.emailNotifications)} busy={saving === "emailNotifications"} onChange={(checked) => updatePreference("emailNotifications", checked)} />
+        </SettingsSection>
+
+        <SettingsSection title="UPI payment details" description="Used only for FitSwap’s manual UPI workflow when you sell a listing or manage a gym.">
+          <form onSubmit={saveUpiDetails} className="space-y-4">
+            <div className="flex gap-3 rounded-2xl border border-amber-400/15 bg-amber-500/[0.06] p-4 text-sm leading-5 text-amber-100/80"><WalletCards size={18} className="mt-0.5 shrink-0 text-amber-300" /><p>FitSwap creates a transaction-specific QR from these details. Buyers still pay you directly, and you must check your own UPI or bank app before confirming payment. Do not add another person’s UPI ID.</p></div>
+            <div className="grid gap-4 sm:grid-cols-2"><label className="block text-xs font-medium text-zinc-400">UPI ID<input value={upiForm.upiId} onChange={(event) => setUpiForm((current) => ({ ...current, upiId: event.target.value }))} placeholder="yourname@okaxis" className="mt-2 w-full rounded-xl border border-white/[0.1] bg-black/20 px-3 py-2.5 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-violet-400/60" /></label><label className="block text-xs font-medium text-zinc-400">Payee name<input value={upiForm.upiPayeeName} onChange={(event) => setUpiForm((current) => ({ ...current, upiPayeeName: event.target.value }))} placeholder="Name shown in your UPI app" className="mt-2 w-full rounded-xl border border-white/[0.1] bg-black/20 px-3 py-2.5 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-violet-400/60" /></label></div>
+            <div className="flex flex-wrap gap-3"><button disabled={saving === "upi"} className="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-60">{saving === "upi" ? "Saving…" : "Save UPI details"}</button>{(upiForm.upiId || upiForm.upiPayeeName) && <button type="button" disabled={saving === "upi"} onClick={() => setUpiForm({ upiId: "", upiPayeeName: "" })} className="rounded-xl border border-white/[0.1] px-4 py-2.5 text-sm font-semibold text-zinc-300 transition hover:bg-white/[0.05]">Clear fields</button>}</div>
+          </form>
         </SettingsSection>
 
         <SettingsSection title="Security" description="Keep your account protected.">

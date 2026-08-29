@@ -33,6 +33,8 @@ const imageRoutes = require("./routes/image.routes");
 const savedListingRoutes = require('./routes/saved-listing.routes');
 const gymOwnerDashboardRoutes = require('./routes/gym-owner-dashboard.routes');
 const paymentRoutes = require('./routes/payment.routes');
+const upiPaymentRoutes = require('./routes/upi-payment.routes');
+const platformBillingRoutes = require('./routes/platform-billing.routes');
 const {
     apiLimiter,
 } = require("./middlewares/rateLimiter.middleware");
@@ -74,4 +76,6 @@ app.use("/api", imageRoutes);
 app.use('/api', savedListingRoutes);
 app.use('/api', gymOwnerDashboardRoutes);
 app.use('/api', paymentRoutes);
+app.use('/api', upiPaymentRoutes);
+app.use('/api', platformBillingRoutes);
 module.exports = app;

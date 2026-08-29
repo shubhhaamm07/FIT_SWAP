@@ -4,6 +4,7 @@ import {
   ArrowUpRight,
   Building2,
   CalendarClock,
+  Check,
   CircleAlert,
   CreditCard,
   IndianRupee,
@@ -18,6 +19,7 @@ import {
   TrendingDown,
   TrendingUp,
   UsersRound,
+  WalletCards,
   X,
 } from "lucide-react";
 
@@ -25,6 +27,9 @@ import DashboardLayout from "../../layouts/DashboardLayout";
 import { RevenueByGymChart, RevenueTrendChart, SalesVolumeChart } from "../../components/gym-owner/OwnerRevenueCharts";
 import { createMembershipPlan, getMyGyms, updateMyGym } from "../../api/gym.api";
 import { getGymOwnerMembers, getGymOwnerSales, getGymOwnerTransfers } from "../../api/gym-owner.api";
+import { approveUpiMarketplaceTransfer, confirmUpiPaymentReceived, getGymUpiApprovalRequests, getMyUpiPaymentRequests, rejectUpiPayment } from "../../api/upi-payment.api";
+import { cancelPlatformPayment, createOwnerSubscriptionPayment, getMyPlatformBilling, markPlatformPaymentPaid } from "../../api/platform-billing.api";
+import UpiPaymentCheckout from "../../components/payments/UpiPaymentCheckout";
 
 const currency = (value) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Number(value || 0));
 const date = (value) => {
@@ -40,6 +45,7 @@ const sectionConfig = {
   members: { eyebrow: "Member management", title: "Members", description: "See memberships held at your gyms and follow upcoming expiries.", icon: UsersRound },
   sales: { eyebrow: "Business performance", title: "Sales & revenue", description: "Review every membership sale recorded for your gyms.", icon: IndianRupee },
   transfers: { eyebrow: "Marketplace oversight", title: "Transfer oversight", description: "Monitor marketplace transfers involving memberships from your gyms.", icon: ArrowUpRight },
+  billing: { eyebrow: "FitSwap for business", title: "Plans & billing", description: "Choose optional business tools that help your gyms get more visibility on FitSwap.", icon: WalletCards },
 };
 
 function GymOwnerOperationsPage() {
@@ -53,12 +59,22 @@ function GymOwnerOperationsPage() {
   const [editingGym, setEditingGym] = useState(null);
   const [savingGym, setSavingGym] = useState(false);
   const [message, setMessage] = useState("");
+  const [updatingPaymentId, setUpdatingPaymentId] = useState("");
 
   const loadData = useCallback(async () => {
     if (!sectionConfig[section]) return;
     setLoading(true);
-    setError("");
-    try {
+      setError("");
+      try {
+      if (section === "transfers") {
+        const [legacyTransfers, upiApprovals, upiPayments] = await Promise.all([getGymOwnerTransfers(), getGymUpiApprovalRequests(), getMyUpiPaymentRequests()]);
+        setData({ legacyTransfers: array(legacyTransfers), upiApprovals: array(upiApprovals), directPayments: array(upiPayments?.incoming).filter((request) => request.kind === "GYM_MEMBERSHIP") });
+        return;
+      }
+      if (section === "billing") {
+        setData(await getMyPlatformBilling());
+        return;
+      }
       const request = section === "gyms" || section === "plans" ? getMyGyms : section === "members" ? getGymOwnerMembers : section === "sales" ? getGymOwnerSales : getGymOwnerTransfers;
       const response = await request();
       setData(section === "sales" ? response || {} : array(response));
@@ -110,6 +126,82 @@ function GymOwnerOperationsPage() {
       setSavingGym(false);
     }
   };
+  const onApproveUpiTransfer = async (requestId) => {
+    if (!window.confirm("Approve this handover only after the seller has confirmed the payment. This will move the membership to the buyer.")) return;
+    try {
+      setUpdatingPaymentId(requestId);
+      await approveUpiMarketplaceTransfer(requestId);
+      setMessage("UPI payment approved and membership transferred to the buyer.");
+      await loadData();
+    } catch (requestError) {
+      setMessage(requestError.response?.data?.message || "Unable to approve the UPI transfer.");
+    } finally {
+      setUpdatingPaymentId("");
+    }
+  };
+  const onRejectUpiTransfer = async (requestId) => {
+    const reason = window.prompt("Why are you rejecting this UPI handover?", "The transfer could not be approved.");
+    if (reason === null) return;
+    try {
+      setUpdatingPaymentId(requestId);
+      await rejectUpiPayment(requestId, reason);
+      setMessage("UPI transfer rejected and the buyer was notified.");
+      await loadData();
+    } catch (requestError) {
+      setMessage(requestError.response?.data?.message || "Unable to reject the UPI transfer.");
+    } finally {
+      setUpdatingPaymentId("");
+    }
+  };
+  const onConfirmDirectUpiPayment = async (requestId) => {
+    if (!window.confirm("Confirm only after checking the exact amount and UTR in your real UPI or bank app. This will activate a new membership.")) return;
+    try {
+      setUpdatingPaymentId(requestId);
+      await confirmUpiPaymentReceived(requestId);
+      setMessage("UPI payment confirmed and the new membership is now active.");
+      await loadData();
+    } catch (requestError) {
+      setMessage(requestError.response?.data?.message || "Unable to confirm the UPI payment.");
+    } finally {
+      setUpdatingPaymentId("");
+    }
+  };
+  const onStartBusinessPlan = async (planCode) => {
+    try {
+      setUpdatingPaymentId(`plan-${planCode}`);
+      const payment = await createOwnerSubscriptionPayment(planCode);
+      setData((current) => ({ ...current, payments: [payment, ...(current?.payments || []).filter((item) => item.id !== payment.id)] }));
+      setMessage("Your FitSwap Business UPI QR is ready. Pay the exact amount, then enter the UTR.");
+    } catch (requestError) {
+      setMessage(requestError.response?.data?.message || "Unable to create the FitSwap Business payment request.");
+    } finally {
+      setUpdatingPaymentId("");
+    }
+  };
+  const onMarkBusinessPlanPaid = async (requestId, utr) => {
+    try {
+      setUpdatingPaymentId(requestId);
+      const payment = await markPlatformPaymentPaid(requestId, utr);
+      setData((current) => ({ ...current, payments: (current?.payments || []).map((item) => item.id === payment.id ? payment : item) }));
+      setMessage("Your UTR was recorded. A FitSwap administrator will confirm it in the business account.");
+    } catch (requestError) {
+      setMessage(requestError.response?.data?.message || "Unable to record the UPI reference.");
+    } finally {
+      setUpdatingPaymentId("");
+    }
+  };
+  const onCancelBusinessPlanPayment = async (requestId) => {
+    try {
+      setUpdatingPaymentId(requestId);
+      await cancelPlatformPayment(requestId);
+      await loadData();
+      setMessage("FitSwap Business payment request cancelled.");
+    } catch (requestError) {
+      setMessage(requestError.response?.data?.message || "Unable to cancel the payment request.");
+    } finally {
+      setUpdatingPaymentId("");
+    }
+  };
 
   return (
     <DashboardLayout>
@@ -120,7 +212,7 @@ function GymOwnerOperationsPage() {
 
         {message && <p className={`rounded-xl border px-4 py-3 text-sm ${message.includes("Unable") ? "border-red-500/20 bg-red-500/5 text-red-300" : "border-emerald-500/20 bg-emerald-500/5 text-emerald-300"}`}>{message}</p>}
         {error && <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-300"><CircleAlert size={17} /> {error}<button type="button" onClick={loadData} className="ml-auto inline-flex items-center gap-1 text-xs font-semibold text-red-200"><RefreshCw size={14} /> Retry</button></div>}
-        {loading ? <div className="flex min-h-72 items-center justify-center gap-2 text-sm text-zinc-400"><LoaderCircle className="animate-spin text-violet-400" size={20} /> Loading owner data…</div> : <OwnerContentBoundary resetKey={section}>{section === "gyms" ? <GymsContent gyms={gymsData} onEdit={setEditingGym} /> : section === "plans" ? <PlansContent gyms={gymsData} plans={plans} showPlanForm={showPlanForm} setShowPlanForm={setShowPlanForm} savingPlan={savingPlan} onPlanCreated={onPlanCreated} /> : section === "members" ? <MembersContent members={gymsData} /> : section === "sales" ? <SalesContent salesData={data} /> : <TransfersContent transfers={gymsData} />}</OwnerContentBoundary>}
+        {loading ? <div className="flex min-h-72 items-center justify-center gap-2 text-sm text-zinc-400"><LoaderCircle className="animate-spin text-violet-400" size={20} /> Loading owner data…</div> : <OwnerContentBoundary resetKey={section}>{section === "gyms" ? <GymsContent gyms={gymsData} onEdit={setEditingGym} /> : section === "plans" ? <PlansContent gyms={gymsData} plans={plans} showPlanForm={showPlanForm} setShowPlanForm={setShowPlanForm} savingPlan={savingPlan} onPlanCreated={onPlanCreated} /> : section === "members" ? <MembersContent members={gymsData} /> : section === "sales" ? <SalesContent salesData={data} /> : section === "billing" ? <BillingContent billing={data} updatingPaymentId={updatingPaymentId} onStartPlan={onStartBusinessPlan} onMarkPaid={onMarkBusinessPlanPaid} onCancelPayment={onCancelBusinessPlanPayment} onRefresh={loadData} /> : <TransfersContent transfers={data?.legacyTransfers} approvals={data?.upiApprovals} directPayments={data?.directPayments} updatingPaymentId={updatingPaymentId} onApproveUpiTransfer={onApproveUpiTransfer} onRejectUpiTransfer={onRejectUpiTransfer} onConfirmDirectUpiPayment={onConfirmDirectUpiPayment} />}</OwnerContentBoundary>}
         {editingGym && <GymProfileForm gym={editingGym} saving={savingGym} onCancel={() => setEditingGym(null)} onSubmit={onGymUpdated} />}
       </main>
     </DashboardLayout>
@@ -365,9 +457,40 @@ function SalesContent({ salesData }) {
   );
 }
 
-function TransfersContent({ transfers }) { const transferList = array(transfers); return transferList.length ? <div className="grid gap-4">{transferList.map((transfer) => <article key={transfer.id} className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex flex-wrap items-center gap-2"><h2 className="font-semibold text-white">{transfer.listing?.membership?.plan?.gym?.name || "Gym membership"}</h2><Status value={transfer.status} /></div><p className="mt-1 text-sm text-zinc-400">{transfer.listing?.membership?.plan?.name || "Membership plan"} · {currency(transfer.listing?.askingPrice)}</p><p className="mt-3 text-xs text-zinc-500">Seller: {name(transfer.listing?.seller)} · Buyer: {name(transfer.buyer)} · Requested {date(transfer.createdAt)}</p></div><span className="flex items-center gap-2 text-xs text-zinc-500"><CalendarClock size={15} /> Listing: {transfer.listing?.status || "—"}</span></div></article>)}</div> : <Empty icon={ArrowUpRight} title="No transfer activity" description="Marketplace transfers involving plans from your gyms will appear here." />; }
+function BillingContent({ billing, updatingPaymentId, onStartPlan, onMarkPaid, onCancelPayment, onRefresh }) {
+  const payments = array(billing?.payments);
+  const offers = array(billing?.offers).filter((offer) => offer.kind === "OWNER_SUBSCRIPTION");
+  const activeSubscription = billing?.activeSubscription;
+  const pendingPayment = payments.find((payment) => payment.kind === "OWNER_SUBSCRIPTION" && ["AWAITING_PAYMENT", "BUYER_MARKED_PAID"].includes(payment.status));
 
-function Status({ value }) { const style = value === "ACTIVE" || value === "APPROVED" || value === "SOLD" ? "bg-emerald-500/10 text-emerald-300" : value === "PENDING" ? "bg-amber-500/10 text-amber-300" : value === "EXPIRED" || value === "REJECTED" ? "bg-red-500/10 text-red-300" : "bg-zinc-500/15 text-zinc-300"; return <span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-bold ${style}`}>{value}</span>; }
+  useEffect(() => {
+    if (!pendingPayment || ["COMPLETED", "REJECTED", "CANCELLED", "EXPIRED"].includes(pendingPayment.status)) return undefined;
+    const timer = window.setInterval(() => { void onRefresh(); }, 20000);
+    return () => window.clearInterval(timer);
+  }, [pendingPayment?.id, pendingPayment?.status, onRefresh]);
+
+  return <div className="space-y-6">
+    <section className="overflow-hidden rounded-2xl border border-violet-400/20 bg-[radial-gradient(circle_at_90%_18%,rgba(168,85,247,.20),transparent_28%),#11121a] p-5 sm:p-6"><div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-300">Optional FitSwap Business plan</p><h2 className="mt-2 text-2xl font-bold text-white">Grow on FitSwap without sharing your member payments.</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">Business plans are paid to FitSwap&apos;s own UPI, separately from direct gym and marketplace payments. Membership money always stays between the buyer and the gym or seller.</p></div><WalletCards className="shrink-0 text-violet-300" size={30} /></div>{activeSubscription ? <div className="mt-5 rounded-xl border border-emerald-400/20 bg-emerald-500/[0.07] p-4"><p className="text-sm font-semibold text-emerald-100">Business plan active</p><p className="mt-1 text-sm text-emerald-100/70">{activeSubscription.planCode.replaceAll("_", " ")} · active until {date(activeSubscription.benefitExpiresAt)}</p></div> : <div className="mt-5 rounded-xl border border-amber-400/15 bg-amber-500/[0.05] p-4 text-sm leading-6 text-amber-100/75">You can keep using FitSwap without a paid plan. Business plans are optional and are for future promotional tools, priority support, and owner-facing visibility features.</div>}</section>
+
+    {pendingPayment ? <section><div className="mb-3"><h2 className="font-semibold text-white">Complete your Business payment</h2><p className="mt-1 text-sm text-zinc-500">Pay only to the FitSwap Business UPI shown below, then submit the UTR for an admin to verify.</p></div><UpiPaymentCheckout request={pendingPayment} busy={updatingPaymentId === pendingPayment.id} onMarkPaid={(utr) => onMarkPaid(pendingPayment.id, utr)} onCancel={pendingPayment.status === "AWAITING_PAYMENT" ? () => onCancelPayment(pendingPayment.id) : undefined} verificationNotice="FitSwap cannot verify your bank balance automatically. A FitSwap administrator checks the business UPI/bank account and confirms your plan after the exact payment and UTR are found." /></section> : <section className="grid gap-4 md:grid-cols-2">{offers.map((offer) => <article key={offer.code} className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5"><p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-300">FitSwap Business</p><h2 className="mt-2 text-xl font-bold text-white">{offer.code === "OWNER_YEARLY" ? "Yearly" : "Monthly"}</h2><p className="mt-2 text-sm leading-6 text-zinc-400">{offer.code === "OWNER_YEARLY" ? "A full year of optional business tools with one payment." : "A flexible monthly option for gym owners."}</p><p className="mt-5 text-3xl font-bold text-white">{currency(Number(offer.amount || 0) / 100)}</p><p className="mt-1 text-xs text-zinc-500">{offer.benefitDays} days of access after confirmation</p><button type="button" disabled={Boolean(updatingPaymentId)} onClick={() => onStartPlan(offer.code)} className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-violet-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50">{updatingPaymentId === `plan-${offer.code}` ? "Generating UPI QR…" : `Choose ${offer.code === "OWNER_YEARLY" ? "yearly" : "monthly"}`}</button></article>)}</section>}
+
+    <section className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5 sm:p-6"><h2 className="font-semibold text-white">Billing history</h2><p className="mt-1 text-sm text-zinc-500">A record of FitSwap feature payments—never member membership payments.</p><div className="mt-5 space-y-3">{payments.length ? payments.filter((payment) => payment.kind === "OWNER_SUBSCRIPTION").map((payment) => <div key={payment.id} className="flex flex-col gap-3 rounded-xl border border-white/[0.07] bg-black/10 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-medium text-white">{payment.planCode.replaceAll("_", " ")}</p><p className="mt-1 text-xs text-zinc-500">{payment.paymentRef} · {date(payment.createdAt)}</p></div><div className="flex items-center gap-3"><p className="font-semibold text-white">{currency(Number(payment.amount || 0) / 100)}</p><Status value={payment.status} /></div></div>) : <p className="py-4 text-sm text-zinc-500">No FitSwap Business payments yet.</p>}</div></section>
+  </div>;
+}
+
+function TransfersContent({ transfers, approvals, directPayments, updatingPaymentId, onApproveUpiTransfer, onRejectUpiTransfer, onConfirmDirectUpiPayment }) {
+  const transferList = array(transfers);
+  const approvalList = array(approvals);
+  const directPaymentList = array(directPayments);
+
+  return <div className="space-y-6">
+    <section className="rounded-2xl border border-amber-400/20 bg-amber-500/[0.05] p-5 sm:p-6"><div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-amber-200">Direct membership sales</p><h2 className="mt-2 text-xl font-bold text-white">UPI payments to verify</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">Check the payer, exact amount, and UTR in your real UPI/bank app. Confirming here creates the membership only after your bank-side check.</p></div><span className="rounded-full border border-amber-300/20 bg-amber-500/10 px-3 py-1.5 text-sm font-bold text-amber-100">{directPaymentList.filter((request) => request.status === "BUYER_MARKED_PAID").length} to review</span></div>{directPaymentList.filter((request) => request.status === "BUYER_MARKED_PAID").length ? <div className="mt-5 grid gap-4">{directPaymentList.filter((request) => request.status === "BUYER_MARKED_PAID").map((request) => <article key={request.id} className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5"><div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between"><div><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-white">{request.gym?.name || "Gym"}</h3><span className="rounded-full bg-amber-500/15 px-2 py-1 text-[10px] font-bold text-amber-200">BUYER MARKED PAID</span></div><p className="mt-1 text-sm text-zinc-400">{request.plan?.name || "Membership plan"} · {currency(Number(request.amount || 0) / 100)}</p><p className="mt-3 text-xs text-zinc-500">Buyer: {name(request.buyer)} · UTR: <span className="font-semibold text-zinc-300">{request.utr || "—"}</span></p><p className="mt-1 text-xs text-zinc-500">Reference: {request.paymentRef}</p></div><div className="flex shrink-0 gap-2"><button type="button" disabled={updatingPaymentId === request.id} onClick={() => onConfirmDirectUpiPayment(request.id)} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"><Check size={15} /> Confirm payment</button><button type="button" disabled={updatingPaymentId === request.id} onClick={() => onRejectUpiTransfer(request.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 px-3 py-2 text-sm font-semibold text-red-300 transition hover:bg-red-500/10 disabled:opacity-50"><X size={15} /> Reject</button></div></div></article>)}</div> : <div className="mt-5 rounded-xl border border-dashed border-white/[0.1] bg-black/10 p-5 text-sm text-zinc-500">No direct gym payments need your confirmation right now.</div>}</section>
+    <section className="rounded-2xl border border-violet-400/20 bg-violet-500/[0.05] p-5 sm:p-6"><div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-300">Secure UPI workflow</p><h2 className="mt-2 text-xl font-bold text-white">Gym approval queue</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">Approve only after the seller has already checked the UTR and confirmed receipt. Approval moves the membership to the buyer and closes the listing.</p></div><span className="rounded-full border border-violet-300/20 bg-violet-500/10 px-3 py-1.5 text-sm font-bold text-violet-100">{approvalList.length} waiting</span></div>{approvalList.length ? <div className="mt-5 grid gap-4">{approvalList.map((request) => <article key={request.id} className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5"><div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between"><div><div className="flex flex-wrap items-center gap-2"><h3 className="font-semibold text-white">{request.listing?.membership?.plan?.gym?.name || request.gym?.name || "Gym membership"}</h3><span className="rounded-full bg-sky-500/15 px-2 py-1 text-[10px] font-bold text-sky-200">SELLER CONFIRMED</span></div><p className="mt-1 text-sm text-zinc-400">{request.listing?.membership?.plan?.name || request.plan?.name || "Membership plan"} · {currency(Number(request.amount || 0) / 100)}</p><p className="mt-3 text-xs text-zinc-500">Seller: {name(request.recipient)} · Buyer: {name(request.buyer)} · UTR: <span className="font-semibold text-zinc-300">{request.utr || "—"}</span></p><p className="mt-1 text-xs text-zinc-500">Reference: {request.paymentRef} · Seller confirmed {date(request.recipientConfirmedAt)}</p></div><div className="flex shrink-0 gap-2"><button type="button" disabled={updatingPaymentId === request.id} onClick={() => onApproveUpiTransfer(request.id)} className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-500 disabled:opacity-50"><Check size={15} /> Approve transfer</button><button type="button" disabled={updatingPaymentId === request.id} onClick={() => onRejectUpiTransfer(request.id)} className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/30 px-3 py-2 text-sm font-semibold text-red-300 transition hover:bg-red-500/10 disabled:opacity-50"><X size={15} /> Reject</button></div></div></article>)}</div> : <div className="mt-5 rounded-xl border border-dashed border-white/[0.1] bg-black/10 p-5 text-sm text-zinc-500">No UPI transfers need gym approval right now.</div>}</section>
+    {transferList.length ? <section><div className="mb-3"><h2 className="font-semibold text-white">Transfer history</h2><p className="mt-1 text-sm text-zinc-500">Marketplace transfers involving plans from your gyms.</p></div><div className="grid gap-4">{transferList.map((transfer) => <article key={transfer.id} className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex flex-wrap items-center gap-2"><h2 className="font-semibold text-white">{transfer.listing?.membership?.plan?.gym?.name || "Gym membership"}</h2><Status value={transfer.status} /></div><p className="mt-1 text-sm text-zinc-400">{transfer.listing?.membership?.plan?.name || "Membership plan"} · {currency(transfer.listing?.askingPrice)}</p><p className="mt-3 text-xs text-zinc-500">Seller: {name(transfer.listing?.seller)} · Buyer: {name(transfer.buyer)} · Requested {date(transfer.createdAt)}</p></div><span className="flex items-center gap-2 text-xs text-zinc-500"><CalendarClock size={15} /> Listing: {transfer.listing?.status || "—"}</span></div></article>)}</div></section> : approvalList.length ? null : <Empty icon={ArrowUpRight} title="No transfer activity" description="Marketplace transfers involving plans from your gyms will appear here." />}
+  </div>;
+}
+
+function Status({ value }) { const style = ["ACTIVE", "APPROVED", "SOLD", "COMPLETED"].includes(value) ? "bg-emerald-500/10 text-emerald-300" : ["PENDING", "BUYER_MARKED_PAID", "AWAITING_PAYMENT"].includes(value) ? "bg-amber-500/10 text-amber-300" : ["EXPIRED", "REJECTED", "CANCELLED"].includes(value) ? "bg-red-500/10 text-red-300" : "bg-zinc-500/15 text-zinc-300"; return <span className={`inline-flex rounded-full px-2 py-1 text-[10px] font-bold ${style}`}>{String(value || "UNKNOWN").replaceAll("_", " ")}</span>; }
 function Empty({ icon: Icon, title, description }) { return <div className="flex min-h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-white/[0.12] bg-[#11121a] p-8 text-center"><Icon size={34} className="text-violet-400" /><h2 className="mt-4 font-semibold text-white">{title}</h2><p className="mt-2 max-w-md text-sm leading-6 text-zinc-500">{description}</p></div>; }
 
 export default GymOwnerOperationsPage;

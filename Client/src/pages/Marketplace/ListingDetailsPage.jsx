@@ -49,7 +49,7 @@ const ListingDetailsPage = () => {
           <section className="mb-6 flex flex-col gap-4 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.07] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5">
             <div className="flex items-start gap-3">
               <CircleCheck className="mt-0.5 shrink-0 text-emerald-300" size={22} />
-              <div><h2 className="font-semibold text-emerald-100">This membership is now yours</h2><p className="mt-1 text-sm text-emerald-100/70">Your online payment was verified and the membership was transferred to your account.</p></div>
+              <div><h2 className="font-semibold text-emerald-100">This membership is now yours</h2><p className="mt-1 text-sm text-emerald-100/70">Your UPI payment was confirmed by the seller and approved by the gym before the membership moved to your account.</p></div>
             </div>
             <button type="button" onClick={() => navigate("/memberships")} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400">View memberships <ArrowRight size={16} /></button>
           </section>
@@ -80,8 +80,8 @@ const ListingDetailsPage = () => {
             </section>
 
             <section className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5 sm:p-6">
-              <SectionTitle icon={ShieldCheck} title="Safe transfer process" description="FitSwap keeps the handover clear for both members." />
-              <div className="mt-6 grid gap-4 sm:grid-cols-3"><Process number="01" title="Request" text="Send your transfer request." /><Process number="02" title="Review" text="The seller reviews the request." /><Process number="03" title="Transfer" text="Membership moves after approval." /></div>
+              <SectionTitle icon={ShieldCheck} title="Safe transfer process" description="FitSwap keeps each payment and handover step clear for both members." />
+              <div className="mt-6 grid gap-4 sm:grid-cols-3"><Process number="01" title="Pay & add UTR" text="Pay the exact dynamic QR amount." /><Process number="02" title="Seller checks" text="The seller verifies payment in their bank app." /><Process number="03" title="Gym approves" text="The membership moves after gym approval." /></div>
             </section>
 
             <section className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5 sm:p-6">

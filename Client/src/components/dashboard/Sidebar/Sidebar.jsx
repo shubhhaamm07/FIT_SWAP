@@ -15,6 +15,7 @@ import {
   UserCircle2,
   UserRound,
   UsersRound,
+  WalletCards,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -109,6 +110,11 @@ function Sidebar() {
               label: "Transfer Oversight",
               to: "/owner/transfers",
               icon: ArrowRightLeft,
+            },
+            {
+              label: "Plans & Billing",
+              to: "/owner/billing",
+              icon: WalletCards,
             },
           ],
         },

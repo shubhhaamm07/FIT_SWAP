@@ -21,6 +21,24 @@ export const verifyRazorpayPayment = async (paymentDetails) => {
   return data;
 };
 
+export const createGymMembershipRazorpayOrder = async (planId) => {
+  const { data } = await axios.post(
+    "/gym-memberships/create-order",
+    { planId },
+    { skipAuthLogout: true }
+  );
+  return data.data;
+};
+
+export const verifyGymMembershipRazorpayPayment = async (paymentDetails) => {
+  const { data } = await axios.post(
+    "/gym-memberships/verify-payment",
+    paymentDetails,
+    { skipAuthLogout: true }
+  );
+  return data;
+};
+
 export const loadRazorpayCheckout = () => {
   if (window.Razorpay) return Promise.resolve(window.Razorpay);
   if (razorpayScriptPromise) return razorpayScriptPromise;
