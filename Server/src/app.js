@@ -40,10 +40,36 @@ const {
 } = require("./middlewares/rateLimiter.middleware");
 const app = express();
 
+if (process.env.NODE_ENV === 'production') {
+    // Render and similar hosts terminate HTTPS at a reverse proxy. Trust only
+    // the first proxy so rate limiting sees the real client address.
+    app.set('trust proxy', 1);
+}
+
+const configuredOrigins = String(
+    process.env.CLIENT_URLS ||
+    process.env.CLIENT_URL ||
+    'http://localhost:5173'
+)
+    .split(',')
+    .map((origin) => origin.trim().replace(/\/$/, ''))
+    .filter(Boolean);
+
+const allowedOrigins = new Set(configuredOrigins);
 
 app.use(
     cors({
-        origin: process.env.CLIENT_URL || "http://localhost:5173",
+        origin(origin, callback) {
+            // Requests from tools, mobile clients, and server-to-server calls
+            // may not include an Origin header.
+            if (!origin || allowedOrigins.has(origin.replace(/\/$/, ''))) {
+                return callback(null, true);
+            }
+
+            const error = new Error('This website origin is not allowed by the FitSwap API.');
+            error.status = 403;
+            return callback(error);
+        },
         credentials: true,
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allowedHeaders: ["Content-Type", "Authorization"],
@@ -59,6 +85,14 @@ app.get('/api/health', (req, res) => {
     return res.status(200).json({
         success: true,
         message: 'FitSwap API Running'
+    });
+});
+
+app.get('/', (req, res) => {
+    return res.status(200).json({
+        success: true,
+        name: 'FitSwap API',
+        health: '/api/health'
     });
 });
 
@@ -78,4 +112,23 @@ app.use('/api', gymOwnerDashboardRoutes);
 app.use('/api', paymentRoutes);
 app.use('/api', upiPaymentRoutes);
 app.use('/api', platformBillingRoutes);
+
+app.use((req, res) => {
+    return res.status(404).json({
+        success: false,
+        message: 'API endpoint not found.'
+    });
+});
+
+app.use((error, req, res, next) => {
+    if (res.headersSent) return next(error);
+
+    const status = Number(error.status) || 500;
+    if (status >= 500) console.error(error);
+
+    return res.status(status).json({
+        success: false,
+        message: status >= 500 ? 'An unexpected server error occurred.' : error.message
+    });
+});
 module.exports = app;

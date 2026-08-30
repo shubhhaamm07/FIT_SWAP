@@ -6,7 +6,7 @@ export const registerUser = async (userData) => {
 };
 
 export const loginUser = async (credentials) => {
-    const response = await api.post("/auth/login", credentials);
+    const response = await api.post("/auth/login", credentials, { skipAuthLogout: true });
     return response.data;
 };
 
@@ -15,8 +15,8 @@ export const loginWithGoogle = async (credential) => {
     return response.data;
 };
 
-export const getCurrentUser = async () => {
-    const response = await api.get("/auth/me");
+export const getCurrentUser = async (config = {}) => {
+    const response = await api.get("/auth/me", config);
     return response.data;
 };
 
@@ -29,9 +29,7 @@ export const uploadProfileImage = async (type, file) => {
     const formData = new FormData();
     formData.append("image", file);
 
-    const response = await api.post(`/profile/${type}`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-    });
+    const response = await api.post(`/profile/${type}`, formData);
 
     return response.data;
 };

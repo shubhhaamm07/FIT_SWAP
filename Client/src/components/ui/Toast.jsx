@@ -11,8 +11,9 @@ function Toast({ show, type = "success", message, onClose }) {
     <div
       className="
         fixed
-        top-6
-        right-6
+        top-4
+        right-4
+        left-4
         z-[9999]
         animate-in
         slide-in-from-right-10
@@ -25,13 +26,15 @@ function Toast({ show, type = "success", message, onClose }) {
           items-start
           gap-4
 
-          min-w-[340px]
-          max-w-md
+          ml-auto
+          w-full
+          max-w-sm
 
           rounded-2xl
           border
 
-          p-5
+          p-4
+          sm:p-5
 
           shadow-2xl
 

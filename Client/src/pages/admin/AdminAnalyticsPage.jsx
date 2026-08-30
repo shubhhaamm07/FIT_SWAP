@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Activity, BadgeIndianRupee, BarChart3, CircleAlert, Download, LoaderCircle, TrendingUp, UserRoundCheck, UsersRound } from "lucide-react";
 
 import { getPlatformAnalytics } from "../../api/admin.api";
@@ -17,15 +17,15 @@ function AdminAnalyticsPage() {
   const [error, setError] = useState("");
   const [period, setPeriod] = useState(6);
 
-  const load = async (months = period) => {
+  const load = useCallback(async (months = period) => {
     setError("");
     try { setData(await getPlatformAnalytics({ months })); } catch (requestError) { setError(requestError.response?.data?.message || "Unable to load platform analytics."); }
-  };
+  }, [period]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => { void load(period); }, 0);
     return () => window.clearTimeout(timer);
-  }, [period]);
+  }, [period, load]);
   const highestRevenue = useMemo(() => Math.max(...(data?.revenueTrend || []).map((item) => Number(item.revenue || 0)), 1), [data]);
   const downloadReport = () => {
     if (!data) return;

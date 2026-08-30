@@ -38,7 +38,14 @@ const getDashboard = async (userId) => {
                         },
                     },
                 },
-                seller: true,
+                seller: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        avatarUrl: true
+                    }
+                },
             },
             take: 6,
             orderBy: {

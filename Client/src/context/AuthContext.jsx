@@ -1,11 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { AuthContext } from "./auth-context";
+import { getCurrentUser } from "../api/auth.api";
 
 function getStoredUser() {
   const storedUser = localStorage.getItem("user");
+  const storedToken = localStorage.getItem("token");
 
-  if (!storedUser) return null;
+  if (!storedUser || !storedToken) {
+    localStorage.removeItem("user");
+    localStorage.removeItem("token");
+    return null;
+  }
 
   try {
     const parsedUser = JSON.parse(storedUser);
@@ -22,7 +28,33 @@ function getStoredUser() {
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(getStoredUser);
-  const loading = false;
+  const [loading, setLoading] = useState(() => Boolean(localStorage.getItem("token")));
+
+  useEffect(() => {
+    if (!localStorage.getItem("token")) return undefined;
+
+    let active = true;
+    getCurrentUser({ skipAuthLogout: true })
+      .then((response) => {
+        if (!active) return;
+        const currentUser = response.user;
+        localStorage.setItem("user", JSON.stringify(currentUser));
+        setUser(currentUser);
+      })
+      .catch(() => {
+        if (!active) return;
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        setUser(null);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const login = (userData, token) => {
     localStorage.setItem("token", token);

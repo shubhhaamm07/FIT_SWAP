@@ -1,6 +1,6 @@
 import SidebarItem from "./SidebarItem";
 
-function SidebarSection({ title, items }) {
+function SidebarSection({ title, items, onNavigate }) {
   return (
     <div className="mb-5">
       <p
@@ -18,7 +18,7 @@ function SidebarSection({ title, items }) {
 
       <div className="space-y-1">
         {items.map((item) => (
-          <SidebarItem key={item.label} {...item} />
+          <SidebarItem key={item.label} {...item} onNavigate={onNavigate} />
         ))}
       </div>
     </div>

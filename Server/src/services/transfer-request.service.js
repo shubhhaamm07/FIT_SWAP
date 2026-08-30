@@ -165,7 +165,14 @@ const approveTransferRequest = async (
                 id: requestId
             },
             include: {
-                buyer: true,
+                buyer: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true
+                    }
+                },
                 listing: {
                     include: {
                         membership: {

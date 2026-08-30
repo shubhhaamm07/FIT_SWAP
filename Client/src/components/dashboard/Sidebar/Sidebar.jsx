@@ -24,7 +24,7 @@ import { useAuth } from "../../../hooks/useAuth";
 import SidebarSection from "./SidebarSection";
 import { sidebarSections } from "./sidebar.data";
 
-function Sidebar() {
+function Sidebar({ onNavigate }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -161,6 +161,7 @@ function Sidebar() {
             key={section.title}
             title={section.title}
             items={section.items}
+            onNavigate={onNavigate}
           />
         ))}
       </div>
@@ -188,15 +189,16 @@ function Sidebar() {
           </p>
           <button
             type="button"
-            onClick={() =>
+            onClick={() => {
               navigate(
                 isAdmin
                   ? "/admin/dashboard"
                   : isGymOwner
                     ? "/owner/dashboard"
                     : "/marketplace/sell",
-              )
-            }
+              );
+              onNavigate?.();
+            }}
             className="mt-3 w-full rounded-xl bg-violet-600 py-2.5 text-xs font-semibold text-white shadow-lg shadow-violet-950/30 transition hover:bg-violet-500"
           >
             {isAdmin
@@ -236,7 +238,10 @@ function Sidebar() {
 
         <div className="mt-3 border-t border-white/[0.08] pt-3">
           <button
-            onClick={logout}
+            onClick={() => {
+              onNavigate?.();
+              logout();
+            }}
             className="
               flex
               w-full

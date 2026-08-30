@@ -20,14 +20,16 @@ const PurchaseCard = ({ listing, onPurchased, isPurchased = false }) => {
   const [saved, setSaved] = useState(false);
   const [purchased, setPurchased] = useState(false);
   const [upiRequest, setUpiRequest] = useState(null);
+  const upiRequestId = upiRequest?.id;
+  const upiRequestStatus = upiRequest?.status;
 
   useEffect(() => {
-    if (!upiRequest || terminalStatuses.includes(upiRequest.status)) return undefined;
+    if (!upiRequestId || terminalStatuses.includes(upiRequestStatus)) return undefined;
 
     const timer = window.setInterval(async () => {
       try {
         const requests = await getMyUpiPaymentRequests();
-        const updated = requests.outgoing?.find((request) => request.id === upiRequest.id);
+        const updated = requests.outgoing?.find((request) => request.id === upiRequestId);
         if (!updated) return;
 
         setUpiRequest(updated);
@@ -42,7 +44,7 @@ const PurchaseCard = ({ listing, onPurchased, isPurchased = false }) => {
     }, 15000);
 
     return () => window.clearInterval(timer);
-  }, [upiRequest?.id, upiRequest?.status, onPurchased]);
+  }, [upiRequestId, upiRequestStatus, onPurchased]);
 
   const handleCreateUpiRequest = async () => {
     if (submitting) return;

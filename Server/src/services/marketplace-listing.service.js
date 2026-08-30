@@ -1216,13 +1216,33 @@ const getListingByIdForAdmin = async (
 
             include: {
 
-                seller: true,
+                seller: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true,
+                        phone: true,
+                        role: true,
+                        isActive: true
+                    }
+                },
 
                 membership: {
 
                     include: {
 
-                        user: true,
+                        user: {
+                            select: {
+                                id: true,
+                                firstName: true,
+                                lastName: true,
+                                email: true,
+                                phone: true,
+                                role: true,
+                                isActive: true
+                            }
+                        },
 
                         plan: {
 

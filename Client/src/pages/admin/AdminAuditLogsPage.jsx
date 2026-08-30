@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { BellRing, Building2, CircleAlert, ClipboardList, LoaderCircle, Search, ShieldAlert, ShieldCheck, Store, UserRoundX } from "lucide-react";
 
 import { getAuditLogs, getSecurityOverview } from "../../api/admin.api";
@@ -16,11 +16,11 @@ function AdminAuditLogsPage() {
   const [security, setSecurity] = useState(null);
   const [action, setAction] = useState("");
   const [search, setSearch] = useState("");
-  const load = async () => { setLoading(true); try { const [logData, securityData] = await Promise.all([getAuditLogs({ action, search }), getSecurityOverview()]); setLogs(logData); setSecurity(securityData); setError(""); } catch (requestError) { setError(requestError.response?.data?.message || "Unable to load audit logs."); } finally { setLoading(false); } };
+  const load = useCallback(async () => { setLoading(true); try { const [logData, securityData] = await Promise.all([getAuditLogs({ action, search }), getSecurityOverview()]); setLogs(logData); setSecurity(securityData); setError(""); } catch (requestError) { setError(requestError.response?.data?.message || "Unable to load audit logs."); } finally { setLoading(false); } }, [action, search]);
   useEffect(() => {
     const timer = window.setTimeout(() => { void load(); }, 0);
     return () => window.clearTimeout(timer);
-  }, [action, search]);
+  }, [load]);
 
   return <DashboardLayout><main className="mx-auto w-full max-w-6xl space-y-6 pb-8"><AdminPageHeader eyebrow="Security & audit" title="Admin activity log" description="A chronological record of important administrative actions. This supports traceability and makes platform decisions easy to review." icon={ClipboardList} />
     {error && <div className="flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-300"><CircleAlert size={17} /> {error}<button onClick={load} className="ml-auto text-xs font-semibold text-red-200">Retry</button></div>}

@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 
-function SidebarItem({ icon: Icon, label, to, disabled = false }) {
+function SidebarItem({ icon: Icon, label, to, disabled = false, onNavigate }) {
   const { pathname } = useLocation();
 
   const isActive = pathname === to || pathname.startsWith(`${to}/`);
@@ -8,6 +8,9 @@ function SidebarItem({ icon: Icon, label, to, disabled = false }) {
   return (
     <Link
       to={disabled ? "#" : to}
+      onClick={() => {
+        if (!disabled) onNavigate?.();
+      }}
       aria-current={isActive ? "page" : undefined}
       className={`
         group flex items-center gap-3 rounded-xl border px-3 py-2.5

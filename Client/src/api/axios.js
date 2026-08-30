@@ -1,7 +1,14 @@
 import Axios from "axios";
 
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
+const apiBaseUrl = configuredApiUrl || (import.meta.env.DEV ? "http://localhost:8000/api" : "/api");
+
+if (import.meta.env.PROD && !configuredApiUrl) {
+    console.error("VITE_API_URL is missing. Add the Render API URL in the Netlify environment settings.");
+}
+
 const axios = Axios.create({
-    baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000/api",
+    baseURL: apiBaseUrl,
     withCredentials: true,
     headers: {
         "Content-Type": "application/json",
@@ -28,7 +35,9 @@ axios.interceptors.response.use(
         // provider (for example, Razorpay credentials on the API server).
         // Those errors must be displayed in context instead of logging the
         // member out of FitSwap.
-        if (error.response?.status === 401 && !error.config?.skipAuthLogout) {
+        const hasSession = Boolean(localStorage.getItem("token"));
+
+        if (error.response?.status === 401 && hasSession && !error.config?.skipAuthLogout) {
             localStorage.removeItem("token");
             localStorage.removeItem("user");
 

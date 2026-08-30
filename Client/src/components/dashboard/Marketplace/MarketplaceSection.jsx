@@ -19,7 +19,7 @@ function MarketplaceSection({ listings = [], loading = false }) {
       {listings.length === 0 ? (
         <EmptyMarketplace />
       ) : (
-        <div className="grid grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {listings.map((listing) => (
             <MarketplaceCard key={listing.id} listing={listing} />
           ))}

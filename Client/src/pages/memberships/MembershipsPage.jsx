@@ -8,7 +8,7 @@ function MembershipsPage() {
       <main
         className="
           relative
-          min-h-screen
+          min-h-[calc(100vh-8rem)]
           overflow-hidden
           bg-[#09090B]
         "
@@ -20,8 +20,10 @@ function MembershipsPage() {
             absolute
             -top-40
             -left-40
-            h-[520px]
-            w-[520px]
+            h-80
+            w-80
+            sm:h-[520px]
+            sm:w-[520px]
             rounded-full
             bg-violet-600/10
             blur-[140px]
@@ -33,8 +35,10 @@ function MembershipsPage() {
             absolute
             top-60
             right-0
-            h-[450px]
-            w-[450px]
+            h-72
+            w-72
+            sm:h-[450px]
+            sm:w-[450px]
             rounded-full
             bg-fuchsia-600/10
             blur-[140px]
@@ -61,8 +65,10 @@ function MembershipsPage() {
             mx-auto
             w-full
             
-            px-10
-            py-10
+            px-0
+            py-4
+            sm:px-4
+            sm:py-8
             2xl:px-16
           "
         >

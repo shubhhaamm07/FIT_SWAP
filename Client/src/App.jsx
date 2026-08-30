@@ -1,9 +1,12 @@
-// import { useEffect } from "react";
+import AppErrorBoundary from "./components/common/AppErrorBoundary";
 import AppRoutes from "./routes/AppRoutes";
-// import { getCurrentUser } from "./api/auth.api";
 
 function App() {
-  return <AppRoutes />;
+  return (
+    <AppErrorBoundary>
+      <AppRoutes />
+    </AppErrorBoundary>
+  );
 }
 
 export default App;

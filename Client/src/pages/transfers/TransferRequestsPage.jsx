@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ArrowDownLeft, ArrowUpRight, Check, CheckCircle2, CircleAlert, ClipboardCheck, Clock3, Dumbbell, LoaderCircle, MapPin, ShieldCheck, X } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Check, CircleAlert, ClipboardCheck, Clock3, Dumbbell, LoaderCircle, MapPin, ShieldCheck, X } from "lucide-react";
 import DashboardLayout from "../../layouts/DashboardLayout";
 import { approveTransferRequest, cancelTransferRequest, getIncomingTransferRequests, getMyTransferRequests, rejectTransferRequest } from "../../api/transfer.api";
 import { cancelUpiPaymentRequest, confirmUpiPaymentReceived, getMyUpiPaymentRequests, markUpiPaymentPaid, rejectUpiPayment } from "../../api/upi-payment.api";
@@ -31,7 +31,10 @@ const TransferRequestsPage = () => {
     }
   }, []);
 
-  useEffect(() => { void loadRequests(); }, [loadRequests]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void loadRequests(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadRequests]);
   useEffect(() => {
     const hasLiveRequest = [...upiPayments.incoming, ...upiPayments.outgoing].some((request) => !paymentTerminalStatuses.includes(request.status));
     if (!hasLiveRequest) return undefined;

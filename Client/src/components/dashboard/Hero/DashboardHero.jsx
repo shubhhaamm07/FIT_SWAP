@@ -51,7 +51,7 @@ function DashboardHero() {
               <ArrowRight size={15} />
             </Button>
 
-            <Button variant="secondary" onClick={() => navigate("/marketplace")} className="h-11 px-5 text-sm">
+            <Button variant="secondary" onClick={() => navigate("/gyms")} className="h-11 px-5 text-sm">
               Find Gyms
             </Button>
           </div>

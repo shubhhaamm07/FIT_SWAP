@@ -4,7 +4,7 @@ function MembershipQuickInfo({ membership }) {
   const plan = membership.plan;
 
   return (
-    <div className="mt-5 grid grid-cols-3 gap-3">
+    <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
       <div
         className="
           rounded-2xl

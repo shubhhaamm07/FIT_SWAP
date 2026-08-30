@@ -20,6 +20,8 @@ function GymDetailsPage() {
   const [message, setMessage] = useState("");
   const [purchasedPlanIds, setPurchasedPlanIds] = useState([]);
   const [upiRequest, setUpiRequest] = useState(null);
+  const upiRequestId = upiRequest?.id;
+  const upiRequestStatus = upiRequest?.status;
 
   useEffect(() => {
     const timer = window.setTimeout(async () => {
@@ -42,11 +44,11 @@ function GymDetailsPage() {
   }, [gymId]);
 
   useEffect(() => {
-    if (!upiRequest || ["COMPLETED", "REJECTED", "CANCELLED", "EXPIRED"].includes(upiRequest.status)) return undefined;
+    if (!upiRequestId || ["COMPLETED", "REJECTED", "CANCELLED", "EXPIRED"].includes(upiRequestStatus)) return undefined;
     const timer = window.setInterval(async () => {
       try {
         const data = await getMyUpiPaymentRequests();
-        const updated = data.outgoing?.find((request) => request.id === upiRequest.id);
+        const updated = data.outgoing?.find((request) => request.id === upiRequestId);
         if (!updated) return;
         setUpiRequest(updated);
         if (updated.status === "COMPLETED" && selectedPlan) {
@@ -60,7 +62,7 @@ function GymDetailsPage() {
       }
     }, 15000);
     return () => window.clearInterval(timer);
-  }, [upiRequest?.id, upiRequest?.status, selectedPlan]);
+  }, [upiRequestId, upiRequestStatus, selectedPlan]);
 
   const startUpiCheckout = async () => {
     if (!selectedPlan || buying) return;

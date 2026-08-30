@@ -7,7 +7,7 @@ function GymSection({ gyms = [], loading = false }) {
       <section className="mt-8">
         <h2 className="text-2xl font-bold mb-5">Nearby Gyms</h2>
 
-        <div className="grid grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {[1, 2, 3].map((item) => (
             <SkeletonGym key={item} />
           ))}
@@ -28,7 +28,7 @@ function GymSection({ gyms = [], loading = false }) {
       {gyms.length === 0 ? (
         <EmptyGym />
       ) : (
-        <div className="grid grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
           {gyms.map((gym) => (
             <GymCard key={gym.id} gym={gym} />
           ))}

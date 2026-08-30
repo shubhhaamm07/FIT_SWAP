@@ -1,35 +1,33 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
+import { LoaderCircle } from "lucide-react";
 
-import LandingPage from "../pages/LandingPage";
-
-import LoginPage from "../pages/auth/LoginPage";
-import RegisterPage from "../pages/auth/RegisterPage";
-import ForgotPasswordPage from "../pages/auth/ForgotPasswordPage";
-import ResetPasswordPage from "../pages/auth/ResetPasswordPage";
-import VerifyEmailPage from "../pages/auth/VerifyEmailPage";
-
-import DashboardPage from "../pages/dashboard/DashboardPage";
-
-import MembershipsPage from "../pages/memberships/MembershipsPage";
-import MembershipDetails from "../components/memberships/details/MembershipDetails";
-
-import MarketplacePage from "../pages/Marketplace/MarketplacePage";
-import ListingDetailsPage from "../pages/Marketplace/ListingDetailsPage";
-import WishlistPage from "../pages/Marketplace/WishlistPage";
-import SellMembershipPage from "../pages/Marketplace/SellMembershipPage";
-import MyListingsPage from "../pages/Marketplace/MyListingsPage";
-import TransferRequestsPage from "../pages/transfers/TransferRequestsPage";
-import ProfilePage from "../pages/profile/ProfilePage";
-import SettingsPage from "../pages/settings/SettingsPage";
-import NotificationsPage from "../pages/notifications/NotificationsPage";
-import GymsPage from "../pages/gyms/GymsPage";
-import GymDetailsPage from "../pages/gyms/GymDetailsPage";
-import GymOwnerDashboardPage from "../pages/gym-owner/GymOwnerDashboardPage";
-import GymOwnerOperationsPage from "../pages/gym-owner/GymOwnerOperationsPage";
-import AdminPortalPage from "../pages/admin/AdminPortalPage";
-import AdminAnalyticsPage from "../pages/admin/AdminAnalyticsPage";
-import AdminNotificationCentrePage from "../pages/admin/AdminNotificationCentrePage";
-import AdminAuditLogsPage from "../pages/admin/AdminAuditLogsPage";
+const LandingPage = lazy(() => import("../pages/LandingPage"));
+const LoginPage = lazy(() => import("../pages/auth/LoginPage"));
+const RegisterPage = lazy(() => import("../pages/auth/RegisterPage"));
+const ForgotPasswordPage = lazy(() => import("../pages/auth/ForgotPasswordPage"));
+const ResetPasswordPage = lazy(() => import("../pages/auth/ResetPasswordPage"));
+const VerifyEmailPage = lazy(() => import("../pages/auth/VerifyEmailPage"));
+const DashboardPage = lazy(() => import("../pages/dashboard/DashboardPage"));
+const MembershipsPage = lazy(() => import("../pages/memberships/MembershipsPage"));
+const MembershipDetails = lazy(() => import("../components/memberships/details/MembershipDetails"));
+const MarketplacePage = lazy(() => import("../pages/Marketplace/MarketplacePage"));
+const ListingDetailsPage = lazy(() => import("../pages/Marketplace/ListingDetailsPage"));
+const WishlistPage = lazy(() => import("../pages/Marketplace/WishlistPage"));
+const SellMembershipPage = lazy(() => import("../pages/Marketplace/SellMembershipPage"));
+const MyListingsPage = lazy(() => import("../pages/Marketplace/MyListingsPage"));
+const TransferRequestsPage = lazy(() => import("../pages/transfers/TransferRequestsPage"));
+const ProfilePage = lazy(() => import("../pages/profile/ProfilePage"));
+const SettingsPage = lazy(() => import("../pages/settings/SettingsPage"));
+const NotificationsPage = lazy(() => import("../pages/notifications/NotificationsPage"));
+const GymsPage = lazy(() => import("../pages/gyms/GymsPage"));
+const GymDetailsPage = lazy(() => import("../pages/gyms/GymDetailsPage"));
+const GymOwnerDashboardPage = lazy(() => import("../pages/gym-owner/GymOwnerDashboardPage"));
+const GymOwnerOperationsPage = lazy(() => import("../pages/gym-owner/GymOwnerOperationsPage"));
+const AdminPortalPage = lazy(() => import("../pages/admin/AdminPortalPage"));
+const AdminAnalyticsPage = lazy(() => import("../pages/admin/AdminAnalyticsPage"));
+const AdminNotificationCentrePage = lazy(() => import("../pages/admin/AdminNotificationCentrePage"));
+const AdminAuditLogsPage = lazy(() => import("../pages/admin/AdminAuditLogsPage"));
 
 import ProtectedRoute from "./ProtectedRoute";
 import RoleRoute from "./RoleRoute";
@@ -37,7 +35,8 @@ import RoleRoute from "./RoleRoute";
 function AppRoutes() {
   return (
     <BrowserRouter>
-      <Routes>
+      <Suspense fallback={<RouteLoader />}>
+        <Routes>
         {/* ================= Public Routes ================= */}
 
         <Route path="/" element={<LandingPage />} />
@@ -204,8 +203,20 @@ function AppRoutes() {
 
         {/* Keep an outdated sidebar URL or a mistyped path from rendering an empty screen. */}
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+        </Routes>
+      </Suspense>
     </BrowserRouter>
+  );
+}
+
+function RouteLoader() {
+  return (
+    <div className="grid min-h-screen place-items-center bg-[#08090d] px-4 text-zinc-300">
+      <div className="flex items-center gap-3 text-sm">
+        <LoaderCircle className="animate-spin text-violet-400" size={20} />
+        Loading FitSwap…
+      </div>
+    </div>
   );
 }
 
