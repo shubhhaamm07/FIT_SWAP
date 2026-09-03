@@ -22,6 +22,7 @@ const SettingsPage = lazy(() => import("../pages/settings/SettingsPage"));
 const NotificationsPage = lazy(() => import("../pages/notifications/NotificationsPage"));
 const GymsPage = lazy(() => import("../pages/gyms/GymsPage"));
 const GymDetailsPage = lazy(() => import("../pages/gyms/GymDetailsPage"));
+const DietPlannerPage = lazy(() => import("../pages/diet/DietPlannerPage"));
 const GymOwnerDashboardPage = lazy(() => import("../pages/gym-owner/GymOwnerDashboardPage"));
 const GymOwnerOperationsPage = lazy(() => import("../pages/gym-owner/GymOwnerOperationsPage"));
 const AdminPortalPage = lazy(() => import("../pages/admin/AdminPortalPage"));
@@ -169,6 +170,11 @@ function AppRoutes() {
         <Route
           path="/gyms/:gymId"
           element={<ProtectedRoute><GymDetailsPage /></ProtectedRoute>}
+        />
+
+        <Route
+          path="/diet-planner"
+          element={<RoleRoute allowedRoles={["USER"]}><DietPlannerPage /></RoleRoute>}
         />
 
         <Route

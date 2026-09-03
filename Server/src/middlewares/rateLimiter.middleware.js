@@ -56,9 +56,23 @@ const emailActionLimiter = rateLimit({
     },
 });
 
+// AI generation consumes a third-party API quota. Keep this separate from the
+// general API limiter so an accidental loop cannot create unnecessary cost.
+const dietPlannerLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        success: false,
+        message: "You have generated several diet plans. Please try again in 15 minutes.",
+    },
+});
+
 module.exports = {
     uploadLimiter,
     apiLimiter,
     authLimiter,
     emailActionLimiter,
+    dietPlannerLimiter,
 };

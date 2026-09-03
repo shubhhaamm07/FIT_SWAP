@@ -35,6 +35,7 @@ const gymOwnerDashboardRoutes = require('./routes/gym-owner-dashboard.routes');
 const paymentRoutes = require('./routes/payment.routes');
 const upiPaymentRoutes = require('./routes/upi-payment.routes');
 const platformBillingRoutes = require('./routes/platform-billing.routes');
+const dietPlannerRoutes = require('./routes/diet-planner.routes');
 const {
     apiLimiter,
 } = require("./middlewares/rateLimiter.middleware");
@@ -112,6 +113,7 @@ app.use('/api', gymOwnerDashboardRoutes);
 app.use('/api', paymentRoutes);
 app.use('/api', upiPaymentRoutes);
 app.use('/api', platformBillingRoutes);
+app.use('/api', dietPlannerRoutes);
 
 app.use((req, res) => {
     return res.status(404).json({

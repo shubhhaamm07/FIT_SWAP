@@ -7,6 +7,7 @@ import {
     Bell,
     UserRound,
     Settings,
+    Sparkles,
 } from "lucide-react";
 
 export const sidebarSections = [
@@ -55,6 +56,17 @@ export const sidebarSections = [
                 label: "Transfer Requests",
                 to: "/transfers",
                 icon: ArrowRightLeft,
+            },
+        ],
+    },
+
+    {
+        title: "Wellness",
+        items: [
+            {
+                label: "AI Diet Planner",
+                to: "/diet-planner",
+                icon: Sparkles,
             },
         ],
     },

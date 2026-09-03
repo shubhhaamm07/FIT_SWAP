@@ -1,0 +1,421 @@
+const GOALS = new Set([
+    "LOSE_WEIGHT",
+    "MAINTAIN",
+    "GAIN_MUSCLE",
+    "GENERAL_FITNESS",
+]);
+
+const DIETS = new Set([
+    "VEGETARIAN",
+    "EGGETARIAN",
+    "NON_VEGETARIAN",
+    "VEGAN",
+]);
+
+const ACTIVITIES = new Set(["LOW", "LIGHT", "MODERATE", "HIGH"]);
+const BUDGETS = new Set(["ECONOMY", "BALANCED", "FLEXIBLE"]);
+const HEALTH_CONCERNS = new Set([
+    "THYROID",
+    "PCOS",
+    "DIABETES",
+    "HIGH_BLOOD_PRESSURE",
+    "HIGH_CHOLESTEROL",
+    "KIDNEY_DISEASE",
+    "HEART_DISEASE",
+    "LIVER_DISEASE",
+    "PREGNANCY_POSTPARTUM",
+    "EATING_DISORDER",
+    "FOOD_ALLERGY",
+    "OTHER_MEDICAL_CONDITION",
+]);
+
+const MEDICAL_KEYWORDS = /thyroid|diabet|pcos|pregnan|kidney|renal|heart|cholesterol|blood pressure|hypertension|allerg|eating disorder|medication|medicine/i;
+
+const activityMultipliers = {
+    LOW: 1.2,
+    LIGHT: 1.375,
+    MODERATE: 1.55,
+    HIGH: 1.725,
+};
+
+const goalDetails = {
+    LOSE_WEIGHT: {
+        label: "Weight loss",
+        adjustment: -300,
+        proteinPerKg: 1.4,
+        message: "A measured calorie reduction supports gradual, sustainable progress.",
+    },
+    MAINTAIN: {
+        label: "Maintenance",
+        adjustment: 0,
+        proteinPerKg: 1.2,
+        message: "Your plan is balanced around maintaining your present routine and energy needs.",
+    },
+    GAIN_MUSCLE: {
+        label: "Muscle gain",
+        adjustment: 250,
+        proteinPerKg: 1.6,
+        message: "A small calorie surplus and higher protein target support strength training progress.",
+    },
+    GENERAL_FITNESS: {
+        label: "General fitness",
+        adjustment: 0,
+        proteinPerKg: 1.2,
+        message: "Your plan prioritises steady energy, protein, and everyday consistency.",
+    },
+};
+
+const mealSplits = {
+    3: [
+        ["Breakfast", 0.3],
+        ["Lunch", 0.4],
+        ["Dinner", 0.3],
+    ],
+    4: [
+        ["Breakfast", 0.25],
+        ["Lunch", 0.35],
+        ["Snack", 0.15],
+        ["Dinner", 0.25],
+    ],
+    5: [
+        ["Breakfast", 0.22],
+        ["Lunch", 0.32],
+        ["Morning snack", 0.1],
+        ["Evening snack", 0.12],
+        ["Dinner", 0.24],
+    ],
+};
+
+const roundToNearest = (value, step = 5) => Math.round(value / step) * step;
+
+const createError = (message, status = 400, code) => {
+    const error = new Error(message);
+    error.status = status;
+    if (code) error.code = code;
+    return error;
+};
+
+const readNumber = (value, label, min, max) => {
+    const number = Number(value);
+    if (!Number.isFinite(number) || number < min || number > max) {
+        throw createError(`${label} must be between ${min} and ${max}.`);
+    }
+    return number;
+};
+
+const normaliseConcerns = (value) => {
+    if (!Array.isArray(value)) return [];
+
+    const concerns = [...new Set(value.map((item) => String(item || "").trim()))]
+        .filter((item) => HEALTH_CONCERNS.has(item));
+
+    if (concerns.length !== value.length || concerns.length > 4) {
+        throw createError("Choose up to four valid health considerations.");
+    }
+
+    return concerns;
+};
+
+const validateInput = (input = {}) => {
+    const goal = String(input.goal || "").trim();
+    const diet = String(input.diet || "").trim();
+    const activityLevel = String(input.activityLevel || "").trim();
+    const budget = String(input.budget || "BALANCED").trim();
+    const mealsPerDay = Number(input.mealsPerDay || 4);
+    const sex = ["MALE", "FEMALE", "UNSPECIFIED"].includes(input.sex)
+        ? input.sex
+        : "UNSPECIFIED";
+
+    if (!GOALS.has(goal)) throw createError("Choose a fitness goal.");
+    if (!DIETS.has(diet)) throw createError("Choose a dietary preference.");
+    if (!ACTIVITIES.has(activityLevel)) throw createError("Choose an activity level.");
+    if (!BUDGETS.has(budget)) throw createError("Choose a budget preference.");
+    if (![3, 4, 5].includes(mealsPerDay)) {
+        throw createError("Meals per day must be 3, 4, or 5.");
+    }
+    if (input.aiConsent !== true) {
+        throw createError("Confirm that FitSwap may send these plan preferences to Gemini to generate your diet plan.");
+    }
+
+    const dietaryNotes = String(input.dietaryNotes || "").trim().slice(0, 180);
+    const weeklyBudgetInr = input.weeklyBudgetInr === "" || input.weeklyBudgetInr === null || input.weeklyBudgetInr === undefined
+        ? null
+        : readNumber(input.weeklyBudgetInr, "Weekly budget", 250, 100000);
+
+    return {
+        age: readNumber(input.age, "Age", 18, 85),
+        heightCm: readNumber(input.heightCm, "Height", 130, 230),
+        weightKg: readNumber(input.weightKg, "Weight", 35, 250),
+        sex,
+        goal,
+        diet,
+        activityLevel,
+        mealsPerDay,
+        budget,
+        weeklyBudgetInr,
+        dietaryNotes,
+        healthConcerns: normaliseConcerns(input.healthConcerns),
+    };
+};
+
+const calculateBmr = ({ weightKg, heightCm, age, sex }) => {
+    const base = (10 * weightKg) + (6.25 * heightCm) - (5 * age);
+    if (sex === "MALE") return base + 5;
+    if (sex === "FEMALE") return base - 161;
+    return base - 78;
+};
+
+const createMealStructure = ({ mealsPerDay, calories }) => {
+    const splits = mealSplits[mealsPerDay];
+
+    return Array.from({ length: 7 }, (_, index) => ({
+        day: index + 1,
+        label: `Day ${index + 1}`,
+        meals: splits.map(([label, share]) => ({
+            label,
+            targetCalories: Math.round((calories * share) / 10) * 10,
+        })),
+    }));
+};
+
+const createBasePlan = (input) => {
+    const goal = goalDetails[input.goal];
+    const estimatedMaintenanceCalories = Math.round(
+        calculateBmr(input) * activityMultipliers[input.activityLevel]
+    );
+    const lowerSafetyLimit = input.sex === "MALE" ? 1500 : 1200;
+    const targetCalories = Math.max(
+        lowerSafetyLimit,
+        Math.round(estimatedMaintenanceCalories + goal.adjustment)
+    );
+    const proteinGrams = Math.min(190, Math.max(50, roundToNearest(input.weightKg * goal.proteinPerKg)));
+    const fatGrams = Math.min(95, Math.max(40, roundToNearest((targetCalories * 0.27) / 9)));
+    const carbohydrateGrams = Math.max(
+        80,
+        roundToNearest((targetCalories - ((proteinGrams * 4) + (fatGrams * 9))) / 4)
+    );
+
+    return {
+        profile: {
+            goal: input.goal,
+            goalLabel: goal.label,
+            diet: input.diet,
+            activityLevel: input.activityLevel,
+            mealsPerDay: input.mealsPerDay,
+            budget: input.budget,
+            weeklyBudgetInr: input.weeklyBudgetInr,
+        },
+        dailyTargets: {
+            calories: targetCalories,
+            calorieRange: {
+                min: Math.max(lowerSafetyLimit, targetCalories - 100),
+                max: targetCalories + 100,
+            },
+            proteinGrams,
+            carbohydrateGrams,
+            fatGrams,
+            estimatedMaintenanceCalories,
+        },
+        mealStructure: createMealStructure({
+            mealsPerDay: input.mealsPerDay,
+            calories: targetCalories,
+        }),
+        goalMessage: goal.message,
+    };
+};
+
+const needsProfessionalReview = (input) => (
+    input.healthConcerns.length > 0 || MEDICAL_KEYWORDS.test(input.dietaryNotes)
+);
+
+const buildProfessionalReviewResponse = (input, basePlan) => ({
+    model: "FitSwap Health Safety Gate",
+    generationMethod: "professional-review-required",
+    requiresProfessionalReview: true,
+    profile: basePlan.profile,
+    dailyTargets: basePlan.dailyTargets,
+    healthConcerns: input.healthConcerns,
+    warnings: [
+        "FitSwap cannot safely generate a disease-specific or allergy-safe diet plan.",
+        "Please share these general targets and preferences with a qualified doctor or registered dietitian, who can consider diagnoses, test results, medicines, and allergies.",
+        "Do not use an automated diet plan to replace medical treatment or nutrition therapy.",
+    ],
+});
+
+const getGeminiConfig = () => {
+    const apiKey = String(process.env.GEMINI_API_KEY || "").trim();
+    if (!apiKey) {
+        throw createError(
+            "AI diet generation is not configured. Add GEMINI_API_KEY to the server environment.",
+            503,
+            "GEMINI_NOT_CONFIGURED"
+        );
+    }
+
+    return {
+        apiKey,
+        model: String(process.env.GEMINI_MODEL || "gemini-3.7-flash").trim(),
+    };
+};
+
+const cleanText = (value, maxLength = 320) => String(value || "")
+    .replace(/[<>]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength);
+
+const parseGeminiJson = (responseBody) => {
+    const text = responseBody?.candidates?.[0]?.content?.parts
+        ?.map((part) => part.text || "")
+        .join("")
+        .trim();
+
+    if (!text) {
+        throw createError("Gemini did not return a usable diet plan. Please try again.", 502, "GEMINI_EMPTY_RESPONSE");
+    }
+
+    try {
+        return JSON.parse(text.replace(/^```json\s*/i, "").replace(/\s*```$/, ""));
+    } catch {
+        throw createError("Gemini returned an invalid diet plan. Please try again.", 502, "GEMINI_INVALID_RESPONSE");
+    }
+};
+
+const normaliseWeeklyPlan = (aiPlan, mealStructure) => {
+    if (!Array.isArray(aiPlan) || aiPlan.length !== 7) {
+        throw createError("Gemini returned an incomplete weekly plan. Please try again.", 502, "GEMINI_INVALID_PLAN");
+    }
+
+    return mealStructure.map((day, dayIndex) => {
+        const generatedDay = aiPlan[dayIndex];
+        if (!Array.isArray(generatedDay?.meals) || generatedDay.meals.length !== day.meals.length) {
+            throw createError("Gemini returned an incomplete daily meal plan. Please try again.", 502, "GEMINI_INVALID_PLAN");
+        }
+
+        return {
+            ...day,
+            meals: day.meals.map((meal, mealIndex) => {
+                const suggestion = cleanText(generatedDay.meals[mealIndex]?.suggestion, 280);
+                if (!suggestion) {
+                    throw createError("Gemini omitted a meal suggestion. Please try again.", 502, "GEMINI_INVALID_PLAN");
+                }
+                return { ...meal, suggestion };
+            }),
+        };
+    });
+};
+
+const generateWithGemini = async (input, basePlan) => {
+    const { apiKey, model } = getGeminiConfig();
+    const safeProfile = {
+        goal: basePlan.profile.goalLabel,
+        dietaryPreference: input.diet,
+        activityLevel: input.activityLevel,
+        mealsPerDay: input.mealsPerDay,
+        budgetStyle: input.budget,
+        weeklyBudgetInr: input.weeklyBudgetInr,
+        personalFoodPreferences: input.dietaryNotes || "None provided",
+        fixedDailyTargets: basePlan.dailyTargets,
+        mealStructure: basePlan.mealStructure.map((day) => ({
+            day: day.day,
+            meals: day.meals.map((meal) => ({
+                label: meal.label,
+                targetCalories: meal.targetCalories,
+            })),
+        })),
+    };
+
+    const prompt = `You are FitSwap's wellness meal-planning assistant. Create practical, varied Indian-food meal suggestions for a healthy adult. This is general fitness guidance only, not medical advice. Do not diagnose conditions, mention treatment, recommend supplements or medicines, claim to manage disease, use extreme restrictions, or change the fixed calories/macros. Honour vegan/vegetarian preferences. If a weekly INR budget is provided, prefer realistic home-cooked, locally available ingredients and offer cost-conscious choices. Use clear, concise suggestions with normal household portions; do not claim exact price or nutrition values for individual dishes.\n\nReturn ONLY valid JSON in exactly this shape:\n{\n  "headline": "short title",\n  "summary": "one short sentence",\n  "weeklyPlan": [\n    { "day": 1, "meals": [ { "suggestion": "meal idea" } ] }\n  ],\n  "budgetTips": ["tip one", "tip two"],\n  "mealTiming": "one concise practical meal-timing tip",\n  "preparationTip": "one concise preparation tip"\n}\n\nThe weeklyPlan must have exactly 7 ordered days. Every day must have exactly the same number and order of meal entries as the provided mealStructure.\n\nProfile and fixed structure:\n${JSON.stringify(safeProfile)}`;
+
+    let response;
+    try {
+        response = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "x-goog-api-key": apiKey,
+                },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        temperature: 0.55,
+                        maxOutputTokens: 4096,
+                    },
+                }),
+                signal: AbortSignal.timeout(30000),
+            }
+        );
+    } catch (error) {
+        if (error.name === "TimeoutError") {
+            throw createError("Gemini took too long to respond. Please try again.", 504, "GEMINI_TIMEOUT");
+        }
+        throw createError("FitSwap could not reach Gemini. Please try again.", 502, "GEMINI_UNAVAILABLE");
+    }
+
+    let responseBody;
+    try {
+        responseBody = await response.json();
+    } catch {
+        throw createError("Gemini returned an unreadable response. Please try again.", 502, "GEMINI_INVALID_RESPONSE");
+    }
+
+    if (!response.ok) {
+        console.error("Gemini diet planner request failed", { status: response.status, body: responseBody?.error?.message });
+        if (response.status === 401 || response.status === 403) {
+            throw createError("Gemini authentication failed. Check GEMINI_API_KEY on the server.", 502, "GEMINI_AUTH_FAILED");
+        }
+        throw createError("Gemini could not generate a diet plan right now. Please try again.", 502, "GEMINI_REQUEST_FAILED");
+    }
+
+    const generated = parseGeminiJson(responseBody);
+    const weeklyPlan = normaliseWeeklyPlan(generated.weeklyPlan, basePlan.mealStructure);
+    const budgetTips = Array.isArray(generated.budgetTips)
+        ? generated.budgetTips.map((tip) => cleanText(tip, 220)).filter(Boolean).slice(0, 3)
+        : [];
+
+    return {
+        model: `Gemini · ${model}`,
+        generationMethod: "gemini-ai-generated-wellness-guidance",
+        requiresProfessionalReview: false,
+        profile: basePlan.profile,
+        dailyTargets: basePlan.dailyTargets,
+        headline: cleanText(generated.headline, 100) || "Your AI-created nutrition rhythm",
+        summary: cleanText(generated.summary, 220),
+        weeklyPlan,
+        guidance: {
+            budgetTip: budgetTips.join(" ") || "Choose local, seasonal ingredients and repeat simple home-cooked staples to reduce waste.",
+            mealTiming: cleanText(generated.mealTiming, 240) || "Keep meals consistent and include protein around training when it suits your routine.",
+            preparationTip: cleanText(generated.preparationTip, 240) || "Prep basic ingredients such as dal, vegetables, and protein sources ahead of busy days.",
+            dietaryNotes: input.dietaryNotes || null,
+        },
+        reasons: [
+            basePlan.goalMessage,
+            `Your activity level is used to estimate maintenance energy near ${basePlan.dailyTargets.estimatedMaintenanceCalories} kcal/day.`,
+            input.weeklyBudgetInr
+                ? `Gemini was asked to keep the weekly food ideas mindful of a ₹${input.weeklyBudgetInr} budget.`
+                : `Gemini was asked to use ${input.budget.toLowerCase()} budget-friendly meal ideas.`,
+        ],
+        warnings: [
+            "This is AI-generated general fitness guidance, not medical advice or a treatment plan.",
+            "Food availability, portions, and costs vary. Adjust choices to your real situation and consult a qualified professional for individual medical needs.",
+        ],
+    };
+};
+
+const generateDietPlan = async (rawInput) => {
+    const input = validateInput(rawInput);
+    const basePlan = createBasePlan(input);
+
+    if (needsProfessionalReview(input)) {
+        return buildProfessionalReviewResponse(input, basePlan);
+    }
+
+    return generateWithGemini(input, basePlan);
+};
+
+module.exports = {
+    generateDietPlan,
+};
