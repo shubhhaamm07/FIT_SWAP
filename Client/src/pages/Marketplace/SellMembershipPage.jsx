@@ -5,12 +5,16 @@ import {
   CircleDollarSign,
   Info,
   LoaderCircle,
+  Sparkles,
   Tag,
 } from "lucide-react";
 import DashboardLayout from "../../layouts/DashboardLayout";
 import MarketplaceSidebar from "../../components/marketplace/MarketplaceSidebar";
 import { getMyMemberships } from "../../api/membership.api";
-import { createListing } from "../../api/marketplace.api";
+import {
+  createListing,
+  getListingPriceSuggestion,
+} from "../../api/marketplace.api";
 import formatPrice from "../../components/marketplace/utils/formatPrice";
 
 const SellMembershipPage = () => {
@@ -22,6 +26,9 @@ const SellMembershipPage = () => {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [suggestion, setSuggestion] = useState(null);
+  const [suggestionLoading, setSuggestionLoading] = useState(false);
+  const [suggestionError, setSuggestionError] = useState("");
 
   useEffect(() => {
     const loadMemberships = async () => {
@@ -72,10 +79,48 @@ const SellMembershipPage = () => {
     ? Math.ceil(selectedMembership.plan.price * 0.3)
     : 0;
 
+  useEffect(() => {
+    if (!membershipId) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const loadSuggestion = async () => {
+      try {
+        setSuggestionLoading(true);
+        setSuggestionError("");
+        const priceSuggestion = await getListingPriceSuggestion(membershipId);
+        if (cancelled) return;
+
+        setSuggestion(priceSuggestion);
+        setAskingPrice(String(priceSuggestion.suggestedPrice));
+      } catch (err) {
+        if (!cancelled) {
+          setSuggestion(null);
+          setSuggestionError(
+            err.response?.data?.message ||
+              "A price suggestion is unavailable right now.",
+          );
+        }
+      } finally {
+        if (!cancelled) setSuggestionLoading(false);
+      }
+    };
+
+    void loadSuggestion();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [membershipId]);
+
   const handleMembershipChange = (id) => {
     setMembershipId(id);
     const membership = eligibleMemberships.find((item) => item.id === id);
     setAskingPrice(membership ? String(Math.round(membership.plan.price)) : "");
+    setSuggestion(null);
+    setSuggestionError("");
     setError("");
   };
 
@@ -181,6 +226,68 @@ const SellMembershipPage = () => {
                       />
                     </div>
                   </div>
+                )}
+                {selectedMembership && (
+                  <section className="rounded-xl border border-cyan-400/20 bg-[linear-gradient(135deg,rgba(34,211,238,0.1),rgba(124,58,237,0.1))] p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex gap-3">
+                        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-cyan-400/10 text-cyan-300">
+                          <Sparkles size={18} />
+                        </span>
+                        <div>
+                          <p className="text-sm font-semibold text-white">
+                            FitSwap pricing intelligence
+                          </p>
+                          <p className="mt-1 text-xs leading-5 text-zinc-400">
+                            A transparent estimate based on unused membership value,
+                            transfer fee, and comparable listings at this gym.
+                          </p>
+                        </div>
+                      </div>
+                      <span className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-cyan-200">
+                        {suggestion?.confidence || "Calculating"} confidence
+                      </span>
+                    </div>
+                    {suggestionLoading ? (
+                      <div className="mt-4 flex items-center gap-2 text-sm text-cyan-100">
+                        <LoaderCircle className="animate-spin" size={16} />
+                        Calculating a fair range…
+                      </div>
+                    ) : suggestion ? (
+                      <div className="mt-4 rounded-lg border border-white/[0.08] bg-black/20 p-3 sm:flex sm:items-center sm:justify-between sm:gap-4">
+                        <div>
+                          <p className="text-xs text-zinc-400">Suggested asking price</p>
+                          <p className="mt-1 text-2xl font-bold text-white">
+                            {formatPrice(suggestion.suggestedPrice)}
+                          </p>
+                          <p className="mt-1 text-xs text-zinc-400">
+                            Good range: {formatPrice(suggestion.suggestedRange.minimum)} to {formatPrice(suggestion.suggestedRange.maximum)}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setAskingPrice(String(suggestion.suggestedPrice))
+                          }
+                          className="mt-3 rounded-lg border border-cyan-300/30 bg-cyan-300/10 px-3 py-2 text-xs font-semibold text-cyan-100 transition hover:bg-cyan-300/20 sm:mt-0"
+                        >
+                          Use suggestion
+                        </button>
+                      </div>
+                    ) : suggestionError ? (
+                      <p className="mt-4 text-xs text-zinc-400">{suggestionError}</p>
+                    ) : null}
+                    {suggestion?.reasons?.length > 0 && (
+                      <ul className="mt-3 space-y-1.5 text-xs leading-5 text-zinc-400">
+                        {suggestion.reasons.slice(0, 3).map((reason) => (
+                          <li key={reason} className="flex gap-2">
+                            <span className="text-cyan-300">•</span>
+                            <span>{reason}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </section>
                 )}
                 <label className="block">
                   <span className="mb-2 block text-sm font-medium text-zinc-200">

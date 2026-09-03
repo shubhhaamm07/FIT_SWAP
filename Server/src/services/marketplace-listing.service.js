@@ -1,4 +1,5 @@
 const prisma = require('../lib/prisma');
+const { buildFairPriceSuggestion } = require('../domain/pricing/fair-price-suggestion');
 
 const {
     LISTING_STATUS,
@@ -150,6 +151,79 @@ const createListing = async (
 
     });
 
+};
+
+const getPriceSuggestion = async (sellerId, membershipId) => {
+    const membership = await prisma.userMembership.findFirst({
+        where: {
+            id: membershipId,
+            userId: sellerId
+        },
+        include: {
+            plan: {
+                select: {
+                    id: true,
+                    price: true,
+                    durationInDays: true,
+                    transferFee: true,
+                    transferable: true,
+                    gymId: true,
+                    gym: {
+                        select: {
+                            status: true
+                        }
+                    }
+                }
+            },
+            listing: {
+                select: {
+                    id: true
+                }
+            }
+        }
+    });
+
+    if (!membership) throw new Error('Membership not found.');
+    if (membership.status !== 'ACTIVE') throw new Error('Only active memberships can receive a price suggestion.');
+    if (membership.endDate <= new Date()) throw new Error('Expired memberships cannot be listed.');
+    if (!membership.plan.transferable) throw new Error('This membership cannot be transferred.');
+    if (membership.plan.gym.status !== 'APPROVED') throw new Error('Gym is not approved.');
+    if (membership.listing) throw new Error('This membership is already listed.');
+
+    const comparableListings = await prisma.marketplaceListing.findMany({
+        where: {
+            status: LISTING_STATUS.ACTIVE,
+            deletedAt: null,
+            membershipId: {
+                not: membership.id
+            },
+            membership: {
+                plan: {
+                    gymId: membership.plan.gymId
+                }
+            }
+        },
+        select: {
+            askingPrice: true,
+            membership: {
+                select: {
+                    endDate: true,
+                    plan: {
+                        select: {
+                            price: true,
+                            durationInDays: true
+                        }
+                    }
+                }
+            }
+        },
+        take: 24,
+        orderBy: {
+            createdAt: 'desc'
+        }
+    });
+
+    return buildFairPriceSuggestion({ membership, comparableListings });
 };
 
 const getAllListings = async () => {
@@ -1351,6 +1425,8 @@ const updateListingStatusByAdmin = async (
 module.exports = {
 
     createListing,
+
+    getPriceSuggestion,
 
     getAllListings,
 

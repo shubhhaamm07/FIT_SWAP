@@ -31,6 +31,25 @@ const createListing = async (
     }
 };
 
+const getPriceSuggestion = async (req, res) => {
+    try {
+        const suggestion = await marketplaceListingService.getPriceSuggestion(
+            req.user.id,
+            req.params.membershipId
+        );
+
+        return res.status(200).json({
+            success: true,
+            data: suggestion
+        });
+    } catch (error) {
+        return res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
 const getAllListings = async (
     req,
     res
@@ -472,6 +491,8 @@ const updateListingStatusByAdmin = async (
 module.exports = {
 
     createListing,
+
+    getPriceSuggestion,
 
     getAllListings,
 

@@ -28,6 +28,12 @@ router.get(
 );
 
 router.get(
+    '/listings/price-suggestion/:membershipId',
+    protect,
+    marketplaceListingController.getPriceSuggestion
+);
+
+router.get(
     '/listings/:listingId',
     marketplaceListingController.getListingById
 );

@@ -76,6 +76,14 @@ export const createListing = async (
     return data.data;
 };
 
+export const getListingPriceSuggestion = async (membershipId) => {
+    const { data } = await axios.get(
+        `/listings/price-suggestion/${membershipId}`,
+    );
+
+    return data.data;
+};
+
 export const cancelListing = async (
     listingId
 ) => {
