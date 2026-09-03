@@ -1,5 +1,4 @@
 const nodemailer = require('nodemailer');
-const { Resend } = require('resend');
 
 const emailError = (message, statusCode = 503) => {
     const error = new Error(message);
@@ -7,16 +6,13 @@ const emailError = (message, statusCode = 503) => {
     return error;
 };
 
-const getResendApiKey = () => String(process.env.RESEND_API_KEY || '').trim();
+const getBrevoApiKey = () => String(process.env.BREVO_API_KEY || '').trim();
 const getEmailFrom = () => String(process.env.EMAIL_FROM || process.env.SMTP_FROM || '').trim();
-const getResendFrom = () => String(process.env.EMAIL_FROM || '').trim();
-const isResendEnabled = () => Boolean(getResendApiKey());
+const isBrevoEnabled = () => Boolean(getBrevoApiKey());
 
-const getResendClient = () => new Resend(getResendApiKey());
-
-const assertResendConfigured = () => {
-    if (!getResendApiKey() || !getResendFrom()) {
-        throw emailError('Email delivery is not configured. Add RESEND_API_KEY and EMAIL_FROM to the server environment.');
+const assertBrevoConfigured = () => {
+    if (!getBrevoApiKey() || !getEmailFrom()) {
+        throw emailError('Email delivery is not configured. Add BREVO_API_KEY and EMAIL_FROM to the server environment.');
     }
 };
 
@@ -24,6 +20,11 @@ const getEmailAddress = (value = '') => {
     const match = String(value).match(/<\s*([^>\s]+)\s*>/);
     return (match?.[1] || value).trim().toLowerCase();
 };
+
+const getEmailName = (value = '') => String(value)
+    .replace(/<\s*[^>\s]+\s*>/, '')
+    .replace(/^['"]|['"]$/g, '')
+    .trim();
 
 const assertCompatibleSender = () => {
     const smtpHost = String(process.env.SMTP_HOST || '').trim().toLowerCase();
@@ -66,52 +67,65 @@ const getTransport = () => {
 };
 
 const assertEmailConfigured = () => {
-    if (isResendEnabled()) {
-        assertResendConfigured();
+    if (isBrevoEnabled()) {
+        assertBrevoConfigured();
         return;
     }
 
     getTransport();
 };
 
-const sendWithResend = async ({ to, subject, html, text }) => {
+const sendWithBrevo = async ({ to, subject, html, text }) => {
     try {
-        const { data, error } = await getResendClient().emails.send({
-            from: getResendFrom(),
-            to: [to],
-            subject,
-            text,
-            html
+        const from = getEmailFrom();
+        const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+            method: 'POST',
+            headers: {
+                accept: 'application/json',
+                'api-key': getBrevoApiKey(),
+                'content-type': 'application/json'
+            },
+            body: JSON.stringify({
+                sender: {
+                    email: getEmailAddress(from),
+                    name: getEmailName(from) || 'FitSwap'
+                },
+                to: [{ email: to }],
+                subject,
+                textContent: text,
+                htmlContent: html
+            })
         });
 
-        if (error) {
-            console.error('Resend email delivery failed', {
-                name: error.name,
-                statusCode: error.statusCode,
-                message: error.message
+        if (!response.ok) {
+            const body = await response.json().catch(() => ({}));
+            console.error('Brevo email delivery failed', {
+                statusCode: response.status,
+                code: body.code,
+                message: body.message
             });
-            throw emailError('FitSwap could not send the email. Check the Resend configuration and try again.', 502);
+            throw emailError('FitSwap could not send the email. Check the Brevo configuration and try again.', 502);
         }
 
-        return data;
+        return response.json();
     } catch (error) {
         if (error.statusCode) throw error;
 
         // Logs contain delivery diagnostics only—never API keys, email bodies,
         // verification tokens, or recipient addresses.
-        console.error('Resend email delivery failed', {
+        console.error('Brevo email delivery failed', {
             name: error.name,
             statusCode: error.statusCode,
             message: error.message
         });
-        throw emailError('FitSwap could not send the email. Check the Resend configuration and try again.', 502);
+        throw emailError('FitSwap could not send the email. Check the Brevo configuration and try again.', 502);
     }
 };
 
 const sendEmail = async ({ to, subject, html, text }) => {
-    if (isResendEnabled()) {
-        assertResendConfigured();
-        return sendWithResend({ to, subject, html, text });
+    if (isBrevoEnabled()) {
+        assertBrevoConfigured();
+        return sendWithBrevo({ to, subject, html, text });
     }
 
     try {

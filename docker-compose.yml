@@ -24,8 +24,15 @@ services:
       CLIENT_URL: http://localhost:5173
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in .env}
-      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:?Set RAZORPAY_KEY_ID in .env}
-      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:?Set RAZORPAY_KEY_SECRET in .env}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+      PLATFORM_UPI_ID: ${PLATFORM_UPI_ID:-}
+      PLATFORM_UPI_PAYEE_NAME: ${PLATFORM_UPI_PAYEE_NAME:-}
+      # SMTP remains an optional local fallback. Brevo is preferred whenever
+      # BREVO_API_KEY and EMAIL_FROM are configured.
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_SECURE: ${SMTP_SECURE:-false}
@@ -45,6 +52,7 @@ services:
       context: ./Client
       args:
         VITE_API_URL: /api
+        VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     restart: unless-stopped
     depends_on:
       - api
