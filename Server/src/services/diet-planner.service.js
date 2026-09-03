@@ -254,7 +254,9 @@ const getGeminiConfig = () => {
 
     return {
         apiKey,
-        model: String(process.env.GEMINI_MODEL || "gemini-3.7-flash").trim(),
+        // Keep a stable model as the default. The model can still be changed
+        // through GEMINI_MODEL without editing application code.
+        model: String(process.env.GEMINI_MODEL || "gemini-2.5-flash").trim(),
     };
 };
 
@@ -349,8 +351,19 @@ const generateWithGemini = async (input, basePlan) => {
             }
         );
     } catch (error) {
+        // Keep the operational detail in the server logs, but never expose an
+        // API key, request headers, or the full prompt to the browser.
+        console.error("Gemini diet planner connection failed", {
+            name: error?.name,
+            message: error?.message,
+            code: error?.cause?.code,
+        });
+
         if (error.name === "TimeoutError") {
             throw createError("Gemini took too long to respond. Please try again.", 504, "GEMINI_TIMEOUT");
+        }
+        if (error?.cause?.code === "ENOTFOUND") {
+            throw createError("The server could not reach Gemini. Check its internet or DNS connection and try again.", 502, "GEMINI_NETWORK_DNS");
         }
         throw createError("FitSwap could not reach Gemini. Please try again.", 502, "GEMINI_UNAVAILABLE");
     }
@@ -366,6 +379,15 @@ const generateWithGemini = async (input, basePlan) => {
         console.error("Gemini diet planner request failed", { status: response.status, body: responseBody?.error?.message });
         if (response.status === 401 || response.status === 403) {
             throw createError("Gemini authentication failed. Check GEMINI_API_KEY on the server.", 502, "GEMINI_AUTH_FAILED");
+        }
+        if (response.status === 404) {
+            throw createError("The selected Gemini model is unavailable. Set GEMINI_MODEL to gemini-2.5-flash and try again.", 502, "GEMINI_MODEL_UNAVAILABLE");
+        }
+        if (response.status === 429) {
+            throw createError("Gemini's free request limit has been reached. Please wait a few minutes and try again.", 429, "GEMINI_RATE_LIMITED");
+        }
+        if (response.status >= 500) {
+            throw createError("Gemini is temporarily unavailable. Please try again shortly.", 503, "GEMINI_PROVIDER_UNAVAILABLE");
         }
         throw createError("Gemini could not generate a diet plan right now. Please try again.", 502, "GEMINI_REQUEST_FAILED");
     }
