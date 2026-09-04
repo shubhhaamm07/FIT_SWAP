@@ -242,21 +242,20 @@ const buildProfessionalReviewResponse = (input, basePlan) => ({
     ],
 });
 
-const getGeminiConfig = () => {
-    const apiKey = String(process.env.GEMINI_API_KEY || "").trim();
+const getOpenAIConfig = () => {
+    const apiKey = String(process.env.OPENAI_API_KEY || "").trim();
     if (!apiKey) {
         throw createError(
             "The AI diet service is not configured yet. Please try again later.",
             503,
-            "GEMINI_NOT_CONFIGURED"
+            "OPENAI_NOT_CONFIGURED"
         );
     }
 
     return {
         apiKey,
-        // Keep the model aligned with the configured Google AI Studio project.
-        // It can still be changed through GEMINI_MODEL without editing code.
-        model: String(process.env.GEMINI_MODEL || "gemini-3.7-flash").trim(),
+        // This can be changed without editing the application.
+        model: String(process.env.OPENAI_MODEL || "gpt-5-mini").trim(),
     };
 };
 
@@ -266,32 +265,36 @@ const cleanText = (value, maxLength = 320) => String(value || "")
     .trim()
     .slice(0, maxLength);
 
-const parseGeminiJson = (responseBody) => {
-    const text = responseBody?.candidates?.[0]?.content?.parts
-        ?.map((part) => part.text || "")
-        .join("")
-        .trim();
+const parseOpenAIJson = (responseBody) => {
+    const text = String(
+        responseBody?.output_text
+        || responseBody?.output
+            ?.flatMap((item) => item?.content || [])
+            .find((content) => content?.type === "output_text")
+            ?.text
+        || ""
+    ).trim();
 
     if (!text) {
-        throw createError("Did not return a usable diet plan. Please try again.", 502, "GEMINI_EMPTY_RESPONSE");
+        throw createError("Did not return a usable diet plan. Please try again.", 502, "OPENAI_EMPTY_RESPONSE");
     }
 
     try {
-        return JSON.parse(text.replace(/^```json\s*/i, "").replace(/\s*```$/, ""));
+        return JSON.parse(text);
     } catch {
-        throw createError("Did not return a valid diet plan. Please try again.", 502, "GEMINI_INVALID_RESPONSE");
+        throw createError("Did not return a valid diet plan. Please try again.", 502, "OPENAI_INVALID_RESPONSE");
     }
 };
 
 const normaliseWeeklyPlan = (aiPlan, mealStructure) => {
     if (!Array.isArray(aiPlan) || aiPlan.length !== 7) {
-        throw createError("Did not return a complete weekly plan. Please try again.", 502, "GEMINI_INVALID_PLAN");
+        throw createError("Did not return a complete weekly plan. Please try again.", 502, "OPENAI_INVALID_PLAN");
     }
 
     return mealStructure.map((day, dayIndex) => {
         const generatedDay = aiPlan[dayIndex];
         if (!Array.isArray(generatedDay?.meals) || generatedDay.meals.length !== day.meals.length) {
-            throw createError("Did not return a complete daily meal plan. Please try again.", 502, "GEMINI_INVALID_PLAN");
+            throw createError("Did not return a complete daily meal plan. Please try again.", 502, "OPENAI_INVALID_PLAN");
         }
 
         return {
@@ -299,7 +302,7 @@ const normaliseWeeklyPlan = (aiPlan, mealStructure) => {
             meals: day.meals.map((meal, mealIndex) => {
                 const suggestion = cleanText(generatedDay.meals[mealIndex]?.suggestion, 280);
                 if (!suggestion) {
-                    throw createError("Did not return a meal suggestion. Please try again.", 502, "GEMINI_INVALID_PLAN");
+                    throw createError("Did not return a meal suggestion. Please try again.", 502, "OPENAI_INVALID_PLAN");
                 }
                 return { ...meal, suggestion };
             }),
@@ -309,9 +312,41 @@ const normaliseWeeklyPlan = (aiPlan, mealStructure) => {
 
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
-const generateWithGemini = async (input, basePlan, options = {}) => {
-    const { apiKey, model: configuredModel } = getGeminiConfig();
-    const model = options.modelOverride || configuredModel;
+const dietPlanSchema = {
+    type: "object",
+    additionalProperties: false,
+    required: ["headline", "summary", "weeklyPlan", "budgetTips", "mealTiming", "preparationTip"],
+    properties: {
+        headline: { type: "string" },
+        summary: { type: "string" },
+        weeklyPlan: {
+            type: "array",
+            items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["day", "meals"],
+                properties: {
+                    day: { type: "integer" },
+                    meals: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            additionalProperties: false,
+                            required: ["suggestion"],
+                            properties: { suggestion: { type: "string" } },
+                        },
+                    },
+                },
+            },
+        },
+        budgetTips: { type: "array", items: { type: "string" } },
+        mealTiming: { type: "string" },
+        preparationTip: { type: "string" },
+    },
+};
+
+const generateWithOpenAI = async (input, basePlan, options = {}) => {
+    const { apiKey, model } = getOpenAIConfig();
     const attempt = options.attempt || 0;
     const safeProfile = {
         goal: basePlan.profile.goalLabel,
@@ -331,24 +366,29 @@ const generateWithGemini = async (input, basePlan, options = {}) => {
         })),
     };
 
-    const prompt = `You are FitSwap's wellness meal-planning assistant. Create practical, varied Indian-food meal suggestions for a healthy adult. This is general fitness guidance only, not medical advice. Do not diagnose conditions, mention treatment, recommend supplements or medicines, claim to manage disease, use extreme restrictions, or change the fixed calories/macros. Honour vegan/vegetarian preferences. If a weekly INR budget is provided, prefer realistic home-cooked, locally available ingredients and offer cost-conscious choices. Use clear, concise suggestions with normal household portions; do not claim exact price or nutrition values for individual dishes.\n\nReturn ONLY valid JSON in exactly this shape:\n{\n  "headline": "short title",\n  "summary": "one short sentence",\n  "weeklyPlan": [\n    { "day": 1, "meals": [ { "suggestion": "meal idea" } ] }\n  ],\n  "budgetTips": ["tip one", "tip two"],\n  "mealTiming": "one concise practical meal-timing tip",\n  "preparationTip": "one concise preparation tip"\n}\n\nThe weeklyPlan must have exactly 7 ordered days. Every day must have exactly the same number and order of meal entries as the provided mealStructure.\n\nProfile and fixed structure:\n${JSON.stringify(safeProfile)}`;
+    const prompt = `You are FitSwap's wellness meal-planning assistant. Create practical, varied Indian-food meal suggestions for a healthy adult. This is general fitness guidance only, not medical advice. Do not diagnose conditions, mention treatment, recommend supplements or medicines, claim to manage disease, use extreme restrictions, or change the fixed calories/macros. Honour vegan/vegetarian preferences. If a weekly INR budget is provided, prefer realistic home-cooked, locally available ingredients and offer cost-conscious choices. Use clear, concise suggestions with normal household portions; do not claim exact price or nutrition values for individual dishes.\n\nThe weeklyPlan must have exactly 7 ordered days. Every day must have exactly the same number and order of meal entries as the provided mealStructure.\n\nProfile and fixed structure:\n${JSON.stringify(safeProfile)}`;
 
     let response;
     try {
         response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+            "https://api.openai.com/v1/responses",
             {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    "x-goog-api-key": apiKey,
+                    Authorization: `Bearer ${apiKey}`,
                 },
                 body: JSON.stringify({
-                    contents: [{ parts: [{ text: prompt }] }],
-                    generationConfig: {
-                        responseMimeType: "application/json",
-                        temperature: 0.55,
-                        maxOutputTokens: 4096,
+                    model,
+                    input: prompt,
+                    max_output_tokens: 4096,
+                    text: {
+                        format: {
+                            type: "json_schema",
+                            name: "diet_plan",
+                            strict: true,
+                            schema: dietPlanSchema,
+                        },
                     },
                 }),
                 signal: AbortSignal.timeout(30000),
@@ -357,58 +397,52 @@ const generateWithGemini = async (input, basePlan, options = {}) => {
     } catch (error) {
         // Keep the operational detail in the server logs, but never expose an
         // API key, request headers, or the full prompt to the browser.
-        console.error("Gemini diet planner connection failed", {
+        console.error("OpenAI diet planner connection failed", {
             name: error?.name,
             message: error?.message,
             code: error?.cause?.code,
         });
 
         if (error.name === "TimeoutError") {
-            throw createError("Took too long to respond. Please try again.", 504, "GEMINI_TIMEOUT");
+            throw createError("Took too long to respond. Please try again.", 504, "OPENAI_TIMEOUT");
         }
         if (error?.cause?.code === "ENOTFOUND") {
-            throw createError("The AI service could not be reached. Please try again.", 502, "GEMINI_NETWORK_DNS");
+            throw createError("The AI service could not be reached. Please try again.", 502, "OPENAI_NETWORK_DNS");
         }
-        throw createError("FitSwap could not reach. Please try again.", 502, "GEMINI_UNAVAILABLE");
+        throw createError("FitSwap could not reach the AI service. Please try again.", 502, "OPENAI_UNAVAILABLE");
     }
 
     let responseBody;
     try {
         responseBody = await response.json();
     } catch {
-        throw createError("Did not return a readable response. Please try again.", 502, "GEMINI_INVALID_RESPONSE");
+        throw createError("Did not return a readable response. Please try again.", 502, "OPENAI_INVALID_RESPONSE");
     }
 
     if (!response.ok) {
-        console.error("Gemini diet planner request failed", { status: response.status, body: responseBody?.error?.message });
+        console.error("OpenAI diet planner request failed", { status: response.status, body: responseBody?.error?.message });
         if (response.status === 401 || response.status === 403) {
-            throw createError("The AI service is unavailable right now. Please try again later.", 502, "GEMINI_AUTH_FAILED");
+            throw createError("The AI service is unavailable right now. Please try again later.", 502, "OPENAI_AUTH_FAILED");
         }
         if (response.status === 404) {
-            throw createError("The AI service is unavailable right now. Please try again later.", 502, "GEMINI_MODEL_UNAVAILABLE");
+            throw createError("The AI service is unavailable right now. Please try again later.", 502, "OPENAI_MODEL_UNAVAILABLE");
         }
         if (response.status === 429) {
-            throw createError("The AI service is busy. Please wait a few minutes and try again.", 429, "GEMINI_RATE_LIMITED");
+            throw createError("The AI service is busy. Please wait a few minutes and try again.", 429, "OPENAI_RATE_LIMITED");
         }
         if (response.status >= 500 && attempt === 0) {
             // A short retry handles temporary provider overloads without
             // making a user manually resubmit their wellness profile.
             await wait(800);
-            return generateWithGemini(input, basePlan, { modelOverride: model, attempt: 1 });
-        }
-        if (response.status >= 500 && model === configuredModel && model === "gemini-3.7-flash") {
-            // Keep 3.7 Flash as the preferred model, with a stable fallback
-            // only if Gemini reports a temporary server-side failure twice.
-            console.warn("Gemini 3.7 Flash remained unavailable; trying the fallback model.");
-            return generateWithGemini(input, basePlan, { modelOverride: "gemini-2.5-flash" });
+            return generateWithOpenAI(input, basePlan, { attempt: 1 });
         }
         if (response.status >= 500) {
-            throw createError("The AI service is temporarily unavailable. Please try again shortly.", 503, "GEMINI_PROVIDER_UNAVAILABLE");
+            throw createError("The AI service is temporarily unavailable. Please try again shortly.", 503, "OPENAI_PROVIDER_UNAVAILABLE");
         }
-        throw createError("The AI service could not generate a diet plan right now. Please try again.", 502, "GEMINI_REQUEST_FAILED");
+        throw createError("The AI service could not generate a diet plan right now. Please try again.", 502, "OPENAI_REQUEST_FAILED");
     }
 
-    const generated = parseGeminiJson(responseBody);
+    const generated = parseOpenAIJson(responseBody);
     const weeklyPlan = normaliseWeeklyPlan(generated.weeklyPlan, basePlan.mealStructure);
     const budgetTips = Array.isArray(generated.budgetTips)
         ? generated.budgetTips.map((tip) => cleanText(tip, 220)).filter(Boolean).slice(0, 3)
@@ -451,7 +485,7 @@ const generateDietPlan = async (rawInput) => {
         return buildProfessionalReviewResponse(input, basePlan);
     }
 
-    return generateWithGemini(input, basePlan);
+    return generateWithOpenAI(input, basePlan);
 };
 
 module.exports = {
