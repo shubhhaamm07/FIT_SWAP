@@ -1,50 +1,21 @@
 import { useEffect, useState } from "react";
 
 import { AuthContext } from "./auth-context";
-import { getCurrentUser } from "../api/auth.api";
-
-function getStoredUser() {
-  const storedUser = localStorage.getItem("user");
-  const storedToken = localStorage.getItem("token");
-
-  if (!storedUser || !storedToken) {
-    localStorage.removeItem("user");
-    localStorage.removeItem("token");
-    return null;
-  }
-
-  try {
-    const parsedUser = JSON.parse(storedUser);
-
-    if (parsedUser && typeof parsedUser === "object") return parsedUser;
-  } catch {
-    // A stale or malformed browser session must never stop the app from rendering.
-  }
-
-  localStorage.removeItem("user");
-  localStorage.removeItem("token");
-  return null;
-}
+import { getCurrentUser, logoutUser } from "../api/auth.api";
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(getStoredUser);
-  const [loading, setLoading] = useState(() => Boolean(localStorage.getItem("token")));
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!localStorage.getItem("token")) return undefined;
-
     let active = true;
     getCurrentUser({ skipAuthLogout: true })
       .then((response) => {
         if (!active) return;
-        const currentUser = response.user;
-        localStorage.setItem("user", JSON.stringify(currentUser));
-        setUser(currentUser);
+        setUser(response.user);
       })
       .catch(() => {
         if (!active) return;
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
         setUser(null);
       })
       .finally(() => {
@@ -56,24 +27,18 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  const login = (userData, token) => {
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(userData));
-
+  const login = (userData) => {
     setUser(userData);
   };
 
   const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-
+    void logoutUser().catch(() => undefined);
     setUser(null);
   };
 
   const updateUser = (userData) => {
     setUser((currentUser) => {
       const nextUser = { ...currentUser, ...userData };
-      localStorage.setItem("user", JSON.stringify(nextUser));
       return nextUser;
     });
   };

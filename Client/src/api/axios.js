@@ -15,19 +15,6 @@ const axios = Axios.create({
     },
 });
 
-axios.interceptors.request.use(
-    (config) => {
-        const token = localStorage.getItem("token");
-
-        if (token) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
-
-        return config;
-    },
-    (error) => Promise.reject(error)
-);
-
 axios.interceptors.response.use(
     (response) => response,
     (error) => {
@@ -35,12 +22,7 @@ axios.interceptors.response.use(
         // provider (for example, Razorpay credentials on the API server).
         // Those errors must be displayed in context instead of logging the
         // member out of FitSwap.
-        const hasSession = Boolean(localStorage.getItem("token"));
-
-        if (error.response?.status === 401 && hasSession && !error.config?.skipAuthLogout) {
-            localStorage.removeItem("token");
-            localStorage.removeItem("user");
-
+        if (error.response?.status === 401 && !error.config?.skipAuthLogout) {
             window.location.href = "/login";
         }
 

@@ -14,6 +14,18 @@ const DIETS = new Set([
 
 const ACTIVITIES = new Set(["LOW", "LIGHT", "MODERATE", "HIGH"]);
 const BUDGETS = new Set(["ECONOMY", "BALANCED", "FLEXIBLE"]);
+const CUISINE_STYLES = new Set([
+    "ANY",
+    "NORTH_INDIAN",
+    "SOUTH_INDIAN",
+    "PUNJABI",
+    "GUJARATI",
+    "BENGALI",
+    "MAHARASHTRIAN",
+]);
+const COOKING_STYLES = new Set(["FLEXIBLE", "QUICK_15_MIN", "MEAL_PREP", "MINIMAL_COOKING"]);
+const WORKOUT_TIMES = new Set(["NOT_SCHEDULED", "MORNING", "AFTERNOON", "EVENING"]);
+const WORKOUT_DAYS = new Set(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]);
 const HEALTH_CONCERNS = new Set([
     "THYROID",
     "PCOS",
@@ -116,11 +128,33 @@ const normaliseConcerns = (value) => {
     return concerns;
 };
 
+const normaliseWorkoutDays = (value) => {
+    if (!Array.isArray(value)) return [];
+
+    const days = [...new Set(value.map((item) => String(item || "").trim()))]
+        .filter((item) => WORKOUT_DAYS.has(item));
+
+    if (days.length !== value.length) {
+        throw createError("Choose only valid workout days.");
+    }
+
+    return days;
+};
+
+const readShortText = (value, maxLength = 100) => String(value || "")
+    .replace(/[<>]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLength);
+
 const validateInput = (input = {}) => {
     const goal = String(input.goal || "").trim();
     const diet = String(input.diet || "").trim();
     const activityLevel = String(input.activityLevel || "").trim();
     const budget = String(input.budget || "BALANCED").trim();
+    const cuisineStyle = String(input.cuisineStyle || "ANY").trim();
+    const cookingStyle = String(input.cookingStyle || "FLEXIBLE").trim();
+    const workoutTime = String(input.workoutTime || "NOT_SCHEDULED").trim();
     const mealsPerDay = Number(input.mealsPerDay || 4);
     const sex = ["MALE", "FEMALE", "UNSPECIFIED"].includes(input.sex)
         ? input.sex
@@ -130,6 +164,9 @@ const validateInput = (input = {}) => {
     if (!DIETS.has(diet)) throw createError("Choose a dietary preference.");
     if (!ACTIVITIES.has(activityLevel)) throw createError("Choose an activity level.");
     if (!BUDGETS.has(budget)) throw createError("Choose a budget preference.");
+    if (!CUISINE_STYLES.has(cuisineStyle)) throw createError("Choose a cuisine preference.");
+    if (!COOKING_STYLES.has(cookingStyle)) throw createError("Choose a cooking preference.");
+    if (!WORKOUT_TIMES.has(workoutTime)) throw createError("Choose a workout time.");
     if (![3, 4, 5].includes(mealsPerDay)) {
         throw createError("Meals per day must be 3, 4, or 5.");
     }
@@ -137,7 +174,7 @@ const validateInput = (input = {}) => {
         throw createError("Confirm that FitSwap may send these plan preferences to its AI service to generate your diet plan.");
     }
 
-    const dietaryNotes = String(input.dietaryNotes || "").trim().slice(0, 180);
+    const dietaryNotes = readShortText(input.dietaryNotes, 180);
     const weeklyBudgetInr = input.weeklyBudgetInr === "" || input.weeklyBudgetInr === null || input.weeklyBudgetInr === undefined
         ? null
         : readNumber(input.weeklyBudgetInr, "Weekly budget", 250, 100000);
@@ -152,8 +189,14 @@ const validateInput = (input = {}) => {
         activityLevel,
         mealsPerDay,
         budget,
+        cuisineStyle,
+        cookingStyle,
+        workoutTime,
+        workoutDays: normaliseWorkoutDays(input.workoutDays),
         weeklyBudgetInr,
         dietaryNotes,
+        favouriteFoods: readShortText(input.favouriteFoods),
+        avoidFoods: readShortText(input.avoidFoods),
         healthConcerns: normaliseConcerns(input.healthConcerns),
     };
 };
@@ -203,6 +246,10 @@ const createBasePlan = (input) => {
             activityLevel: input.activityLevel,
             mealsPerDay: input.mealsPerDay,
             budget: input.budget,
+            cuisineStyle: input.cuisineStyle,
+            cookingStyle: input.cookingStyle,
+            workoutTime: input.workoutTime,
+            workoutDays: input.workoutDays,
             weeklyBudgetInr: input.weeklyBudgetInr,
         },
         dailyTargets: {
@@ -225,7 +272,8 @@ const createBasePlan = (input) => {
 };
 
 const needsProfessionalReview = (input) => (
-    input.healthConcerns.length > 0 || MEDICAL_KEYWORDS.test(input.dietaryNotes)
+    input.healthConcerns.length > 0
+    || MEDICAL_KEYWORDS.test(`${input.dietaryNotes} ${input.avoidFoods}`)
 );
 
 const buildProfessionalReviewResponse = (input, basePlan) => ({
@@ -308,7 +356,7 @@ const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, mill
 const dietPlanSchema = {
     type: "object",
     additionalProperties: false,
-    required: ["headline", "summary", "weeklyPlan", "budgetTips", "mealTiming", "preparationTip"],
+    required: ["headline", "summary", "weeklyPlan", "groceryList", "budgetTips", "mealTiming", "preparationTip"],
     properties: {
         headline: { type: "string" },
         summary: { type: "string" },
@@ -332,35 +380,46 @@ const dietPlanSchema = {
                 },
             },
         },
+        groceryList: {
+            type: "array",
+            items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["category", "items"],
+                properties: {
+                    category: { type: "string" },
+                    items: {
+                        type: "array",
+                        items: {
+                            type: "object",
+                            additionalProperties: false,
+                            required: ["name", "quantity"],
+                            properties: {
+                                name: { type: "string" },
+                                quantity: { type: "string" },
+                            },
+                        },
+                    },
+                },
+            },
+        },
         budgetTips: { type: "array", items: { type: "string" } },
         mealTiming: { type: "string" },
         preparationTip: { type: "string" },
     },
 };
 
-const generateWithGroq = async (input, basePlan, options = {}) => {
-    const { apiKey, model } = getGroqConfig();
-    const attempt = options.attempt || 0;
-    const safeProfile = {
-        goal: basePlan.profile.goalLabel,
-        dietaryPreference: input.diet,
-        activityLevel: input.activityLevel,
-        mealsPerDay: input.mealsPerDay,
-        budgetStyle: input.budget,
-        weeklyBudgetInr: input.weeklyBudgetInr,
-        personalFoodPreferences: input.dietaryNotes || "None provided",
-        fixedDailyTargets: basePlan.dailyTargets,
-        mealStructure: basePlan.mealStructure.map((day) => ({
-            day: day.day,
-            meals: day.meals.map((meal) => ({
-                label: meal.label,
-                targetCalories: meal.targetCalories,
-            })),
-        })),
-    };
+const mealSwapSchema = {
+    type: "object",
+    additionalProperties: false,
+    required: ["suggestion", "note"],
+    properties: {
+        suggestion: { type: "string" },
+        note: { type: "string" },
+    },
+};
 
-    const prompt = `You are FitSwap's wellness meal-planning assistant. Create practical, varied Indian-food meal suggestions for a healthy adult. This is general fitness guidance only, not medical advice. Do not diagnose conditions, mention treatment, recommend supplements or medicines, claim to manage disease, use extreme restrictions, or change the fixed calories/macros. Honour vegan/vegetarian preferences. If a weekly INR budget is provided, prefer realistic home-cooked, locally available ingredients and offer cost-conscious choices. Use clear, concise suggestions with normal household portions; do not claim exact price or nutrition values for individual dishes.\n\nThe weeklyPlan must have exactly 7 ordered days. Every day must have exactly the same number and order of meal entries as the provided mealStructure.\n\nProfile and fixed structure:\n${JSON.stringify(safeProfile)}`;
-
+const requestGroqJson = async ({ apiKey, model, prompt, schema, schemaName, maxTokens, attempt = 0 }) => {
     let response;
     try {
         response = await fetch(
@@ -375,13 +434,13 @@ const generateWithGroq = async (input, basePlan, options = {}) => {
                     model,
                     messages: [{ role: "user", content: prompt }],
                     temperature: 0.55,
-                    max_tokens: 4096,
+                    max_tokens: maxTokens,
                     response_format: {
                         type: "json_schema",
                         json_schema: {
-                            name: "diet_plan",
+                            name: schemaName,
                             strict: true,
-                            schema: dietPlanSchema,
+                            schema,
                         },
                     },
                 }),
@@ -425,10 +484,8 @@ const generateWithGroq = async (input, basePlan, options = {}) => {
             throw createError("The AI service is busy. Please wait a few minutes and try again.", 429, "GROQ_RATE_LIMITED");
         }
         if (response.status >= 500 && attempt === 0) {
-            // A short retry handles temporary provider overloads without
-            // making a user manually resubmit their wellness profile.
             await wait(800);
-            return generateWithGroq(input, basePlan, { attempt: 1 });
+            return requestGroqJson({ apiKey, model, prompt, schema, schemaName, maxTokens, attempt: 1 });
         }
         if (response.status >= 500) {
             throw createError("The AI service is temporarily unavailable. Please try again shortly.", 503, "GROQ_PROVIDER_UNAVAILABLE");
@@ -436,10 +493,63 @@ const generateWithGroq = async (input, basePlan, options = {}) => {
         throw createError("The AI service could not generate a diet plan right now. Please try again.", 502, "GROQ_REQUEST_FAILED");
     }
 
-    const generated = parseGroqJson(responseBody);
+    return parseGroqJson(responseBody);
+};
+
+const generateWithGroq = async (input, basePlan) => {
+    const { apiKey, model } = getGroqConfig();
+    const safeProfile = {
+        goal: basePlan.profile.goalLabel,
+        dietaryPreference: input.diet,
+        activityLevel: input.activityLevel,
+        mealsPerDay: input.mealsPerDay,
+        budgetStyle: input.budget,
+        weeklyBudgetInr: input.weeklyBudgetInr,
+        cuisineStyle: input.cuisineStyle,
+        cookingStyle: input.cookingStyle,
+        workoutSchedule: {
+            time: input.workoutTime,
+            days: input.workoutDays,
+        },
+        foodPreferences: {
+            notes: input.dietaryNotes || "None provided",
+            favouriteFoods: input.favouriteFoods || "None provided",
+            foodsToAvoid: input.avoidFoods || "None provided",
+        },
+        fixedDailyTargets: basePlan.dailyTargets,
+        mealStructure: basePlan.mealStructure.map((day) => ({
+            day: day.day,
+            meals: day.meals.map((meal) => ({
+                label: meal.label,
+                targetCalories: meal.targetCalories,
+            })),
+        })),
+    };
+
+    const prompt = `You are FitSwap's wellness meal-planning assistant. Create practical, varied Indian-food meal suggestions for a healthy adult. This is general fitness guidance only, not medical advice. Do not diagnose conditions, mention treatment, recommend supplements or medicines, claim to manage disease, use extreme restrictions, or change the fixed calories/macros. Honour vegan/vegetarian preferences, cuisine, cooking, workout, and food preferences. If a weekly INR budget is provided, prefer realistic home-cooked, locally available ingredients and offer cost-conscious choices. Use clear, concise suggestions with normal household portions; do not claim exact price or nutrition values for individual dishes.\n\nThe weeklyPlan must have exactly 7 ordered days. Every day must have exactly the same number and order of meal entries as the provided mealStructure. Provide a consolidated groceryList for the week, grouped into 3–6 practical categories. Give approximate household quantities, never prices.\n\nProfile and fixed structure:\n${JSON.stringify(safeProfile)}`;
+
+    const generated = await requestGroqJson({
+        apiKey,
+        model,
+        prompt,
+        schema: dietPlanSchema,
+        schemaName: "diet_plan",
+        maxTokens: 4096,
+    });
     const weeklyPlan = normaliseWeeklyPlan(generated.weeklyPlan, basePlan.mealStructure);
     const budgetTips = Array.isArray(generated.budgetTips)
         ? generated.budgetTips.map((tip) => cleanText(tip, 220)).filter(Boolean).slice(0, 3)
+        : [];
+    const groceryList = Array.isArray(generated.groceryList)
+        ? generated.groceryList.map((group) => ({
+            category: cleanText(group?.category, 60),
+            items: Array.isArray(group?.items)
+                ? group.items.map((item) => ({
+                    name: cleanText(item?.name, 80),
+                    quantity: cleanText(item?.quantity, 80),
+                })).filter((item) => item.name && item.quantity).slice(0, 10)
+                : [],
+        })).filter((group) => group.category && group.items.length).slice(0, 6)
         : [];
 
     return {
@@ -451,6 +561,7 @@ const generateWithGroq = async (input, basePlan, options = {}) => {
         headline: cleanText(generated.headline, 100) || "Your AI-created nutrition rhythm",
         summary: cleanText(generated.summary, 220),
         weeklyPlan,
+        groceryList,
         guidance: {
             budgetTip: budgetTips.join(" ") || "Choose local, seasonal ingredients and repeat simple home-cooked staples to reduce waste.",
             mealTiming: cleanText(generated.mealTiming, 240) || "Keep meals consistent and include protein around training when it suits your routine.",
@@ -471,6 +582,64 @@ const generateWithGroq = async (input, basePlan, options = {}) => {
     };
 };
 
+const validateMealSwapInput = (rawInput = {}) => {
+    const input = validateInput(rawInput.profile);
+    const day = readNumber(rawInput.day, "Day", 1, 7);
+    const mealLabel = cleanText(rawInput.mealLabel, 40);
+    const currentSuggestion = cleanText(rawInput.currentSuggestion, 280);
+    const targetCalories = readNumber(rawInput.targetCalories, "Meal calories", 100, 2000);
+
+    if (!mealLabel || !currentSuggestion) {
+        throw createError("Choose a meal to swap.");
+    }
+    if (needsProfessionalReview(input)) {
+        throw createError(
+            "FitSwap cannot safely swap meals for a medical or allergy-related profile. Please ask a qualified professional.",
+            422,
+            "GROQ_PROFESSIONAL_REVIEW_REQUIRED"
+        );
+    }
+
+    return { input, day, mealLabel, currentSuggestion, targetCalories };
+};
+
+const swapDietMeal = async (rawInput) => {
+    const { input, day, mealLabel, currentSuggestion, targetCalories } = validateMealSwapInput(rawInput);
+    const { apiKey, model } = getGroqConfig();
+    const safeProfile = {
+        dietaryPreference: input.diet,
+        cuisineStyle: input.cuisineStyle,
+        cookingStyle: input.cookingStyle,
+        budgetStyle: input.budget,
+        weeklyBudgetInr: input.weeklyBudgetInr,
+        workoutSchedule: { time: input.workoutTime, days: input.workoutDays },
+        foodPreferences: {
+            notes: input.dietaryNotes || "None provided",
+            favouriteFoods: input.favouriteFoods || "None provided",
+            foodsToAvoid: input.avoidFoods || "None provided",
+        },
+    };
+    const prompt = `You are FitSwap's wellness meal-planning assistant. Replace exactly one meal with a practical Indian-food alternative for a healthy adult. This is general fitness guidance only, not medical advice. Do not mention treatment, supplements, medicines, disease management, allergies, or exact nutritional claims. Honour every supplied preference. Keep the replacement close to the supplied calorie target using normal household portions. Return a concise suggestion and a brief practical note.\n\nMeal to replace:\n${JSON.stringify({ day, mealLabel, targetCalories, currentSuggestion })}\n\nProfile:\n${JSON.stringify(safeProfile)}`;
+    const generated = await requestGroqJson({
+        apiKey,
+        model,
+        prompt,
+        schema: mealSwapSchema,
+        schemaName: "meal_swap",
+        maxTokens: 500,
+    });
+    const suggestion = cleanText(generated.suggestion, 280);
+
+    if (!suggestion) {
+        throw createError("Did not return a usable meal swap. Please try again.", 502, "GROQ_INVALID_PLAN");
+    }
+
+    return {
+        suggestion,
+        note: cleanText(generated.note, 180),
+    };
+};
+
 const generateDietPlan = async (rawInput) => {
     const input = validateInput(rawInput);
     const basePlan = createBasePlan(input);
@@ -484,4 +653,5 @@ const generateDietPlan = async (rawInput) => {
 
 module.exports = {
     generateDietPlan,
+    swapDietMeal,
 };

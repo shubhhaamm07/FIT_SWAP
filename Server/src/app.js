@@ -39,6 +39,7 @@ const dietPlannerRoutes = require('./routes/diet-planner.routes');
 const {
     apiLimiter,
 } = require("./middlewares/rateLimiter.middleware");
+const { csrfProtection } = require('./middlewares/csrf.middleware');
 const app = express();
 
 if (process.env.NODE_ENV === 'production') {
@@ -79,6 +80,7 @@ app.use(
 
 app.use(express.json());
 app.use(cookieParser());
+app.use(csrfProtection(allowedOrigins));
 app.use(morgan('dev'));
 app.use('/api', apiLimiter);
 

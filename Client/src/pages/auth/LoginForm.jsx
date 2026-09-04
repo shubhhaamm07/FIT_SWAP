@@ -53,7 +53,7 @@ function LoginForm() {
   };
 
   const completeSignIn = (response) => {
-    login(response.user, response.token);
+    login(response.user);
     navigate(response.user.role === "ADMIN" ? "/admin/dashboard" : response.user.role === "GYM_OWNER" ? "/owner/dashboard" : "/dashboard");
   };
 

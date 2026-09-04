@@ -1,6 +1,24 @@
 const authService = require('../services/auth.service');
 const generateToken = require('../utils/generate-token');
 
+const sessionCookieOptions = () => ({
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    // The web app and API use different production domains, so the cookie
+    // needs SameSite=None. The CSRF middleware verifies write-request origins.
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    maxAge: 24 * 60 * 60 * 1000,
+    path: '/',
+});
+
+const setSessionCookie = (res, token) => res.cookie('fitswap_session', token, sessionCookieOptions());
+const clearSessionCookie = (res) => res.clearCookie('fitswap_session', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+    path: '/',
+});
+
 const authResponseUser = (user) => ({
     id: user.id,
     firstName: user.firstName,
@@ -50,9 +68,9 @@ const login = async (req, res) => {
 
         const token = generateToken(user);
 
+        setSessionCookie(res, token);
         return res.status(200).json({
             success: true,
-            token,
             user: authResponseUser(user)
         });
     } catch (error) {
@@ -69,9 +87,9 @@ const googleLogin = async (req, res) => {
         const user = await authService.loginWithGoogleCredential(req.body?.credential);
         const token = generateToken(user);
 
+        setSessionCookie(res, token);
         return res.status(200).json({
             success: true,
-            token,
             user: authResponseUser(user)
         });
     } catch (error) {
@@ -96,6 +114,11 @@ const requestPasswordReset = async (req, res) => {
             message: error.message
         });
     }
+};
+
+const logout = (req, res) => {
+    clearSessionCookie(res);
+    return res.status(204).send();
 };
 
 const resetPassword = async (req, res) => {
@@ -238,6 +261,7 @@ module.exports = {
     register,
     login,
     googleLogin,
+    logout,
     getMe,
     updateMe,
     updateSettings,

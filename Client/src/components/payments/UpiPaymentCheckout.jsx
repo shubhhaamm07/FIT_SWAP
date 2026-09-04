@@ -4,6 +4,17 @@ import { CheckCircle2, ClipboardCheck, Clock3, ExternalLink, IndianRupee, Shield
 
 const formatPrice = (paise) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(Number(paise || 0) / 100);
 
+const getSafeUpiIntent = (value) => {
+  if (typeof value !== "string") return "";
+
+  try {
+    const intent = new URL(value);
+    return intent.protocol === "upi:" && intent.hostname === "pay" ? value : "";
+  } catch {
+    return "";
+  }
+};
+
 function UpiPaymentCheckout({ request, busy = false, onMarkPaid, onCancel, compact = false, verificationNotice }) {
   const [utrState, setUtrState] = useState({ requestId: request.id, value: "" });
   const [now, setNow] = useState(() => Date.now());
@@ -19,7 +30,7 @@ function UpiPaymentCheckout({ request, busy = false, onMarkPaid, onCancel, compa
   }, [isAwaitingPayment, request.expiresAt]);
 
   const countdown = useMemo(() => `${String(Math.floor(secondsLeft / 60)).padStart(2, "0")}:${String(secondsLeft % 60).padStart(2, "0")}`, [secondsLeft]);
-  const intent = request.upiIntent;
+  const intent = getSafeUpiIntent(request.upiIntent);
 
   if (isMarkedPaid) {
     return <div className="rounded-2xl border border-amber-400/25 bg-amber-500/[0.07] p-5 text-center"><ClipboardCheck className="mx-auto text-amber-300" size={30} /><p className="mt-3 text-sm font-bold text-amber-100">Payment marked as sent</p><p className="mt-2 text-sm leading-6 text-amber-100/70">The recipient must check their real UPI or bank app before confirming this payment. Your membership has not moved yet.</p><p className="mt-4 rounded-xl border border-amber-400/15 bg-black/15 px-3 py-2 text-xs font-semibold tracking-wide text-amber-200">REFERENCE: {request.paymentRef}</p></div>;

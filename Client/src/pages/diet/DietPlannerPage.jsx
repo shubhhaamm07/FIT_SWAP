@@ -11,14 +11,16 @@ import {
   LoaderCircle,
   RefreshCw,
   Salad,
+  ShoppingBasket,
   Sparkles,
+  Shuffle,
   Target,
   UtensilsCrossed,
   Wheat,
 } from "lucide-react";
 
 import DashboardLayout from "../../layouts/DashboardLayout";
-import { generateDietPlan } from "../../api/diet-planner.api";
+import { generateDietPlan, swapDietMeal } from "../../api/diet-planner.api";
 
 const initialForm = {
   age: "",
@@ -32,6 +34,12 @@ const initialForm = {
   budget: "BALANCED",
   weeklyBudgetInr: "",
   dietaryNotes: "",
+  favouriteFoods: "",
+  avoidFoods: "",
+  cuisineStyle: "ANY",
+  cookingStyle: "FLEXIBLE",
+  workoutTime: "NOT_SCHEDULED",
+  workoutDays: [],
   healthConcerns: [],
   aiConsent: false,
 };
@@ -66,7 +74,33 @@ const selectOptions = {
     ["BALANCED", "Balanced"],
     ["FLEXIBLE", "Flexible"],
   ],
+  cuisineStyle: [
+    ["ANY", "Any Indian cuisine"],
+    ["NORTH_INDIAN", "North Indian"],
+    ["SOUTH_INDIAN", "South Indian"],
+    ["PUNJABI", "Punjabi"],
+    ["GUJARATI", "Gujarati"],
+    ["BENGALI", "Bengali"],
+    ["MAHARASHTRIAN", "Maharashtrian"],
+  ],
+  cookingStyle: [
+    ["FLEXIBLE", "Flexible cooking"],
+    ["QUICK_15_MIN", "Quick — 15 minutes"],
+    ["MEAL_PREP", "Batch cook / meal prep"],
+    ["MINIMAL_COOKING", "Minimal cooking"],
+  ],
+  workoutTime: [
+    ["NOT_SCHEDULED", "No fixed workout time"],
+    ["MORNING", "Morning workout"],
+    ["AFTERNOON", "Afternoon workout"],
+    ["EVENING", "Evening workout"],
+  ],
 };
+
+const workoutDays = [
+  ["MON", "Mon"], ["TUE", "Tue"], ["WED", "Wed"], ["THU", "Thu"],
+  ["FRI", "Fri"], ["SAT", "Sat"], ["SUN", "Sun"],
+];
 
 const healthConcerns = [
   ["THYROID", "Thyroid condition"],
@@ -86,8 +120,10 @@ const healthConcerns = [
 function DietPlannerPage() {
   const [form, setForm] = useState(initialForm);
   const [plan, setPlan] = useState(null);
+  const [planInput, setPlanInput] = useState(null);
   const [selectedDay, setSelectedDay] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [swappingMeal, setSwappingMeal] = useState("");
   const [error, setError] = useState("");
 
   const selectedDayPlan = plan?.weeklyPlan?.[selectedDay] || null;
@@ -111,20 +147,31 @@ function DietPlannerPage() {
     }));
   };
 
+  const toggleWorkoutDay = (day) => {
+    setForm((current) => ({
+      ...current,
+      workoutDays: current.workoutDays.includes(day)
+        ? current.workoutDays.filter((item) => item !== day)
+        : [...current.workoutDays, day],
+    }));
+  };
+
   const handleGenerate = async (event) => {
     event.preventDefault();
     setError("");
     setLoading(true);
 
     try {
-      const nextPlan = await generateDietPlan({
+      const profile = {
         ...form,
         age: Number(form.age),
         heightCm: Number(form.heightCm),
         weightKg: Number(form.weightKg),
         mealsPerDay: Number(form.mealsPerDay),
-      });
+      };
+      const nextPlan = await generateDietPlan(profile);
       setPlan(nextPlan);
+      setPlanInput(profile);
       setSelectedDay(0);
       window.setTimeout(() => {
         document.getElementById("your-diet-plan")?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -133,6 +180,39 @@ function DietPlannerPage() {
       setError(requestError.response?.data?.message || "We could not create your plan. Please check the details and try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSwapMeal = async (meal, mealIndex) => {
+    if (!planInput || !selectedDayPlan) return;
+
+    const key = `${selectedDayPlan.day}-${mealIndex}`;
+    setError("");
+    setSwappingMeal(key);
+
+    try {
+      const replacement = await swapDietMeal({
+        profile: planInput,
+        day: selectedDayPlan.day,
+        mealLabel: meal.label,
+        targetCalories: meal.targetCalories,
+        currentSuggestion: meal.suggestion,
+      });
+      setPlan((current) => ({
+        ...current,
+        weeklyPlan: current.weeklyPlan.map((day) => day.day !== selectedDayPlan.day
+          ? day
+          : {
+            ...day,
+            meals: day.meals.map((currentMeal, index) => index === mealIndex
+              ? { ...currentMeal, suggestion: replacement.suggestion, swapNote: replacement.note }
+              : currentMeal),
+          }),
+      }));
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || "We could not swap that meal. Please try again.");
+    } finally {
+      setSwappingMeal("");
     }
   };
 
@@ -189,11 +269,32 @@ function DietPlannerPage() {
               <SelectField label="Meals in a day" value={form.mealsPerDay} onChange={(value) => updateForm("mealsPerDay", value)} options={selectOptions.mealsPerDay} />
               <SelectField label="Food budget" value={form.budget} onChange={(value) => updateForm("budget", value)} options={selectOptions.budget} />
               <NumberField label="Weekly food budget (optional)" required={false} value={form.weeklyBudgetInr} onChange={(value) => updateForm("weeklyBudgetInr", value)} placeholder="e.g. 1500" min="250" max="100000" suffix="₹ / week" />
+              <SelectField label="Cuisine style" value={form.cuisineStyle} onChange={(value) => updateForm("cuisineStyle", value)} options={selectOptions.cuisineStyle} />
+              <SelectField label="Cooking routine" value={form.cookingStyle} onChange={(value) => updateForm("cookingStyle", value)} options={selectOptions.cookingStyle} />
+              <SelectField label="Workout time" value={form.workoutTime} onChange={(value) => updateForm("workoutTime", value)} options={selectOptions.workoutTime} />
             </div>
 
-            <label className="mt-5 block text-sm font-medium text-zinc-300">Food notes <span className="font-normal text-zinc-600">(optional)</span>
-              <textarea value={form.dietaryNotes} onChange={(event) => updateForm("dietaryNotes", event.target.value)} maxLength={180} rows={3} placeholder="For example: avoid very spicy food, prefer home-cooked meals…" className="mt-2 w-full resize-none rounded-2xl border border-white/[0.1] bg-black/20 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-violet-400/60" />
-            </label>
+            <fieldset className="mt-5 rounded-2xl border border-white/[0.08] bg-black/10 p-4">
+              <legend className="px-1 text-sm font-semibold text-white">Food and routine preferences <span className="font-normal text-zinc-600">(optional)</span></legend>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {workoutDays.map(([value, label]) => {
+                  const selected = form.workoutDays.includes(value);
+                  return <button key={value} type="button" onClick={() => toggleWorkoutDay(value)} aria-pressed={selected} className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${selected ? "border-violet-400/50 bg-violet-500/15 text-violet-100" : "border-white/[0.09] bg-black/10 text-zinc-400 hover:border-white/[0.2] hover:text-zinc-200"}`}>{label}</button>;
+                })}
+              </div>
+              <p className="mt-2 text-xs leading-5 text-zinc-500">Choose your usual workout days so meal timing can fit your routine.</p>
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <label className="block text-sm font-medium text-zinc-300">Favourite foods
+                  <input value={form.favouriteFoods} onChange={(event) => updateForm("favouriteFoods", event.target.value)} maxLength={100} placeholder="e.g. paneer, poha, dal" className="mt-2 w-full rounded-xl border border-white/[0.1] bg-black/20 px-3 py-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-violet-400/60" />
+                </label>
+                <label className="block text-sm font-medium text-zinc-300">Foods to avoid
+                  <input value={form.avoidFoods} onChange={(event) => updateForm("avoidFoods", event.target.value)} maxLength={100} placeholder="e.g. mushrooms, bitter gourd" className="mt-2 w-full rounded-xl border border-white/[0.1] bg-black/20 px-3 py-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-violet-400/60" />
+                </label>
+              </div>
+              <label className="mt-4 block text-sm font-medium text-zinc-300">Food notes
+                <textarea value={form.dietaryNotes} onChange={(event) => updateForm("dietaryNotes", event.target.value)} maxLength={180} rows={3} placeholder="For example: avoid very spicy food, prefer home-cooked meals… Do not use this field for allergies or medical conditions." className="mt-2 w-full resize-none rounded-2xl border border-white/[0.1] bg-black/20 px-4 py-3 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-violet-400/60" />
+              </label>
+            </fieldset>
 
             <fieldset className="mt-5 rounded-2xl border border-amber-400/15 bg-amber-500/[0.045] p-4">
               <legend className="px-1 text-sm font-semibold text-amber-100">Health considerations <span className="font-normal text-amber-100/60">(optional)</span></legend>
@@ -260,13 +361,18 @@ function DietPlannerPage() {
                   {plan.weeklyPlan.map((day, index) => <button type="button" key={day.day} onClick={() => setSelectedDay(index)} className={`min-w-[72px] rounded-xl border px-3 py-2.5 text-center text-xs font-bold transition ${selectedDay === index ? "border-violet-400/50 bg-violet-500 text-white shadow-lg shadow-violet-950/35" : "border-white/[0.08] bg-white/[0.03] text-zinc-400 hover:bg-white/[0.07] hover:text-white"}`}><span className="block text-[10px] uppercase tracking-wide opacity-70">Day</span><span className="mt-0.5 block text-sm">{day.day}</span></button>)}
                 </div>
                 {selectedDayPlan && <div className="mt-5 grid gap-3 sm:grid-cols-2">
-                  {selectedDayPlan.meals.map((meal, index) => <article key={`${selectedDayPlan.day}-${meal.label}-${index}`} className="rounded-2xl border border-white/[0.08] bg-[#14151e] p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.12em] text-violet-300">{meal.label}</p><p className="mt-2 font-semibold leading-6 text-white">{meal.suggestion}</p></div><span className="shrink-0 rounded-lg bg-white/[0.06] px-2 py-1 text-[11px] font-bold text-zinc-300">~{meal.targetCalories} kcal</span></div></article>)}
+                  {selectedDayPlan.meals.map((meal, index) => {
+                    const swapKey = `${selectedDayPlan.day}-${index}`;
+                    const isSwapping = swappingMeal === swapKey;
+                    return <article key={`${selectedDayPlan.day}-${meal.label}-${index}`} className="rounded-2xl border border-white/[0.08] bg-[#14151e] p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.12em] text-violet-300">{meal.label}</p><p className="mt-2 font-semibold leading-6 text-white">{meal.suggestion}</p></div><span className="shrink-0 rounded-lg bg-white/[0.06] px-2 py-1 text-[11px] font-bold text-zinc-300">~{meal.targetCalories} kcal</span></div>{meal.swapNote && <p className="mt-3 text-xs leading-5 text-emerald-200/80">{meal.swapNote}</p>}<button type="button" onClick={() => handleSwapMeal(meal, index)} disabled={Boolean(swappingMeal)} className="mt-4 inline-flex items-center gap-1.5 text-xs font-bold text-violet-200 transition hover:text-violet-100 disabled:cursor-not-allowed disabled:opacity-60">{isSwapping ? <><LoaderCircle size={14} className="animate-spin" /> Finding an alternative…</> : <><Shuffle size={14} /> Swap this meal</>}</button></article>;
+                  })}
                 </div>}
               </div>
 
               <div className="space-y-4">
                 <InfoCard icon={BrainCircuit} title="Why this plan" items={plan.reasons} />
                 <InfoCard icon={UtensilsCrossed} title="Make it practical" items={[plan.guidance.budgetTip, plan.guidance.mealTiming, plan.guidance.preparationTip]} />
+                {plan.groceryList?.length > 0 && <GroceryList groups={plan.groceryList} />}
               </div>
             </div>
           </div>
@@ -306,6 +412,10 @@ function TargetCard({ icon: Icon, label, value, detail, tone }) {
 
 function InfoCard({ icon: Icon, title, items }) {
   return <article className="rounded-2xl border border-white/[0.08] bg-black/15 p-4"><div className="flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-lg bg-violet-500/10 text-violet-200"><Icon size={16} /></span><h3 className="font-semibold text-white">{title}</h3></div><ul className="mt-4 space-y-3 text-sm leading-5 text-zinc-400">{items.filter(Boolean).map((item) => <li key={item} className="flex gap-2"><span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-300" />{item}</li>)}</ul></article>;
+}
+
+function GroceryList({ groups }) {
+  return <article className="rounded-2xl border border-emerald-400/15 bg-emerald-500/[0.045] p-4"><div className="flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-500/10 text-emerald-200"><ShoppingBasket size={16} /></span><div><h3 className="font-semibold text-white">Weekly grocery list</h3><p className="text-xs text-zinc-500">Approximate household quantities</p></div></div><div className="mt-4 space-y-4">{groups.map((group) => <div key={group.category}><p className="text-xs font-bold uppercase tracking-[0.1em] text-emerald-200">{group.category}</p><ul className="mt-2 space-y-1.5 text-sm leading-5 text-zinc-300">{group.items.map((item) => <li key={`${item.name}-${item.quantity}`} className="flex justify-between gap-3"><span>{item.name}</span><span className="shrink-0 text-zinc-500">{item.quantity}</span></li>)}</ul></div>)}</div></article>;
 }
 
 function ProfessionalReview({ plan }) {

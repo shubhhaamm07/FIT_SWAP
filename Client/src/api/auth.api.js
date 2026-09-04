@@ -15,6 +15,10 @@ export const loginWithGoogle = async (credential) => {
     return response.data;
 };
 
+export const logoutUser = async () => {
+    await api.post("/auth/logout", null, { skipAuthLogout: true });
+};
+
 export const getCurrentUser = async (config = {}) => {
     const response = await api.get("/auth/me", config);
     return response.data;
