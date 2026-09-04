@@ -8,7 +8,8 @@
     "dev": "nodemon server.js",
     "seed": "node prisma/seed.js",
     "seed:kharar": "node prisma/seed-kharar.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test:expiry-reminders": "node --test src/services/__tests__/membership-expiry-reminder.service.test.js",
+    "test": "node --test src/services/__tests__/*.test.js test/*.test.js"
   },
   "keywords": [],
   "author": "",

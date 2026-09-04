@@ -21,10 +21,13 @@ const ProfilePage = lazy(() => import("../pages/profile/ProfilePage"));
 const SettingsPage = lazy(() => import("../pages/settings/SettingsPage"));
 const NotificationsPage = lazy(() => import("../pages/notifications/NotificationsPage"));
 const GymsPage = lazy(() => import("../pages/gyms/GymsPage"));
+const NearbyGymsPage = lazy(() => import("../pages/gyms/NearbyGymsPage"));
 const GymDetailsPage = lazy(() => import("../pages/gyms/GymDetailsPage"));
+const TrialBookingPage = lazy(() => import("../pages/trials/TrialBookingPage"));
 const DietPlannerPage = lazy(() => import("../pages/diet/DietPlannerPage"));
 const GymOwnerDashboardPage = lazy(() => import("../pages/gym-owner/GymOwnerDashboardPage"));
 const GymOwnerOperationsPage = lazy(() => import("../pages/gym-owner/GymOwnerOperationsPage"));
+const OwnerTrialsPage = lazy(() => import("../pages/gym-owner/OwnerTrialsPage"));
 const AdminPortalPage = lazy(() => import("../pages/admin/AdminPortalPage"));
 const AdminAnalyticsPage = lazy(() => import("../pages/admin/AdminAnalyticsPage"));
 const AdminNotificationCentrePage = lazy(() => import("../pages/admin/AdminNotificationCentrePage"));
@@ -170,8 +173,18 @@ function AppRoutes() {
         />
 
         <Route
+          path="/gyms/nearby"
+          element={<ProtectedRoute><NearbyGymsPage /></ProtectedRoute>}
+        />
+
+        <Route
           path="/gyms/:gymId"
           element={<ProtectedRoute><GymDetailsPage /></ProtectedRoute>}
+        />
+
+        <Route
+          path="/trials"
+          element={<RoleRoute allowedRoles={["USER"]}><TrialBookingPage /></RoleRoute>}
         />
 
         <Route
@@ -182,6 +195,11 @@ function AppRoutes() {
         <Route
           path="/owner/dashboard"
           element={<RoleRoute allowedRoles={["GYM_OWNER"]}><GymOwnerDashboardPage /></RoleRoute>}
+        />
+
+        <Route
+          path="/owner/trials"
+          element={<RoleRoute allowedRoles={["GYM_OWNER"]}><OwnerTrialsPage /></RoleRoute>}
         />
 
         <Route

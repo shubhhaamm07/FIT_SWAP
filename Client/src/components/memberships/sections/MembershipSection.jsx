@@ -1,3 +1,7 @@
+import { CalendarClock, Settings2 } from "lucide-react";
+import { useState } from "react";
+import { Link } from "react-router-dom";
+
 import MembershipHero from "../hero/MembershipHero";
 
 import MembershipCard from "../cards/MembershipCard";
@@ -18,6 +22,7 @@ import useMembership from "../hooks/useMembership";
 function MembershipSection() {
   const {
     memberships,
+    allMemberships,
 
     loading,
 
@@ -73,6 +78,8 @@ function MembershipSection() {
 
           <MembershipStats counts={counts} />
 
+          <ExpiryReminderSummary memberships={allMemberships} />
+
           <section className="overflow-hidden rounded-2xl border border-white/[0.1] bg-[#0D121C]/90">
             <MembershipTabs
               activeTab={activeTab}
@@ -127,6 +134,35 @@ function MembershipSection() {
         </div>
       )}
     </MembershipModalProvider>
+  );
+}
+
+function ExpiryReminderSummary({ memberships }) {
+  const [referenceTime] = useState(() => Date.now());
+  const expiring = memberships
+    .filter((membership) => membership.status === "ACTIVE")
+    .map((membership) => ({
+      ...membership,
+      daysRemaining: Math.ceil((new Date(membership.endDate).getTime() - referenceTime) / 86400000),
+    }))
+    .filter((membership) => membership.daysRemaining >= 0 && membership.daysRemaining <= 30)
+    .sort((first, second) => first.daysRemaining - second.daysRemaining);
+
+  if (!expiring.length) return null;
+
+  const next = expiring[0];
+  const timing = next.daysRemaining === 0
+    ? "expires today"
+    : `expires in ${next.daysRemaining} day${next.daysRemaining === 1 ? "" : "s"}`;
+
+  return (
+    <section className="flex flex-col gap-4 rounded-2xl border border-amber-400/20 bg-amber-500/[0.07] p-4 sm:flex-row sm:items-center sm:justify-between sm:p-5" aria-label="Upcoming membership expiry">
+      <div className="flex items-start gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-400/10 text-amber-300"><CalendarClock size={19} /></span>
+        <div><p className="font-semibold text-white">{expiring.length === 1 ? "Membership expiring soon" : `${expiring.length} memberships expiring soon`}</p><p className="mt-1 text-sm leading-5 text-zinc-400">{next.plan?.gym?.name || next.plan?.name || "Your membership"} {timing}. FitSwap sends in-app reminders at 30, 7, 1, and 0 days.</p></div>
+      </div>
+      <Link to="/settings" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-amber-300/25 px-3 py-2.5 text-xs font-semibold text-amber-200 hover:bg-amber-400/10"><Settings2 size={15} /> Reminder settings</Link>
+    </section>
   );
 }
 

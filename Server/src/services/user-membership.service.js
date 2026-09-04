@@ -218,6 +218,14 @@ const unfreezeMembership = async (
         );
     }
 
+    if (membership.endDate <= new Date()) {
+        await prisma.userMembership.update({
+            where: { id: membershipId },
+            data: { status: 'EXPIRED' }
+        });
+        throw new Error('This membership has expired and cannot be resumed');
+    }
+
     return prisma.userMembership.update({
         where: {
             id: membershipId

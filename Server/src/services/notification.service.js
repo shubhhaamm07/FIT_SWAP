@@ -3,15 +3,20 @@ const prisma = require('../lib/prisma');
 const createNotification = async (
     userId,
     title,
-    message
+    message,
+    options = {}
 ) => {
-    const user = await prisma.user.findUnique({
-        where: { id: userId },
-        select: { marketplaceNotifications: true }
-    });
+    // Booking confirmations and other transactional updates must still reach
+    // the in-app inbox when a user has disabled marketplace marketing/activity.
+    if (options.category !== 'TRANSACTIONAL') {
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: { marketplaceNotifications: true }
+        });
 
-    if (!user?.marketplaceNotifications) {
-        return null;
+        if (!user?.marketplaceNotifications) {
+            return null;
+        }
     }
 
     return prisma.notification.create({

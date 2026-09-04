@@ -9,6 +9,7 @@ import {
   CreditCard,
   IndianRupee,
   LoaderCircle,
+  LocateFixed,
   Mail,
   Phone,
   Pencil,
@@ -297,10 +298,39 @@ function GymsContent({ gyms, onEdit }) {
 }
 
 function GymProfileForm({ gym, saving, onCancel, onSubmit }) {
-  const [form, setForm] = useState({ name: gym.name || "", description: gym.description || "", address: gym.address || "", city: gym.city || "", state: gym.state || "", pincode: gym.pincode || "", phone: gym.phone || "", email: gym.email || "" });
+  const [form, setForm] = useState({ name: gym.name || "", description: gym.description || "", address: gym.address || "", city: gym.city || "", state: gym.state || "", pincode: gym.pincode || "", phone: gym.phone || "", email: gym.email || "", latitude: gym.latitude ?? "", longitude: gym.longitude ?? "" });
+  const [locating, setLocating] = useState(false);
+  const [locationMessage, setLocationMessage] = useState("");
   const update = (key, value) => setForm((current) => ({ ...current, [key]: value }));
-  const submit = (event) => { event.preventDefault(); onSubmit(form); };
-  return <div role="dialog" aria-modal="true" aria-label="Edit gym profile" className="fixed inset-0 z-50 overflow-y-auto bg-black/70 p-4 backdrop-blur-sm sm:p-8"><form onSubmit={submit} className="mx-auto my-6 max-w-3xl rounded-3xl border border-white/[0.1] bg-[#12131c] p-5 shadow-2xl sm:p-7"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-300">Gym profile</p><h2 className="mt-2 text-2xl font-bold text-white">Edit {gym.name}</h2><p className="mt-2 text-sm text-zinc-500">Your details are visible to members. Approval status can only be changed by FitSwap admins.</p></div><button type="button" onClick={onCancel} className="grid h-9 w-9 place-items-center rounded-lg text-zinc-400 hover:bg-white/[0.08] hover:text-white"><X size={19} /></button></div><div className="mt-6 grid gap-4 sm:grid-cols-2"><Field label="Gym name"><input required value={form.name} onChange={(event) => update("name", event.target.value)} /></Field><Field label="Phone"><input required value={form.phone} onChange={(event) => update("phone", event.target.value)} /></Field><Field label="Email"><input type="email" value={form.email} onChange={(event) => update("email", event.target.value)} placeholder="optional" /></Field><Field label="Pincode"><input required value={form.pincode} onChange={(event) => update("pincode", event.target.value)} /></Field><Field label="Address"><input required value={form.address} onChange={(event) => update("address", event.target.value)} /></Field><Field label="City"><input required value={form.city} onChange={(event) => update("city", event.target.value)} /></Field><Field label="State"><input required value={form.state} onChange={(event) => update("state", event.target.value)} /></Field><label className="block text-sm font-medium text-zinc-200 sm:col-span-2"><span className="mb-2 block">Description</span><textarea rows="4" value={form.description} onChange={(event) => update("description", event.target.value)} className="w-full rounded-lg border border-white/[0.1] bg-[#11121a] px-3 py-2.5 text-white outline-none focus:border-violet-400" placeholder="Tell members about your gym" /></label></div><div className="mt-6 flex flex-wrap gap-3"><button disabled={saving} className="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50">{saving ? "Saving profile…" : "Save changes"}</button><button type="button" onClick={onCancel} className="rounded-xl border border-white/[0.1] px-4 py-2.5 text-sm font-semibold text-zinc-300 hover:bg-white/[0.05]">Cancel</button></div></form></div>;
+  const submit = (event) => {
+    event.preventDefault();
+    onSubmit({
+      ...form,
+      latitude: form.latitude === "" ? null : Number(form.latitude),
+      longitude: form.longitude === "" ? null : Number(form.longitude),
+    });
+  };
+  const useCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationMessage("Location is not supported by this browser.");
+      return;
+    }
+    setLocating(true);
+    setLocationMessage("Finding this gym's coordinates…");
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setForm((current) => ({ ...current, latitude: coords.latitude.toFixed(6), longitude: coords.longitude.toFixed(6) }));
+        setLocationMessage("Coordinates added. Confirm that you are currently at the gym before saving.");
+        setLocating(false);
+      },
+      () => {
+        setLocationMessage("Location could not be detected. You can enter the coordinates manually.");
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+  };
+  return <div role="dialog" aria-modal="true" aria-label="Edit gym profile" className="fixed inset-0 z-50 overflow-y-auto bg-black/70 p-4 backdrop-blur-sm sm:p-8"><form onSubmit={submit} className="mx-auto my-6 max-w-3xl rounded-3xl border border-white/[0.1] bg-[#12131c] p-5 shadow-2xl sm:p-7"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-300">Gym profile</p><h2 className="mt-2 text-2xl font-bold text-white">Edit {gym.name}</h2><p className="mt-2 text-sm text-zinc-500">Your details are visible to members. Approval status can only be changed by FitSwap admins.</p></div><button type="button" onClick={onCancel} className="grid h-9 w-9 place-items-center rounded-lg text-zinc-400 hover:bg-white/[0.08] hover:text-white"><X size={19} /></button></div><div className="mt-6 grid gap-4 sm:grid-cols-2"><Field label="Gym name"><input required value={form.name} onChange={(event) => update("name", event.target.value)} /></Field><Field label="Phone"><input required value={form.phone} onChange={(event) => update("phone", event.target.value)} /></Field><Field label="Email"><input type="email" value={form.email} onChange={(event) => update("email", event.target.value)} placeholder="optional" /></Field><Field label="Pincode"><input required value={form.pincode} onChange={(event) => update("pincode", event.target.value)} /></Field><Field label="Address"><input required value={form.address} onChange={(event) => update("address", event.target.value)} /></Field><Field label="City"><input required value={form.city} onChange={(event) => update("city", event.target.value)} /></Field><Field label="State"><input required value={form.state} onChange={(event) => update("state", event.target.value)} /></Field><label className="block text-sm font-medium text-zinc-200 sm:col-span-2"><span className="mb-2 block">Description</span><textarea rows="4" value={form.description} onChange={(event) => update("description", event.target.value)} className="w-full rounded-lg border border-white/[0.1] bg-[#11121a] px-3 py-2.5 text-white outline-none focus:border-violet-400" placeholder="Tell members about your gym" /></label><div className="rounded-2xl border border-cyan-400/15 bg-cyan-500/[0.04] p-4 sm:col-span-2"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-semibold text-white">Nearby map location</p><p className="mt-1 text-xs leading-5 text-zinc-500">Add the exact gym coordinates so members can calculate distance and see the map pin.</p></div><button type="button" disabled={locating} onClick={useCurrentLocation} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-cyan-400/25 px-3 py-2.5 text-xs font-semibold text-cyan-200 hover:bg-cyan-500/10 disabled:opacity-50"><LocateFixed size={15} /> {locating ? "Locating…" : "Use current location"}</button></div><div className="mt-4 grid gap-3 sm:grid-cols-2"><Field label="Latitude"><input type="number" min="-90" max="90" step="any" value={form.latitude} onChange={(event) => update("latitude", event.target.value)} placeholder="e.g. 30.733315" /></Field><Field label="Longitude"><input type="number" min="-180" max="180" step="any" value={form.longitude} onChange={(event) => update("longitude", event.target.value)} placeholder="e.g. 76.779419" /></Field></div>{locationMessage && <p aria-live="polite" className="mt-3 text-xs text-cyan-200/80">{locationMessage}</p>}</div></div><div className="mt-6 flex flex-wrap gap-3"><button disabled={saving} className="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:opacity-50">{saving ? "Saving profile…" : "Save changes"}</button><button type="button" onClick={onCancel} className="rounded-xl border border-white/[0.1] px-4 py-2.5 text-sm font-semibold text-zinc-300 hover:bg-white/[0.05]">Cancel</button></div></form></div>;
 }
 
 function PlansContent({ gyms, plans, showPlanForm, setShowPlanForm, savingPlan, editingPolicy, setEditingPolicy, onPlanCreated, onPolicyUpdated }) {

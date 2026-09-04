@@ -218,6 +218,8 @@ function useMembership() {
     return {
         memberships: filteredMemberships,
 
+        allMemberships: memberships,
+
         loading,
 
         error,

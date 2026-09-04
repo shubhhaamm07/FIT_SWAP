@@ -3,6 +3,7 @@ import {
   BarChart3,
   Bell,
   Building2,
+  CalendarCheck2,
   ChartNoAxesCombined,
   CreditCard,
   Dumbbell,
@@ -98,6 +99,7 @@ function Sidebar({ onNavigate }) {
             { label: "My Gyms", to: "/owner/gyms", icon: Building2 },
             { label: "Membership Plans", to: "/owner/plans", icon: CreditCard },
             { label: "Members", to: "/owner/members", icon: UsersRound },
+            { label: "Trial Sessions", to: "/owner/trials", icon: CalendarCheck2 },
           ],
         },
         {

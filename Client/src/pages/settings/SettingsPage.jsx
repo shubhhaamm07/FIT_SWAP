@@ -1,13 +1,23 @@
 import { useEffect, useState } from "react";
-import { BadgeCheck, BellRing, ChevronRight, CircleAlert, KeyRound, LoaderCircle, Mail, Send, ShieldCheck, Trash2, UserRound, WalletCards, X } from "lucide-react";
+import { Accessibility, BadgeCheck, BellRing, CalendarClock, ChevronRight, CircleAlert, Eye, Focus, KeyRound, LoaderCircle, Mail, Monitor, Moon, RotateCcw, Send, ShieldCheck, Sun, Trash2, Type, UserRound, WalletCards, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../layouts/DashboardLayout";
 import { changeUserPassword, deleteCurrentUser, getCurrentUser, resendVerificationEmail, updateUserSettings } from "../../api/auth.api";
+import { useAppearance } from "../../hooks/useAppearance";
 import { useAuth } from "../../hooks/useAuth";
 
 function SettingsPage() {
   const navigate = useNavigate();
   const { user: sessionUser, updateUser, logout } = useAuth();
+  const {
+    appearance,
+    resolvedTheme,
+    effectiveReducedMotion,
+    systemPrefersReducedMotion,
+    setTheme,
+    setAccessibilityPreference,
+    resetAppearance,
+  } = useAppearance();
   const [profile, setProfile] = useState(sessionUser || {});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState("");
@@ -86,11 +96,47 @@ function SettingsPage() {
           <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-4"><div className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 font-bold text-white">{initials}</div><div><p className="font-semibold text-white">{displayName}</p><p className="mt-1 flex items-center gap-1.5 text-sm text-zinc-500"><Mail size={14} /> {profile.email}</p></div></div><button type="button" onClick={() => navigate("/profile")} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/[0.08]"><UserRound size={16} /> Edit profile <ChevronRight size={15} /></button></div>
         </SettingsSection>
 
+        <SettingsSection title="Appearance & accessibility" description="Choose how FitSwap looks and reduce visual barriers. These preferences are saved on this device.">
+          <fieldset>
+            <legend className="text-sm font-semibold text-white">Colour theme</legend>
+            <p className="mt-1 text-sm leading-5 text-zinc-500">System follows your device and updates automatically. Current theme: {resolvedTheme}.</p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <ThemeChoice icon={Sun} label="Light" value="light" selected={appearance.theme === "light"} onSelect={setTheme} />
+              <ThemeChoice icon={Moon} label="Dark" value="dark" selected={appearance.theme === "dark"} onSelect={setTheme} />
+              <ThemeChoice icon={Monitor} label="System" value="system" selected={appearance.theme === "system"} onSelect={setTheme} />
+            </div>
+          </fieldset>
+
+          <div className="mt-6 border-t border-white/[0.07] pt-2">
+            <AccessibilityRow
+              icon={Accessibility}
+              title="Reduce motion"
+              description={systemPrefersReducedMotion
+                ? "Your device requests reduced motion, so animations are already minimized."
+                : "Minimize page, card, and decorative animations."}
+              checked={appearance.reduceMotion}
+              effective={effectiveReducedMotion}
+              onChange={(checked) => setAccessibilityPreference("reduceMotion", checked)}
+            />
+            <AccessibilityRow icon={Type} title="Larger text" description="Increase the base text size across FitSwap." checked={appearance.largeText} onChange={(checked) => setAccessibilityPreference("largeText", checked)} />
+            <AccessibilityRow icon={Eye} title="High contrast" description="Strengthen text, borders, and interface separation." checked={appearance.highContrast} onChange={(checked) => setAccessibilityPreference("highContrast", checked)} />
+            <AccessibilityRow icon={Focus} title="Enhanced focus" description="Show a thicker, clearer keyboard focus ring." checked={appearance.enhancedFocus} onChange={(checked) => setAccessibilityPreference("enhancedFocus", checked)} />
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-white/[0.07] bg-black/10 px-4 py-3">
+            <p className="text-xs leading-5 text-zinc-500">Keyboard tip: press Tab to move through controls and Enter or Space to activate them.</p>
+            <button type="button" onClick={resetAppearance} className="inline-flex items-center gap-2 rounded-lg border border-white/[0.1] px-3 py-2 text-xs font-semibold text-zinc-300 transition hover:bg-white/[0.06] hover:text-white">
+              <RotateCcw size={14} /> Reset appearance
+            </button>
+          </div>
+        </SettingsSection>
+
         <SettingsSection title="Email verification" description="A verified email keeps password recovery and important account updates secure.">
           <div className="flex flex-col gap-4 rounded-2xl border border-white/[0.07] bg-black/10 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><div className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${profile.emailVerifiedAt ? "bg-emerald-500/10 text-emerald-300" : "bg-amber-500/10 text-amber-300"}`}><BadgeCheck size={19} /></div><div><p className="font-medium text-white">{profile.emailVerifiedAt ? "Email verified" : "Email verification needed"}</p><p className="mt-1 text-sm leading-5 text-zinc-500">{profile.emailVerifiedAt ? "Your email is confirmed and ready for account recovery." : `Verify ${profile.email || "your email"} to protect your account.`}</p></div></div>{!profile.emailVerifiedAt && <button type="button" disabled={saving === "verification"} onClick={sendVerification} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-violet-400/30 bg-violet-500/10 px-4 py-2.5 text-sm font-semibold text-violet-200 transition hover:bg-violet-500/20 disabled:opacity-60"><Send size={16} /> {saving === "verification" ? "Sending…" : "Send verification"}</button>}</div>
         </SettingsSection>
 
         <SettingsSection title="Notifications" description="Choose the updates that matter to you.">
+          <ToggleRow icon={CalendarClock} title="Membership expiry reminders" description="In-app alerts at 30 days, 7 days, 1 day, and on the expiry date." checked={profile.membershipExpiryNotifications !== false} busy={saving === "membershipExpiryNotifications"} onChange={(checked) => updatePreference("membershipExpiryNotifications", checked)} />
           <ToggleRow icon={BellRing} title="Marketplace activity" description="Transfer requests, listing updates, and saved-listing activity." checked={Boolean(profile.marketplaceNotifications)} busy={saving === "marketplaceNotifications"} onChange={(checked) => updatePreference("marketplaceNotifications", checked)} />
           <ToggleRow icon={Mail} title="Email updates" description="Important account information and FitSwap updates by email." checked={Boolean(profile.emailNotifications)} busy={saving === "emailNotifications"} onChange={(checked) => updatePreference("emailNotifications", checked)} />
         </SettingsSection>
@@ -117,6 +163,15 @@ function SettingsPage() {
 
 function SettingsSection({ title, description, children }) { return <section className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5 sm:p-6"><h2 className="font-semibold text-white">{title}</h2><p className="mt-1 text-sm text-zinc-500">{description}</p><div className="mt-5">{children}</div></section>; }
 function ToggleRow({ icon: Icon, title, description, checked, busy, onChange }) { return <div className="flex items-center gap-3 border-b border-white/[0.07] py-4 first:pt-0 last:border-0 last:pb-0"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-violet-500/10 text-violet-300"><Icon size={18} /></div><div className="min-w-0 flex-1"><p className="font-medium text-white">{title}</p><p className="mt-1 text-sm leading-5 text-zinc-500">{description}</p></div><button type="button" role="switch" aria-checked={checked} disabled={busy} onClick={() => onChange(!checked)} className={`relative h-7 w-12 shrink-0 rounded-full transition ${checked ? "bg-violet-600" : "bg-zinc-700"} disabled:opacity-60`}><span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${checked ? "left-6" : "left-1"}`} /></button></div>; }
+
+function ThemeChoice({ icon: Icon, label, value, selected, onSelect }) {
+  return <button type="button" aria-pressed={selected} onClick={() => onSelect(value)} className={`appearance-theme-choice flex items-center gap-3 rounded-xl border px-4 py-3 text-left transition ${selected ? "is-selected border-violet-400/60 bg-violet-500/15 text-white" : "border-white/[0.08] bg-black/10 text-zinc-400 hover:border-violet-400/30 hover:text-white"}`}><span className={`grid h-9 w-9 place-items-center rounded-lg ${selected ? "bg-violet-500/20 text-violet-200" : "bg-white/[0.05] text-zinc-400"}`}><Icon size={18} /></span><span className="text-sm font-semibold">{label}</span></button>;
+}
+
+function AccessibilityRow({ icon: Icon, title, description, checked, effective = checked, onChange }) {
+  const descriptionId = `accessibility-${title.toLowerCase().replaceAll(" ", "-")}`;
+  return <div className="flex items-center gap-3 border-b border-white/[0.07] py-4 last:border-0"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-violet-500/10 text-violet-300"><Icon size={18} /></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-medium text-white">{title}</p>{effective && !checked && <span className="rounded-full bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-300">Device setting</span>}</div><p id={descriptionId} className="mt-1 text-sm leading-5 text-zinc-500">{description}</p></div><button type="button" role="switch" aria-label={title} aria-describedby={descriptionId} aria-checked={checked} onClick={() => onChange(!checked)} className={`relative h-7 w-12 shrink-0 rounded-full transition ${checked ? "bg-violet-600" : "bg-zinc-700"}`}><span aria-hidden="true" className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow transition ${checked ? "left-6" : "left-1"}`} /></button></div>;
+}
 
 function PasswordModal({ onClose, onSuccess }) {
   const [form, setForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });

@@ -8,50 +8,53 @@ datasource db {
 }
 
 model User {
-  id                       String    @id @default(cuid())
-  firstName                String
-  lastName                 String
-  email                    String    @unique
+  id                            String    @id @default(cuid())
+  firstName                     String
+  lastName                      String
+  email                         String    @unique
   // Stable Google account identifier (`sub`). Email addresses are not used as
   // the long-term Google identity because they can change.
-  googleSubject            String?   @unique
-  phone                    String?   @unique
-  password                 String
-  role                     UserRole  @default(USER)
-  isActive                 Boolean   @default(true)
-  username                 String?   @unique
-  bio                      String?
-  city                     String?
-  isProfilePublic          Boolean   @default(true)
-  emailVerifiedAt          DateTime?
+  googleSubject                 String?   @unique
+  phone                         String?   @unique
+  password                      String
+  role                          UserRole  @default(USER)
+  isActive                      Boolean   @default(true)
+  username                      String?   @unique
+  bio                           String?
+  city                          String?
+  isProfilePublic               Boolean   @default(true)
+  emailVerifiedAt               DateTime?
   // Used to invalidate JWTs issued before a password reset or change.
-  passwordChangedAt        DateTime?
-  avatarUrl                String?
-  avatarKey                String?
-  coverUrl                 String?
-  coverKey                 String?
-  emailNotifications       Boolean   @default(true)
-  marketplaceNotifications Boolean   @default(true)
-  upiId                   String?
-  upiPayeeName            String?
+  passwordChangedAt             DateTime?
+  avatarUrl                     String?
+  avatarKey                     String?
+  coverUrl                      String?
+  coverKey                      String?
+  emailNotifications            Boolean   @default(true)
+  marketplaceNotifications      Boolean   @default(true)
+  membershipExpiryNotifications Boolean   @default(true)
+  upiId                         String?
+  upiPayeeName                  String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  gyms             Gym[]
-  memberships      UserMembership[]
-  listings         MarketplaceListing[]
-  transferRequests TransferRequest[]
-  notifications    Notification[]
-  savedListings    SavedListing[]
-  payments         Payment[]
-  announcements    Announcement[]       @relation("AnnouncementAuthor")
-  adminAuditLogs   AdminAuditLog[]      @relation("AdminAuditAuthor")
-  authTokens       AuthToken[]
-  upiRequestsAsBuyer     UpiPaymentRequest[] @relation("UpiPaymentBuyer")
-  upiRequestsAsRecipient UpiPaymentRequest[] @relation("UpiPaymentRecipient")
-  platformPaymentRequests PlatformPaymentRequest[] @relation("PlatformPaymentBuyer")
-  platformPaymentApprovals PlatformPaymentRequest[] @relation("PlatformPaymentApprover")
+  gyms                      Gym[]
+  memberships               UserMembership[]
+  listings                  MarketplaceListing[]
+  transferRequests          TransferRequest[]
+  notifications             Notification[]
+  savedListings             SavedListing[]
+  payments                  Payment[]
+  announcements             Announcement[]             @relation("AnnouncementAuthor")
+  adminAuditLogs            AdminAuditLog[]            @relation("AdminAuditAuthor")
+  authTokens                AuthToken[]
+  upiRequestsAsBuyer        UpiPaymentRequest[]        @relation("UpiPaymentBuyer")
+  upiRequestsAsRecipient    UpiPaymentRequest[]        @relation("UpiPaymentRecipient")
+  platformPaymentRequests   PlatformPaymentRequest[]   @relation("PlatformPaymentBuyer")
+  platformPaymentApprovals  PlatformPaymentRequest[]   @relation("PlatformPaymentApprover")
+  membershipExpiryReminders MembershipExpiryReminder[]
+  trialBookings             GymTrialBooking[]
 }
 
 model Gym {
@@ -64,6 +67,8 @@ model Gym {
   pincode     String
   phone       String
   email       String?
+  latitude    Float?
+  longitude   Float?
   status      GymStatus @default(PENDING)
 
   ownerId String
@@ -72,8 +77,9 @@ model Gym {
   plans MembershipPlan[]
 
   // ✅ NEW RELATION
-  images GymImage[]
+  images             GymImage[]
   upiPaymentRequests UpiPaymentRequest[]
+  trialSlots         GymTrialSlot[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -100,8 +106,8 @@ model MembershipPlan {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  memberships UserMembership[]
-  payments    Payment[]
+  memberships        UserMembership[]
+  payments           Payment[]
   upiPaymentRequests UpiPaymentRequest[]
 }
 
@@ -126,7 +132,10 @@ model UserMembership {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  listing MarketplaceListing?
+  listing         MarketplaceListing?
+  expiryReminders MembershipExpiryReminder[]
+
+  @@index([status, endDate])
 }
 
 model MarketplaceListing {
@@ -147,12 +156,12 @@ model MarketplaceListing {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  transferRequests TransferRequest[]
-  savedBy          SavedListing[]
-  payments         Payment[]
-  upiPaymentRequests UpiPaymentRequest[]
+  transferRequests        TransferRequest[]
+  savedBy                 SavedListing[]
+  payments                Payment[]
+  upiPaymentRequests      UpiPaymentRequest[]
   platformPaymentRequests PlatformPaymentRequest[]
-  boostedUntil DateTime?
+  boostedUntil            DateTime?
 }
 
 model SavedListing {
@@ -222,38 +231,38 @@ model UpiPaymentRequest {
   status UpiPaymentStatus @default(AWAITING_PAYMENT)
 
   buyerId String
-  buyer   User @relation("UpiPaymentBuyer", fields: [buyerId], references: [id])
+  buyer   User   @relation("UpiPaymentBuyer", fields: [buyerId], references: [id])
 
   recipientId String
-  recipient   User @relation("UpiPaymentRecipient", fields: [recipientId], references: [id])
+  recipient   User   @relation("UpiPaymentRecipient", fields: [recipientId], references: [id])
 
   listingId String?
   listing   MarketplaceListing? @relation(fields: [listingId], references: [id])
 
   gymId String?
-  gym   Gym? @relation(fields: [gymId], references: [id])
+  gym   Gym?    @relation(fields: [gymId], references: [id])
 
   planId String?
   plan   MembershipPlan? @relation(fields: [planId], references: [id])
 
-  amount        Int
-  currency      String @default("INR")
-  paymentRef    String @unique
+  amount         Int
+  currency       String @default("INR")
+  paymentRef     String @unique
   recipientUpiId String
-  payeeName     String
+  payeeName      String
 
   // A bank/UPI reference must only be associated with one FitSwap request.
   // PostgreSQL permits multiple nulls in a unique column, so unpaid requests
   // remain valid while submitted UTRs are protected from reuse.
-  utr                 String? @unique
-  buyerMarkedPaidAt   DateTime?
+  utr                  String?   @unique
+  buyerMarkedPaidAt    DateTime?
   recipientConfirmedAt DateTime?
-  gymApprovedAt       DateTime?
-  completedAt         DateTime?
-  cancelledAt         DateTime?
-  rejectedAt          DateTime?
-  rejectionReason     String?
-  expiresAt           DateTime
+  gymApprovedAt        DateTime?
+  completedAt          DateTime?
+  cancelledAt          DateTime?
+  rejectedAt           DateTime?
+  rejectionReason      String?
+  expiresAt            DateTime
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -268,28 +277,28 @@ model UpiPaymentRequest {
 model PlatformPaymentRequest {
   id String @id @default(cuid())
 
-  kind   PlatformPaymentKind
-  status UpiPaymentStatus @default(AWAITING_PAYMENT)
+  kind     PlatformPaymentKind
+  status   UpiPaymentStatus    @default(AWAITING_PAYMENT)
   planCode String
 
   buyerId String
-  buyer   User @relation("PlatformPaymentBuyer", fields: [buyerId], references: [id])
+  buyer   User   @relation("PlatformPaymentBuyer", fields: [buyerId], references: [id])
 
   listingId String?
   listing   MarketplaceListing? @relation(fields: [listingId], references: [id])
 
   confirmedByAdminId String?
-  confirmedByAdmin User? @relation("PlatformPaymentApprover", fields: [confirmedByAdminId], references: [id])
+  confirmedByAdmin   User?   @relation("PlatformPaymentApprover", fields: [confirmedByAdminId], references: [id])
 
-  amount           Int
-  currency         String @default("INR")
-  paymentRef       String @unique
-  platformUpiId    String
+  amount            Int
+  currency          String    @default("INR")
+  paymentRef        String    @unique
+  platformUpiId     String
   platformPayeeName String
-  benefitDays      Int
-  benefitExpiresAt DateTime?
+  benefitDays       Int
+  benefitExpiresAt  DateTime?
 
-  utr               String? @unique
+  utr               String?   @unique
   buyerMarkedPaidAt DateTime?
   adminConfirmedAt  DateTime?
   completedAt       DateTime?
@@ -319,6 +328,29 @@ model Notification {
   isRead Boolean @default(false)
 
   createdAt DateTime @default(now())
+}
+
+// Delivery ledger for membership-expiry alerts. The compound unique key makes
+// each reminder idempotent even if multiple server instances run the cron job.
+model MembershipExpiryReminder {
+  id               String                          @id @default(cuid())
+  membershipId     String
+  membership       UserMembership                  @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User                            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  daysBeforeExpiry Int
+  channel          MembershipExpiryReminderChannel
+  status           MembershipExpiryReminderStatus  @default(PENDING)
+  attemptCount     Int                             @default(1)
+  lastAttemptAt    DateTime                        @default(now())
+  sentAt           DateTime?
+  failureCode      String?
+  createdAt        DateTime                        @default(now())
+  updatedAt        DateTime                        @updatedAt
+
+  @@unique([membershipId, userId, daysBeforeExpiry, channel])
+  @@index([userId, createdAt])
+  @@index([status, lastAttemptAt])
 }
 
 model Announcement {
@@ -385,6 +417,50 @@ model AuthToken {
   @@index([expiresAt])
 }
 
+// A gym publishes reusable-capacity time windows rather than creating a
+// temporary membership for each visitor.
+model GymTrialSlot {
+  id               String            @id @default(cuid())
+  gymId            String
+  gym              Gym               @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  startAt          DateTime
+  endAt            DateTime
+  capacity         Int
+  bookedCount      Int               @default(0)
+  requiresApproval Boolean           @default(false)
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  bookings         GymTrialBooking[]
+
+  @@unique([gymId, startAt, endAt])
+  @@index([gymId, isActive, startAt])
+}
+
+// Trial records are retained with a stable reference and terminal status for
+// member history, capacity accounting, abuse prevention, and owner audits.
+model GymTrialBooking {
+  id                 String             @id @default(cuid())
+  slotId             String
+  slot               GymTrialSlot       @relation(fields: [slotId], references: [id], onDelete: Cascade)
+  userId             String
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status             TrialBookingStatus @default(CONFIRMED)
+  bookingReference   String             @unique
+  cancellationReason String?
+  completedAt        DateTime?
+  noShowAt           DateTime?
+  cancelledAt        DateTime?
+  lastUpdatedById    String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@unique([slotId, userId])
+  @@index([userId, status])
+  @@index([slotId, status])
+  @@index([createdAt])
+}
+
 model GymImage {
   id String @id @default(cuid())
 
@@ -422,6 +498,17 @@ enum MembershipStatus {
   EXPIRED
   FROZEN
   TRANSFERRED
+}
+
+enum MembershipExpiryReminderChannel {
+  IN_APP
+  EMAIL
+}
+
+enum MembershipExpiryReminderStatus {
+  PENDING
+  SENT
+  FAILED
 }
 
 enum ListingStatus {
@@ -490,6 +577,14 @@ enum AnnouncementAudience {
 enum AuthTokenType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
+}
+
+enum TrialBookingStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  NO_SHOW
+  CANCELLED
 }
 
 enum AdminAuditAction {

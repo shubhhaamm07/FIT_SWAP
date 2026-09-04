@@ -5,6 +5,8 @@ import {
     Store,
     ArrowRightLeft,
     Bell,
+    CalendarCheck2,
+    MapPinned,
     UserRound,
     Settings,
     Sparkles,
@@ -24,7 +26,11 @@ export const sidebarSections = [
 
     {
         title: "Gyms",
-        items: [{ label: "Gyms", to: "/gyms", icon: Building2 }],
+        items: [
+            { label: "Gyms", to: "/gyms", icon: Building2 },
+            { label: "Nearby Map", to: "/gyms/nearby", icon: MapPinned },
+            { label: "Book a Trial", to: "/trials", icon: CalendarCheck2 },
+        ],
     },
 
     {

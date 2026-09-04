@@ -77,8 +77,8 @@ const SellMembershipPage = () => {
 
   useEffect(() => {
     if (!membershipId) {
-      setEligibility(null);
-      return undefined;
+      const timer = window.setTimeout(() => setEligibility(null), 0);
+      return () => window.clearTimeout(timer);
     }
 
     let cancelled = false;
@@ -106,8 +106,8 @@ const SellMembershipPage = () => {
 
   useEffect(() => {
     if (!membershipId || !eligibility?.eligible) {
-      setSuggestion(null);
-      return undefined;
+      const timer = window.setTimeout(() => setSuggestion(null), 0);
+      return () => window.clearTimeout(timer);
     }
 
     let cancelled = false;

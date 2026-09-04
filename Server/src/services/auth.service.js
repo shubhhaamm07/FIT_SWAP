@@ -23,6 +23,7 @@ const profileSelect = {
     coverKey: true,
     emailNotifications: true,
     marketplaceNotifications: true,
+    membershipExpiryNotifications: true,
     upiId: true,
     upiPayeeName: true,
     createdAt: true,
@@ -595,7 +596,9 @@ const updateSettings = async (userId, settings) => {
     if (typeof settings.marketplaceNotifications === 'boolean') {
         data.marketplaceNotifications = settings.marketplaceNotifications;
     }
-
+    if (typeof settings.membershipExpiryNotifications === 'boolean') {
+        data.membershipExpiryNotifications = settings.membershipExpiryNotifications;
+    }
     const hasUpiChange = Object.prototype.hasOwnProperty.call(settings, 'upiId')
         || Object.prototype.hasOwnProperty.call(settings, 'upiPayeeName');
     if (hasUpiChange) {
@@ -678,6 +681,34 @@ const deleteAccount = async (userId, { password, confirmation }) => {
                 { membership: { userId } }
             ]
         };
+
+        const reservedTrials = await tx.gymTrialBooking.groupBy({
+            by: ['slotId'],
+            where: {
+                userId,
+                status: { in: ['PENDING', 'CONFIRMED'] }
+            },
+            _count: { _all: true }
+        });
+
+        // Trial bookings are deleted with the account, but the denormalized
+        // capacity counter must be released first so those places reopen.
+        for (const reservation of reservedTrials) {
+            const slot = await tx.gymTrialSlot.findUnique({
+                where: { id: reservation.slotId },
+                select: { id: true, bookedCount: true }
+            });
+            if (slot) {
+                await tx.gymTrialSlot.update({
+                    where: { id: slot.id },
+                    data: {
+                        bookedCount: Math.max(0, slot.bookedCount - reservation._count._all)
+                    }
+                });
+            }
+        }
+
+        await tx.gymTrialBooking.deleteMany({ where: { userId } });
 
         await tx.transferRequest.deleteMany({
             where: {
