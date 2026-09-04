@@ -1,4 +1,5 @@
 const adminService = require('../services/admin.service');
+const transferMonitoringService = require('../services/transfer-monitoring.service');
 
 const getDashboard = async (req, res) => {
     try {
@@ -97,6 +98,24 @@ const getAuditLogs = async (req, res) => {
     }
 };
 
+const getTransferAuditLogs = async (req, res) => {
+    try {
+        const logs = await transferMonitoringService.getTransferAuditLogs(req.query);
+        return res.status(200).json({ success: true, count: logs.length, data: logs });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message || 'Unable to load transfer audit logs' });
+    }
+};
+
+const getFraudAlerts = async (req, res) => {
+    try {
+        const alerts = await transferMonitoringService.getFraudAlerts();
+        return res.status(200).json({ success: true, count: alerts.length, data: alerts });
+    } catch (error) {
+        return res.status(500).json({ success: false, message: error.message || 'Unable to load fraud alerts' });
+    }
+};
+
 const getUsers = async (req, res) => {
     try {
         const users = await adminService.getUsers(req.query);
@@ -162,6 +181,8 @@ module.exports = {
     createAnnouncement,
     getAnnouncements,
     getAuditLogs,
+    getTransferAuditLogs,
+    getFraudAlerts,
     getUsers,
     updateUserRole,
     updateUserAccess,

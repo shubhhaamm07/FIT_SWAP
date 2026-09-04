@@ -10,7 +10,8 @@ const createMembershipPlan = async (
         const plan =
             await membershipPlanService.createMembershipPlan(
                 req.params.gymId,
-                req.body
+                req.body,
+                req.user.id
             );
 
         return res.status(201).json({
@@ -18,7 +19,7 @@ const createMembershipPlan = async (
             data: plan
         });
     } catch (error) {
-        return res.status(500).json({
+        return res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -90,7 +91,8 @@ const updatePlan = async (req, res) => {
         const updatedPlan =
             await membershipPlanService.updatePlan(
                 req.params.planId,
-                req.body
+                req.body,
+                req.user.id
             );
 
         return res.status(200).json({
@@ -98,7 +100,7 @@ const updatePlan = async (req, res) => {
             data: updatedPlan
         });
     } catch (error) {
-        return res.status(500).json({
+        return res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });

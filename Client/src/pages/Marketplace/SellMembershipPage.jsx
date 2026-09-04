@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import DashboardLayout from "../../layouts/DashboardLayout";
 import MarketplaceSidebar from "../../components/marketplace/MarketplaceSidebar";
-import { getMyMemberships } from "../../api/membership.api";
+import { getMyMemberships, getTransferEligibility } from "../../api/membership.api";
 import {
   createListing,
   getListingPriceSuggestion,
@@ -29,6 +29,8 @@ const SellMembershipPage = () => {
   const [suggestion, setSuggestion] = useState(null);
   const [suggestionLoading, setSuggestionLoading] = useState(false);
   const [suggestionError, setSuggestionError] = useState("");
+  const [eligibility, setEligibility] = useState(null);
+  const [eligibilityLoading, setEligibilityLoading] = useState(false);
 
   useEffect(() => {
     const loadMemberships = async () => {
@@ -40,10 +42,7 @@ const SellMembershipPage = () => {
         const requestedMembership = membershipData.find(
           (membership) =>
             membership.id === requestedMembershipId &&
-            membership.status === "ACTIVE" &&
-            membership.plan?.transferable &&
-            !membership.listing &&
-            new Date(membership.endDate) > new Date(),
+            membership.status === "ACTIVE" && !membership.listing,
         );
         if (requestedMembership) {
           setMembershipId(requestedMembership.id);
@@ -61,18 +60,15 @@ const SellMembershipPage = () => {
     void loadMemberships();
   }, [searchParams]);
 
-  const eligibleMemberships = useMemo(
+  const candidateMemberships = useMemo(
     () =>
       memberships.filter(
         (membership) =>
-          membership.status === "ACTIVE" &&
-          membership.plan?.transferable &&
-          !membership.listing &&
-          new Date(membership.endDate) > new Date(),
+          membership.status === "ACTIVE" && !membership.listing,
       ),
     [memberships],
   );
-  const selectedMembership = eligibleMemberships.find(
+  const selectedMembership = candidateMemberships.find(
     (membership) => membership.id === membershipId,
   );
   const minimumPrice = selectedMembership
@@ -81,6 +77,36 @@ const SellMembershipPage = () => {
 
   useEffect(() => {
     if (!membershipId) {
+      setEligibility(null);
+      return undefined;
+    }
+
+    let cancelled = false;
+    const loadEligibility = async () => {
+      try {
+        setEligibilityLoading(true);
+        setEligibility(null);
+        const nextEligibility = await getTransferEligibility(membershipId);
+        if (!cancelled) setEligibility(nextEligibility);
+      } catch (err) {
+        if (!cancelled) {
+          setEligibility({
+            eligible: false,
+            reasons: [err.response?.data?.message || "Eligibility could not be checked."],
+          });
+        }
+      } finally {
+        if (!cancelled) setEligibilityLoading(false);
+      }
+    };
+
+    void loadEligibility();
+    return () => { cancelled = true; };
+  }, [membershipId]);
+
+  useEffect(() => {
+    if (!membershipId || !eligibility?.eligible) {
+      setSuggestion(null);
       return undefined;
     }
 
@@ -113,21 +139,24 @@ const SellMembershipPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [membershipId]);
+  }, [membershipId, eligibility?.eligible]);
 
   const handleMembershipChange = (id) => {
     setMembershipId(id);
-    const membership = eligibleMemberships.find((item) => item.id === id);
+    const membership = candidateMemberships.find((item) => item.id === id);
     setAskingPrice(membership ? String(Math.round(membership.plan.price)) : "");
     setSuggestion(null);
     setSuggestionError("");
+    setEligibility(null);
     setError("");
   };
 
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!selectedMembership)
-      return setError("Choose an eligible membership to list.");
+      return setError("Choose a membership to check for listing.");
+    if (!eligibility?.eligible)
+      return setError(eligibility?.reasons?.[0] || "This membership is not eligible to list.");
     const price = Number(askingPrice);
     if (!price || price < minimumPrice || price > selectedMembership.plan.price)
       return setError(
@@ -195,8 +224,8 @@ const SellMembershipPage = () => {
                     }
                     className="w-full rounded-lg border border-white/[0.1] bg-[#171820] px-3 py-3 text-sm text-white outline-none focus:border-violet-500"
                   >
-                    <option value="">Select an eligible membership</option>
-                    {eligibleMemberships.map((membership) => (
+                    <option value="">Select a membership to check</option>
+                    {candidateMemberships.map((membership) => (
                       <option key={membership.id} value={membership.id}>
                         {membership.plan.gym?.name || "Gym"} —{" "}
                         {membership.plan.name}
@@ -228,6 +257,18 @@ const SellMembershipPage = () => {
                   </div>
                 )}
                 {selectedMembership && (
+                  <section className={`rounded-xl border p-4 ${eligibility?.eligible ? "border-emerald-400/25 bg-emerald-500/[0.05]" : "border-amber-400/25 bg-amber-500/[0.05]"}`}>
+                    <div className="flex items-start gap-3">
+                      <BadgeCheck className={eligibility?.eligible ? "mt-0.5 text-emerald-300" : "mt-0.5 text-amber-300"} size={19} />
+                      <div>
+                        <p className="text-sm font-semibold text-white">{eligibilityLoading ? "Checking transfer policy…" : eligibility?.eligible ? "Eligible under this gym’s transfer policy" : "Transfer policy check"}</p>
+                        {eligibility?.policy && <p className="mt-1 text-xs leading-5 text-zinc-400">{eligibility.daysRemaining} days remaining · Minimum {eligibility.policy.minimumTransferDays} days · {eligibility.policy.requiresGymApproval ? "gym approval required" : "seller confirmation completes handover"}</p>}
+                        {eligibility?.reasons?.length > 0 && <ul className="mt-2 space-y-1 text-xs leading-5 text-amber-100/85">{eligibility.reasons.map((reason) => <li key={reason}>• {reason}</li>)}</ul>}
+                      </div>
+                    </div>
+                  </section>
+                )}
+                {selectedMembership && eligibility?.eligible && (
                   <section className="rounded-xl border border-cyan-400/20 bg-[linear-gradient(135deg,rgba(34,211,238,0.1),rgba(124,58,237,0.1))] p-4">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex gap-3">
@@ -324,16 +365,15 @@ const SellMembershipPage = () => {
                 <button
                   type="submit"
                   disabled={
-                    loading || submitting || !eligibleMemberships.length
+                    loading || submitting || eligibilityLoading || !candidateMemberships.length || !eligibility?.eligible
                   }
                   className="w-full rounded-lg bg-violet-600 py-3 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {submitting ? "Publishing listing…" : "Publish listing"}
+                  {submitting ? "Publishing listing…" : eligibilityLoading ? "Checking policy…" : "Publish listing"}
                 </button>
-                {!eligibleMemberships.length && (
+                {!candidateMemberships.length && (
                   <p className="text-center text-xs text-zinc-500">
-                    You do not have an active transferable membership available
-                    to list.
+                    You do not have an active membership available to check for listing.
                   </p>
                 )}
               </div>

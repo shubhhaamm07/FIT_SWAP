@@ -29,6 +29,8 @@ const AdminPortalPage = lazy(() => import("../pages/admin/AdminPortalPage"));
 const AdminAnalyticsPage = lazy(() => import("../pages/admin/AdminAnalyticsPage"));
 const AdminNotificationCentrePage = lazy(() => import("../pages/admin/AdminNotificationCentrePage"));
 const AdminAuditLogsPage = lazy(() => import("../pages/admin/AdminAuditLogsPage"));
+const AdminTransferAuditPage = lazy(() => import("../pages/admin/AdminTransferAuditPage"));
+const AdminFraudAlertsPage = lazy(() => import("../pages/admin/AdminFraudAlertsPage"));
 
 import ProtectedRoute from "./ProtectedRoute";
 import RoleRoute from "./RoleRoute";
@@ -205,6 +207,16 @@ function AppRoutes() {
         <Route
           path="/admin/audit-logs"
           element={<RoleRoute allowedRoles={["ADMIN"]}><AdminAuditLogsPage /></RoleRoute>}
+        />
+
+        <Route
+          path="/admin/transfer-audit"
+          element={<RoleRoute allowedRoles={["ADMIN"]}><AdminTransferAuditPage /></RoleRoute>}
+        />
+
+        <Route
+          path="/admin/fraud-alerts"
+          element={<RoleRoute allowedRoles={["ADMIN"]}><AdminFraudAlertsPage /></RoleRoute>}
         />
 
         {/* Keep an outdated sidebar URL or a mistyped path from rendering an empty screen. */}

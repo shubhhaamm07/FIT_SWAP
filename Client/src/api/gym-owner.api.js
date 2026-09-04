@@ -19,3 +19,13 @@ export const getGymOwnerTransfers = async () => {
   const { data } = await axios.get("/gym-owner/transfers");
   return data.data;
 };
+
+export const getGymTransferAuditLogs = async (filters = {}) => {
+  const { data } = await axios.get("/gym-owner/transfer-audit-logs", { params: filters });
+  return data.data;
+};
+
+export const getGymFraudAlerts = async () => {
+  const { data } = await axios.get("/gym-owner/fraud-alerts");
+  return data.data;
+};

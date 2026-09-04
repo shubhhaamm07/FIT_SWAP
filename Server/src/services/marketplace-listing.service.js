@@ -1,5 +1,9 @@
 const prisma = require('../lib/prisma');
 const { buildFairPriceSuggestion } = require('../domain/pricing/fair-price-suggestion');
+const {
+    assertMembershipEligible,
+    writeTransferAudit,
+} = require('./transfer-policy.service');
 
 const {
     LISTING_STATUS,
@@ -48,6 +52,8 @@ const createListing = async (
             'Membership not found'
         );
     }
+
+    assertMembershipEligible(membership, { sellerId });
 
     if (
         membership.userId !== sellerId
@@ -113,42 +119,24 @@ const createListing = async (
 
     }
 
-    const daysRemaining =
-        Math.ceil(
-
-            (
-                membership.endDate -
-                new Date()
-            ) /
-            (
-                1000 *
-                60 *
-                60 *
-                24
-            )
-
-        );
-
-    if (
-        daysRemaining < 30
-    ) {
-        throw new Error(
-            'Membership must have at least 30 days remaining'
-        );
-    }
-
-    return prisma.marketplaceListing.create({
-
-        data: {
-
+    return prisma.$transaction(async (tx) => {
+        const listing = await tx.marketplaceListing.create({
+            data: {
+                membershipId,
+                sellerId,
+                askingPrice: normalizedAskingPrice
+            }
+        });
+        await writeTransferAudit(tx, {
             membershipId,
-
-            sellerId,
-
-            askingPrice: normalizedAskingPrice
-
-        }
-
+            listingId: listing.id,
+            actorId: sellerId,
+            actorRole: 'USER',
+            action: 'LISTING_CREATED',
+            summary: 'Seller created a marketplace listing after policy eligibility passed.',
+            metadata: { askingPrice: normalizedAskingPrice },
+        });
+        return listing;
     });
 
 };
@@ -184,6 +172,7 @@ const getPriceSuggestion = async (sellerId, membershipId) => {
     });
 
     if (!membership) throw new Error('Membership not found.');
+    assertMembershipEligible(membership, { sellerId });
     if (membership.status !== 'ACTIVE') throw new Error('Only active memberships can receive a price suggestion.');
     if (membership.endDate <= new Date()) throw new Error('Expired memberships cannot be listed.');
     if (!membership.plan.transferable) throw new Error('This membership cannot be transferred.');

@@ -39,6 +39,21 @@ export const approveTransferRequest =
         return data.data;
     };
 
+export const getGymCashApprovalRequests = async () => {
+    const { data } = await axios.get("/transfer-requests/gym-approvals");
+    return data.data;
+};
+
+export const approveCashTransferByGymOwner = async (requestId) => {
+    const { data } = await axios.patch(`/transfer-requests/${requestId}/gym-approve`);
+    return data.data;
+};
+
+export const rejectCashTransferByGymOwner = async (requestId) => {
+    const { data } = await axios.patch(`/transfer-requests/${requestId}/gym-reject`);
+    return data.data;
+};
+
 export const rejectTransferRequest =
     async (requestId) => {
         const { data } = await axios.patch(

@@ -16,5 +16,7 @@ router.get(
 router.get('/gym-owner/members', protect, authorize('GYM_OWNER'), gymOwnerDashboardController.getMembers);
 router.get('/gym-owner/sales', protect, authorize('GYM_OWNER'), gymOwnerDashboardController.getSales);
 router.get('/gym-owner/transfers', protect, authorize('GYM_OWNER'), gymOwnerDashboardController.getTransfers);
+router.get('/gym-owner/transfer-audit-logs', protect, authorize('GYM_OWNER'), gymOwnerDashboardController.getTransferAuditLogs);
+router.get('/gym-owner/fraud-alerts', protect, authorize('GYM_OWNER'), gymOwnerDashboardController.getFraudAlerts);
 
 module.exports = router;

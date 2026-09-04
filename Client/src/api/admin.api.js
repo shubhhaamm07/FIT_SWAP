@@ -50,6 +50,16 @@ export const getAuditLogs = async (filters = {}) => {
   return data.data;
 };
 
+export const getTransferAuditLogs = async (filters = {}) => {
+  const { data } = await axios.get("/admin/transfer-audit-logs", { params: filters });
+  return data.data;
+};
+
+export const getFraudAlerts = async () => {
+  const { data } = await axios.get("/admin/fraud-alerts");
+  return data.data;
+};
+
 export const getAdminUsers = async (filters = {}) => {
   const { data } = await axios.get("/admin/users", { params: filters });
   return data.data;

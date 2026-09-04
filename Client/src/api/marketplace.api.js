@@ -24,6 +24,11 @@ export const mapMarketplaceListing = (listing) => {
         originalPrice: Number(plan.price || listing.askingPrice || 0),
         remainingDays,
         transferFee: Number(plan.transferFee || 0),
+        minimumTransferDays: Number(plan.minimumTransferDays ?? 30),
+        maximumTransfers: plan.maximumTransfers == null ? null : Number(plan.maximumTransfers),
+        requiresGymApproval: plan.requiresGymApproval !== false,
+        allowOnlinePayment: plan.allowOnlinePayment !== false,
+        allowCashTransfer: Boolean(plan.allowCashTransfer),
         verified: gym.status === "APPROVED",
         featured:
             Boolean(listing.boostedUntil) &&

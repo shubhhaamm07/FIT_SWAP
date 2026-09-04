@@ -2,6 +2,11 @@ const crypto = require('crypto');
 
 const prisma = require('../lib/prisma');
 const notificationService = require('./notification.service');
+const {
+    assertMembershipEligible,
+    getTransferPolicy,
+    writeTransferAudit,
+} = require('./transfer-policy.service');
 
 const REQUEST_TTL_MS = 30 * 60 * 1000;
 const GYM_APPROVAL_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -161,8 +166,14 @@ const createMarketplaceRequest = async (buyerId, listingId) => {
     if (listing.sellerId === buyerId) {
         throw upiError('You cannot pay for your own listing.');
     }
-    if (listing.membership.status !== 'ACTIVE' || !listing.membership.plan.transferable) {
-        throw upiError('This membership is no longer transferable.', 409);
+    try {
+        assertMembershipEligible(listing.membership, {
+            sellerId: listing.sellerId,
+            allowCurrentListing: true,
+            paymentMethod: 'ONLINE',
+        });
+    } catch (error) {
+        throw upiError(error.message, error.statusCode || 409);
     }
 
     const existingForListing = await prisma.upiPaymentRequest.findFirst({
@@ -183,23 +194,35 @@ const createMarketplaceRequest = async (buyerId, listingId) => {
 
     requireRecipientUpi(listing.seller);
 
-    const request = await prisma.upiPaymentRequest.create({
-        data: {
-            kind: 'MARKETPLACE_TRANSFER',
-            buyerId,
-            recipientId: listing.sellerId,
+    const request = await prisma.$transaction(async (tx) => {
+        const created = await tx.upiPaymentRequest.create({
+            data: {
+                kind: 'MARKETPLACE_TRANSFER',
+                buyerId,
+                recipientId: listing.sellerId,
+                listingId: listing.id,
+                gymId: listing.membership.plan.gymId,
+                planId: listing.membership.planId,
+                // The pilot sends one transparent payment directly to the seller.
+                // Platform/gym fees are intentionally not collected in this manual UPI flow.
+                amount: amountInPaise(listing.askingPrice),
+                paymentRef: makePaymentReference(),
+                recipientUpiId: listing.seller.upiId,
+                payeeName: listing.seller.upiPayeeName,
+                expiresAt: new Date(Date.now() + REQUEST_TTL_MS),
+            },
+            include: requestInclude,
+        });
+        await writeTransferAudit(tx, {
+            membershipId: listing.membershipId,
             listingId: listing.id,
-            gymId: listing.membership.plan.gymId,
-            planId: listing.membership.planId,
-            // The pilot sends one transparent payment directly to the seller.
-            // Platform/gym fees are intentionally not collected in this manual UPI flow.
-            amount: amountInPaise(listing.askingPrice),
-            paymentRef: makePaymentReference(),
-            recipientUpiId: listing.seller.upiId,
-            payeeName: listing.seller.upiPayeeName,
-            expiresAt: new Date(Date.now() + REQUEST_TTL_MS),
-        },
-        include: requestInclude,
+            actorId: buyerId,
+            actorRole: 'USER',
+            action: 'ONLINE_TRANSFER_REQUEST_CREATED',
+            summary: 'Buyer started an online membership-transfer payment request.',
+            metadata: { paymentRef: created.paymentRef, policy: getTransferPolicy(listing.membership.plan) },
+        });
+        return created;
     });
 
     return serializeForBuyer(request);
@@ -269,6 +292,87 @@ const markPaymentPaid = async (buyerId, requestId, utr) => {
     return serializeForBuyer(request);
 };
 
+const completeMarketplaceTransfer = async ({ request, actorId, actorRole, gymApproved }) => {
+    return prisma.$transaction(async (tx) => {
+        const listing = await tx.marketplaceListing.findFirst({
+            where: {
+                id: request.listingId,
+                sellerId: request.recipientId,
+                status: 'ACTIVE',
+                deletedAt: null,
+            },
+            include: {
+                membership: {
+                    include: { plan: { include: { gym: true } } },
+                },
+            },
+        });
+        if (!listing) {
+            throw upiError('This listing is no longer eligible for transfer.', 409);
+        }
+
+        try {
+            assertMembershipEligible(listing.membership, {
+                sellerId: request.recipientId,
+                allowCurrentListing: true,
+                paymentMethod: 'ONLINE',
+            });
+        } catch (error) {
+            throw upiError(error.message, error.statusCode || 409);
+        }
+
+        const movedMembership = await tx.userMembership.updateMany({
+            where: { id: listing.membershipId, userId: request.recipientId, status: 'ACTIVE' },
+            data: { userId: request.buyerId, transferCount: { increment: 1 } },
+        });
+        if (movedMembership.count !== 1) {
+            throw upiError('This membership was already transferred or changed.', 409);
+        }
+
+        const soldListing = await tx.marketplaceListing.updateMany({
+            where: { id: listing.id, status: 'ACTIVE', sellerId: request.recipientId },
+            data: { status: 'SOLD' },
+        });
+        if (soldListing.count !== 1) {
+            throw upiError('This listing was already updated.', 409);
+        }
+
+        await tx.upiPaymentRequest.update({
+            where: { id: request.id },
+            data: {
+                status: 'COMPLETED',
+                recipientConfirmedAt: new Date(),
+                gymApprovedAt: gymApproved ? new Date() : undefined,
+                completedAt: new Date(),
+            },
+        });
+
+        await tx.transferRequest.upsert({
+            where: { listingId_buyerId: { listingId: listing.id, buyerId: request.buyerId } },
+            update: { status: 'APPROVED' },
+            create: { listingId: listing.id, buyerId: request.buyerId, status: 'APPROVED' },
+        });
+        await tx.transferRequest.updateMany({
+            where: { listingId: listing.id, buyerId: { not: request.buyerId }, status: 'PENDING' },
+            data: { status: 'REJECTED' },
+        });
+
+        await writeTransferAudit(tx, {
+            membershipId: listing.membershipId,
+            listingId: listing.id,
+            actorId,
+            actorRole,
+            action: gymApproved ? 'GYM_APPROVED_TRANSFER' : 'TRANSFER_COMPLETED',
+            summary: gymApproved
+                ? 'Gym owner approved the membership handover.'
+                : 'Membership handover completed after seller-confirmed online payment.',
+            metadata: { paymentRequestId: request.id, transferCount: Number(listing.membership.transferCount || 0) + 1 },
+        });
+
+        return { sellerId: listing.sellerId, listingId: listing.id };
+    });
+};
+
 const confirmPaymentReceived = async (recipientId, requestId) => {
     await expireOutstandingRequests();
     const request = await prisma.upiPaymentRequest.findFirst({
@@ -281,27 +385,46 @@ const confirmPaymentReceived = async (recipientId, requestId) => {
     }
 
     if (request.kind === 'MARKETPLACE_TRANSFER') {
-        const updated = await prisma.upiPaymentRequest.update({
-            where: { id: request.id },
-            data: {
-                status: 'AWAITING_GYM_APPROVAL',
-                recipientConfirmedAt: new Date(),
-                expiresAt: new Date(Date.now() + GYM_APPROVAL_TTL_MS),
-            },
-            include: requestInclude,
+        const policy = getTransferPolicy(request.listing.membership.plan);
+        if (!policy.requiresGymApproval) {
+            const completed = await completeMarketplaceTransfer({
+                request,
+                actorId: recipientId,
+                actorRole: 'USER',
+                gymApproved: false,
+            });
+            await Promise.all([
+                notificationService.createNotification(request.buyerId, 'Membership transfer completed', 'The seller confirmed your UPI payment and the membership is now in your FitSwap account.'),
+                notificationService.createNotification(completed.sellerId, 'Membership transfer completed', 'Your UPI payment confirmation completed the membership handover.'),
+            ]);
+            return { status: 'COMPLETED', listingId: completed.listingId };
+        }
+
+        const updated = await prisma.$transaction(async (tx) => {
+            const pendingApproval = await tx.upiPaymentRequest.update({
+                where: { id: request.id },
+                data: {
+                    status: 'AWAITING_GYM_APPROVAL',
+                    recipientConfirmedAt: new Date(),
+                    expiresAt: new Date(Date.now() + GYM_APPROVAL_TTL_MS),
+                },
+                include: requestInclude,
+            });
+            await writeTransferAudit(tx, {
+                membershipId: request.listing.membershipId,
+                listingId: request.listingId,
+                actorId: recipientId,
+                actorRole: 'USER',
+                action: 'SELLER_CONFIRMED_PAYMENT',
+                summary: 'Seller confirmed payment; the transfer is waiting for gym approval.',
+                metadata: { paymentRequestId: request.id },
+            });
+            return pendingApproval;
         });
 
         await Promise.all([
-            notificationService.createNotification(
-                request.buyerId,
-                'Seller confirmed your UPI payment',
-                'The gym now needs to approve the membership transfer.'
-            ),
-            notificationService.createNotification(
-                request.gym.ownerId,
-                'UPI transfer needs gym approval',
-                `A seller confirmed payment for ${request.listing.membership.plan.name}. Review the transfer in Owner Operations.`
-            ),
+            notificationService.createNotification(request.buyerId, 'Seller confirmed your UPI payment', 'The gym now needs to approve the membership transfer.'),
+            notificationService.createNotification(request.gym.ownerId, 'UPI transfer needs gym approval', `A seller confirmed payment for ${request.listing.membership.plan.name}. Review the transfer in Owner Operations.`),
         ]);
 
         return updated;
@@ -374,52 +497,11 @@ const approveMarketplaceTransfer = async (ownerId, requestId) => {
         throw upiError('This UPI transfer is not ready for your gym approval.', 409);
     }
 
-    await prisma.$transaction(async (tx) => {
-        const listing = await tx.marketplaceListing.findFirst({
-            where: {
-                id: request.listingId,
-                sellerId: request.recipientId,
-                status: 'ACTIVE',
-                deletedAt: null,
-                membership: { status: 'ACTIVE', plan: { gym: { ownerId } } },
-            },
-            include: { membership: true },
-        });
-        if (!listing) {
-            throw upiError('This listing is no longer eligible for transfer.', 409);
-        }
-
-        const movedMembership = await tx.userMembership.updateMany({
-            where: { id: listing.membershipId, userId: request.recipientId, status: 'ACTIVE' },
-            data: { userId: request.buyerId },
-        });
-        if (movedMembership.count !== 1) {
-            throw upiError('This membership was already transferred or changed.', 409);
-        }
-
-        const soldListing = await tx.marketplaceListing.updateMany({
-            where: { id: listing.id, status: 'ACTIVE', sellerId: request.recipientId },
-            data: { status: 'SOLD' },
-        });
-        if (soldListing.count !== 1) {
-            throw upiError('This listing was already updated.', 409);
-        }
-
-        await tx.upiPaymentRequest.update({
-            where: { id: request.id },
-            data: { status: 'COMPLETED', gymApprovedAt: new Date(), completedAt: new Date() },
-        });
-
-        await tx.transferRequest.upsert({
-            where: { listingId_buyerId: { listingId: listing.id, buyerId: request.buyerId } },
-            update: { status: 'APPROVED' },
-            create: { listingId: listing.id, buyerId: request.buyerId, status: 'APPROVED' },
-        });
-
-        await tx.transferRequest.updateMany({
-            where: { listingId: listing.id, buyerId: { not: request.buyerId }, status: 'PENDING' },
-            data: { status: 'REJECTED' },
-        });
+    await completeMarketplaceTransfer({
+        request,
+        actorId: ownerId,
+        actorRole: 'GYM_OWNER',
+        gymApproved: true,
     });
 
     await Promise.all([
@@ -446,9 +528,22 @@ const rejectPayment = async (actorId, requestId, reason) => {
     }
 
     const rejectionReason = String(reason || '').trim().slice(0, 280) || 'Payment or transfer could not be confirmed.';
-    await prisma.upiPaymentRequest.update({
-        where: { id: request.id },
-        data: { status: 'REJECTED', rejectedAt: new Date(), rejectionReason },
+    await prisma.$transaction(async (tx) => {
+        await tx.upiPaymentRequest.update({
+            where: { id: request.id },
+            data: { status: 'REJECTED', rejectedAt: new Date(), rejectionReason },
+        });
+        if (request.kind === 'MARKETPLACE_TRANSFER' && request.listing) {
+            await writeTransferAudit(tx, {
+                membershipId: request.listing.membershipId,
+                listingId: request.listingId,
+                actorId,
+                actorRole: request.gym?.ownerId === actorId ? 'GYM_OWNER' : 'USER',
+                action: 'ONLINE_TRANSFER_REJECTED',
+                summary: 'A marketplace payment or handover was rejected.',
+                metadata: { paymentRequestId: request.id, reason: rejectionReason },
+            });
+        }
     });
     await notificationService.createNotification(request.buyerId, 'UPI payment request was rejected', rejectionReason);
     return { status: 'REJECTED' };

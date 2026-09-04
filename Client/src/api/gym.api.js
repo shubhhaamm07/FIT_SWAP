@@ -24,6 +24,11 @@ export const createMembershipPlan = async (gymId, planData) => {
     return data.data;
 };
 
+export const updateMembershipPlan = async (planId, planData) => {
+    const { data } = await axios.patch(`/plans/${planId}`, planData);
+    return data.data;
+};
+
 export const updateMyGym = async (gymId, gymData) => {
     const { data } = await axios.patch(`/gyms/${gymId}`, gymData);
     return data.data;

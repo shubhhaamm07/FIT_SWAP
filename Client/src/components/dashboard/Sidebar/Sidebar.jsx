@@ -59,6 +59,7 @@ function Sidebar({ onNavigate }) {
             },
             { label: "People & Access", to: "/admin/users", icon: UsersRound },
             { label: "Payment Ledger", to: "/admin/payments", icon: CreditCard },
+            { label: "Fraud Review", to: "/admin/fraud-alerts", icon: ShieldCheck },
           ],
         },
         {
@@ -67,6 +68,7 @@ function Sidebar({ onNavigate }) {
             { label: "Reports & Analytics", to: "/admin/analytics", icon: BarChart3 },
             { label: "Notification Centre", to: "/admin/announcements", icon: Bell },
             { label: "Audit Logs", to: "/admin/audit-logs", icon: ClipboardList },
+            { label: "Transfer Audit", to: "/admin/transfer-audit", icon: ClipboardList },
           ],
         },
         {
@@ -111,6 +113,8 @@ function Sidebar({ onNavigate }) {
               to: "/owner/transfers",
               icon: ArrowRightLeft,
             },
+            { label: "Transfer Audit", to: "/owner/audit", icon: ClipboardList },
+            { label: "Risk Alerts", to: "/owner/risk", icon: ShieldCheck },
             {
               label: "Plans & Billing",
               to: "/owner/billing",

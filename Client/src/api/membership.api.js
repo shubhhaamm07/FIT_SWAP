@@ -18,6 +18,14 @@ export const getMembershipById = async (
     return response.data;
 };
 
+export const getTransferEligibility = async (membershipId) => {
+    const response = await axiosInstance.get(
+        `/memberships/${membershipId}/transfer-eligibility`
+    );
+
+    return response.data.data;
+};
+
 export const purchaseMembership = async (
     planId
 ) => {

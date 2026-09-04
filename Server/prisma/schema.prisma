@@ -80,14 +80,19 @@ model Gym {
 }
 
 model MembershipPlan {
-  id             String  @id @default(cuid())
-  name           String
-  description    String?
-  durationInDays Int
-  price          Float
-  transferable   Boolean @default(true)
-  freezeAllowed  Boolean @default(false)
-  transferFee    Float?
+  id                  String  @id @default(cuid())
+  name                String
+  description         String?
+  durationInDays      Int
+  price               Float
+  transferable        Boolean @default(true)
+  freezeAllowed       Boolean @default(false)
+  transferFee         Float?
+  minimumTransferDays Int     @default(30)
+  maximumTransfers    Int?
+  requiresGymApproval Boolean @default(true)
+  allowOnlinePayment  Boolean @default(true)
+  allowCashTransfer   Boolean @default(false)
 
   gymId String
   gym   Gym    @relation(fields: [gymId], references: [id])
@@ -114,6 +119,7 @@ model UserMembership {
 
   // Keeps historical sales reporting correct if a plan price changes later.
   purchasePrice Float?
+  transferCount Int    @default(0)
 
   status MembershipStatus @default(ACTIVE)
 
@@ -345,6 +351,26 @@ model AdminAuditLog {
   @@index([action])
 }
 
+// Keeps an immutable record of each policy decision and membership handover.
+// This is deliberately separate from admin-only audit logs because a seller,
+// buyer, or gym owner may trigger an event in the transfer workflow.
+model TransferAuditLog {
+  id           String   @id @default(cuid())
+  membershipId String
+  listingId    String?
+  actorId      String?
+  actorRole    String?
+  action       String
+  summary      String
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  @@index([membershipId, createdAt])
+  @@index([listingId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([action])
+}
+
 model AuthToken {
   id        String        @id @default(cuid())
   userId    String
@@ -416,6 +442,7 @@ enum ListingStatus {
 
 enum TransferRequestStatus {
   PENDING
+  AWAITING_GYM_APPROVAL
   APPROVED
   REJECTED
   CANCELLED

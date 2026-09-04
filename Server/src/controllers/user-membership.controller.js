@@ -1,6 +1,7 @@
 const userMembershipService = require(
     '../services/user-membership.service'
 );
+const { getEligibilityForSeller } = require('../services/transfer-policy.service');
 
 const purchaseMembership = async (
     req,
@@ -43,6 +44,24 @@ const getMembershipById = async (
         });
     } catch (error) {
         return res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+const getTransferEligibility = async (req, res) => {
+    try {
+        const eligibility = await getEligibilityForSeller(
+            req.user.id,
+            req.params.membershipId
+        );
+
+        return res.status(200).json({
+            success: true,
+            data: eligibility
+        });
+    } catch (error) {
+        return res.status(error.statusCode || 500).json({
             success: false,
             message: error.message
         });
@@ -100,6 +119,7 @@ module.exports = {
     purchaseMembership,
     getMyMemberships,
     getMembershipById,
+    getTransferEligibility,
     freezeMembership,
     unfreezeMembership
 };

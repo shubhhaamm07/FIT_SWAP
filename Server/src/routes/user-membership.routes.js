@@ -27,6 +27,11 @@ router.get(
     userMembershipController.getMyMemberships
 );
 router.get(
+    '/memberships/:membershipId/transfer-eligibility',
+    protect,
+    userMembershipController.getTransferEligibility
+);
+router.get(
     '/memberships/:membershipId',
     protect,
     verifyMembershipOwnership,

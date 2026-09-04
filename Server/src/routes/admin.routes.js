@@ -53,6 +53,8 @@ router.get('/announcement-recipients', protect, authorize('ADMIN'), adminControl
 router.get('/announcements', protect, authorize('ADMIN'), adminController.getAnnouncements);
 router.post('/announcements', protect, authorize('ADMIN'), adminController.createAnnouncement);
 router.get('/audit-logs', protect, authorize('ADMIN'), adminController.getAuditLogs);
+router.get('/transfer-audit-logs', protect, authorize('ADMIN'), adminController.getTransferAuditLogs);
+router.get('/fraud-alerts', protect, authorize('ADMIN'), adminController.getFraudAlerts);
 
 /*
 |--------------------------------------------------------------------------

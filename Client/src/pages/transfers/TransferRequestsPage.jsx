@@ -45,11 +45,12 @@ const TransferRequestsPage = () => {
   const handleLegacyAction = async (requestId, action) => {
     try {
       setUpdatingId(requestId);
-      if (action === "approve") await approveTransferRequest(requestId);
+      let updatedRequest;
+      if (action === "approve") updatedRequest = await approveTransferRequest(requestId);
       else if (action === "reject") await rejectTransferRequest(requestId);
       else await cancelTransferRequest(requestId);
       await loadRequests();
-      setMessage(`Legacy transfer request ${action === "approve" ? "approved" : action === "reject" ? "rejected" : "cancelled"}.`);
+      setMessage(action === "approve" && updatedRequest?.status === "AWAITING_GYM_APPROVAL" ? "Seller confirmation recorded. The gym owner must now approve this cash handover." : `Legacy transfer request ${action === "approve" ? "approved" : action === "reject" ? "rejected" : "cancelled"}.`);
     } catch (error) {
       setMessage(error.response?.data?.message || "Unable to update this transfer request.");
     } finally { setUpdatingId(""); }
@@ -162,7 +163,7 @@ function Tab({ active, onClick, icon: Icon, label, count }) { return <button typ
 function Stat({ label, value, icon: Icon }) { return <div className="rounded-xl border border-white/[0.08] bg-black/10 px-4 py-3"><p className="flex items-center gap-1.5 text-xs text-zinc-500"><Icon size={13} /> {label}</p><p className="mt-1 text-xl font-bold text-white">{value}</p></div>; }
 function Info({ label, value }) { return <div><p className="text-xs text-zinc-500">{label}</p><p className="mt-1 max-w-[140px] truncate font-medium text-white">{value}</p></div>; }
 function PaymentStatus({ status }) { const styles = { AWAITING_PAYMENT: "bg-violet-500/15 text-violet-200", BUYER_MARKED_PAID: "bg-amber-500/15 text-amber-200", AWAITING_GYM_APPROVAL: "bg-sky-500/15 text-sky-200", COMPLETED: "bg-emerald-500/15 text-emerald-200", REJECTED: "bg-red-500/15 text-red-200", CANCELLED: "bg-zinc-500/15 text-zinc-300", EXPIRED: "bg-red-500/15 text-red-200" }; return <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${styles[status] || "bg-zinc-500/15 text-zinc-300"}`}>{String(status || "UNKNOWN").replaceAll("_", " ")}</span>; }
-function LegacyStatus({ status }) { const styles = { PENDING: "bg-amber-500/15 text-amber-300", APPROVED: "bg-emerald-500/15 text-emerald-300", REJECTED: "bg-red-500/15 text-red-300", CANCELLED: "bg-zinc-500/15 text-zinc-300" }; return <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${styles[status] || "bg-zinc-500/15 text-zinc-300"}`}>{status}</span>; }
+function LegacyStatus({ status }) { const styles = { PENDING: "bg-amber-500/15 text-amber-300", AWAITING_GYM_APPROVAL: "bg-sky-500/15 text-sky-200", APPROVED: "bg-emerald-500/15 text-emerald-300", REJECTED: "bg-red-500/15 text-red-300", CANCELLED: "bg-zinc-500/15 text-zinc-300" }; return <span className={`rounded-full px-2 py-1 text-[10px] font-bold ${styles[status] || "bg-zinc-500/15 text-zinc-300"}`}>{status}</span>; }
 function EmptyTransfers({ direction }) { return <div className="flex min-h-64 flex-col items-center justify-center rounded-2xl border border-dashed border-white/[0.1] bg-[#11121a] p-8 text-center"><ArrowDownLeft size={36} className="text-violet-400" /><h2 className="mt-4 font-semibold text-white">No {direction} requests</h2><p className="mt-2 text-sm text-zinc-500">{direction === "incoming" ? "Older transfer requests for your listings will appear here." : "Older marketplace requests will appear here."}</p></div>; }
 function formatDate(value) { const parsed = new Date(value); return Number.isNaN(parsed.getTime()) ? "—" : new Intl.DateTimeFormat("en-IN", { day: "2-digit", month: "short", year: "numeric" }).format(parsed); }
 function formatPaise(value) { return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(Number(value || 0) / 100); }
