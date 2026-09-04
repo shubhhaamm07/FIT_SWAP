@@ -11,7 +11,7 @@ const generatePlan = async (req, res, next) => {
     } catch (error) {
         // Provider failures are converted to safe, user-facing messages in the
         // service. Keep provider details and API keys private.
-        if (String(error.code || "").startsWith("OPENAI_")) {
+        if (String(error.code || "").startsWith("GROQ_")) {
             return res.status(error.status || 502).json({
                 success: false,
                 message: error.message,
