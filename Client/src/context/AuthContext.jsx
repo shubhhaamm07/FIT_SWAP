@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { AuthContext } from "./auth-context";
 import { getCurrentUser, logoutUser } from "../api/auth.api";
@@ -6,20 +6,24 @@ import { getCurrentUser, logoutUser } from "../api/auth.api";
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  // A sign-in can finish before the initial "who am I?" request. Track the
+  // latest auth action so that older responses cannot erase a new session.
+  const authVersion = useRef(0);
 
   useEffect(() => {
     let active = true;
+    const requestVersion = ++authVersion.current;
     getCurrentUser({ skipAuthLogout: true })
       .then((response) => {
-        if (!active) return;
+        if (!active || requestVersion !== authVersion.current) return;
         setUser(response.user);
       })
       .catch(() => {
-        if (!active) return;
+        if (!active || requestVersion !== authVersion.current) return;
         setUser(null);
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active && requestVersion === authVersion.current) setLoading(false);
       });
 
     return () => {
@@ -28,10 +32,13 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = (userData) => {
+    authVersion.current += 1;
     setUser(userData);
+    setLoading(false);
   };
 
   const logout = () => {
+    authVersion.current += 1;
     void logoutUser().catch(() => undefined);
     setUser(null);
   };

@@ -1,7 +1,9 @@
 import Axios from "axios";
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
-const apiBaseUrl = configuredApiUrl || (import.meta.env.DEV ? "http://localhost:8000/api" : "/api");
+// In local development, use Vite's same-origin proxy. This lets the browser
+// store and return the secure HTTP-only session cookie consistently.
+const apiBaseUrl = configuredApiUrl || "/api";
 
 if (import.meta.env.PROD && !configuredApiUrl) {
     console.error("VITE_API_URL is missing. Add the Render API URL in the Netlify environment settings.");

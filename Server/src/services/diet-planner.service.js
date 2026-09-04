@@ -327,99 +327,30 @@ const parseGroqJson = (responseBody) => {
     }
 };
 
-const normaliseWeeklyPlan = (aiPlan, mealStructure) => {
-    if (!Array.isArray(aiPlan) || aiPlan.length !== 7) {
+const normaliseWeeklyPlan = (mealSuggestions, mealStructure) => {
+    const expectedMealCount = mealStructure.reduce((total, day) => total + day.meals.length, 0);
+
+    if (!Array.isArray(mealSuggestions) || mealSuggestions.length !== expectedMealCount) {
         throw createError("Did not return a complete weekly plan. Please try again.", 502, "GROQ_INVALID_PLAN");
     }
 
-    return mealStructure.map((day, dayIndex) => {
-        const generatedDay = aiPlan[dayIndex];
-        if (!Array.isArray(generatedDay?.meals) || generatedDay.meals.length !== day.meals.length) {
-            throw createError("Did not return a complete daily meal plan. Please try again.", 502, "GROQ_INVALID_PLAN");
-        }
-
-        return {
-            ...day,
-            meals: day.meals.map((meal, mealIndex) => {
-                const suggestion = cleanText(generatedDay.meals[mealIndex]?.suggestion, 280);
-                if (!suggestion) {
-                    throw createError("Did not return a meal suggestion. Please try again.", 502, "GROQ_INVALID_PLAN");
-                }
-                return { ...meal, suggestion };
-            }),
-        };
-    });
+    let suggestionIndex = 0;
+    return mealStructure.map((day) => ({
+        ...day,
+        meals: day.meals.map((meal) => {
+            const suggestion = cleanText(mealSuggestions[suggestionIndex], 280);
+            suggestionIndex += 1;
+            if (!suggestion) {
+                throw createError("Did not return a meal suggestion. Please try again.", 502, "GROQ_INVALID_PLAN");
+            }
+            return { ...meal, suggestion };
+        }),
+    }));
 };
 
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
-const dietPlanSchema = {
-    type: "object",
-    additionalProperties: false,
-    required: ["headline", "summary", "weeklyPlan", "groceryList", "budgetTips", "mealTiming", "preparationTip"],
-    properties: {
-        headline: { type: "string" },
-        summary: { type: "string" },
-        weeklyPlan: {
-            type: "array",
-            items: {
-                type: "object",
-                additionalProperties: false,
-                required: ["day", "meals"],
-                properties: {
-                    day: { type: "integer" },
-                    meals: {
-                        type: "array",
-                        items: {
-                            type: "object",
-                            additionalProperties: false,
-                            required: ["suggestion"],
-                            properties: { suggestion: { type: "string" } },
-                        },
-                    },
-                },
-            },
-        },
-        groceryList: {
-            type: "array",
-            items: {
-                type: "object",
-                additionalProperties: false,
-                required: ["category", "items"],
-                properties: {
-                    category: { type: "string" },
-                    items: {
-                        type: "array",
-                        items: {
-                            type: "object",
-                            additionalProperties: false,
-                            required: ["name", "quantity"],
-                            properties: {
-                                name: { type: "string" },
-                                quantity: { type: "string" },
-                            },
-                        },
-                    },
-                },
-            },
-        },
-        budgetTips: { type: "array", items: { type: "string" } },
-        mealTiming: { type: "string" },
-        preparationTip: { type: "string" },
-    },
-};
-
-const mealSwapSchema = {
-    type: "object",
-    additionalProperties: false,
-    required: ["suggestion", "note"],
-    properties: {
-        suggestion: { type: "string" },
-        note: { type: "string" },
-    },
-};
-
-const requestGroqJson = async ({ apiKey, model, prompt, schema, schemaName, maxTokens, attempt = 0 }) => {
+const requestGroqJson = async ({ apiKey, model, prompt, maxTokens, attempt = 0 }) => {
     let response;
     try {
         response = await fetch(
@@ -435,14 +366,11 @@ const requestGroqJson = async ({ apiKey, model, prompt, schema, schemaName, maxT
                     messages: [{ role: "user", content: prompt }],
                     temperature: 0.55,
                     max_tokens: maxTokens,
-                    response_format: {
-                        type: "json_schema",
-                        json_schema: {
-                            name: schemaName,
-                            strict: true,
-                            schema,
-                        },
-                    },
+                    // gpt-oss-20b can reject valid strict schemas while generating
+                    // lengthy weekly plans. JSON-object mode is reliable here; the
+                    // response is still parsed and strictly validated below before
+                    // FitSwap returns it to the client.
+                    response_format: { type: "json_object" },
                 }),
                 signal: AbortSignal.timeout(30000),
             }
@@ -485,7 +413,7 @@ const requestGroqJson = async ({ apiKey, model, prompt, schema, schemaName, maxT
         }
         if (response.status >= 500 && attempt === 0) {
             await wait(800);
-            return requestGroqJson({ apiKey, model, prompt, schema, schemaName, maxTokens, attempt: 1 });
+            return requestGroqJson({ apiKey, model, prompt, maxTokens, attempt: 1 });
         }
         if (response.status >= 500) {
             throw createError("The AI service is temporarily unavailable. Please try again shortly.", 503, "GROQ_PROVIDER_UNAVAILABLE");
@@ -526,17 +454,15 @@ const generateWithGroq = async (input, basePlan) => {
         })),
     };
 
-    const prompt = `You are FitSwap's wellness meal-planning assistant. Create practical, varied Indian-food meal suggestions for a healthy adult. This is general fitness guidance only, not medical advice. Do not diagnose conditions, mention treatment, recommend supplements or medicines, claim to manage disease, use extreme restrictions, or change the fixed calories/macros. Honour vegan/vegetarian preferences, cuisine, cooking, workout, and food preferences. If a weekly INR budget is provided, prefer realistic home-cooked, locally available ingredients and offer cost-conscious choices. Use clear, concise suggestions with normal household portions; do not claim exact price or nutrition values for individual dishes.\n\nThe weeklyPlan must have exactly 7 ordered days. Every day must have exactly the same number and order of meal entries as the provided mealStructure. Provide a consolidated groceryList for the week, grouped into 3–6 practical categories. Give approximate household quantities, never prices.\n\nProfile and fixed structure:\n${JSON.stringify(safeProfile)}`;
+    const prompt = `You are FitSwap's wellness meal-planning assistant. Create practical, varied Indian-food meal suggestions for a healthy adult. This is general fitness guidance only, not medical advice. Do not diagnose conditions, mention treatment, recommend supplements or medicines, claim to manage disease, use extreme restrictions, or change the fixed calories/macros. Honour vegan/vegetarian preferences, cuisine, cooking, workout, and food preferences. If a weekly INR budget is provided, prefer realistic home-cooked, locally available ingredients and offer cost-conscious choices. Use clear, concise suggestions with normal household portions; do not claim exact price or nutrition values for individual dishes.\n\nReturn one valid JSON object only, with no Markdown or extra text. It must contain: headline (string), summary (string), mealSuggestions (array of strings), groceryList (array), budgetTips (array of strings), mealTiming (string), and preparationTip (string). mealSuggestions must contain exactly one concise suggestion for every meal slot in the supplied mealStructure, in the exact supplied day and meal order. Do not return weeklyPlan, day objects, or meal objects. Provide a consolidated groceryList for the week, grouped into 3–6 objects; each group has category (string) and items (array), and each item has name (string) and quantity (string). Give approximate household quantities, never prices.\n\nProfile and fixed structure:\n${JSON.stringify(safeProfile)}`;
 
     const generated = await requestGroqJson({
         apiKey,
         model,
         prompt,
-        schema: dietPlanSchema,
-        schemaName: "diet_plan",
         maxTokens: 4096,
     });
-    const weeklyPlan = normaliseWeeklyPlan(generated.weeklyPlan, basePlan.mealStructure);
+    const weeklyPlan = normaliseWeeklyPlan(generated.mealSuggestions, basePlan.mealStructure);
     const budgetTips = Array.isArray(generated.budgetTips)
         ? generated.budgetTips.map((tip) => cleanText(tip, 220)).filter(Boolean).slice(0, 3)
         : [];
@@ -619,13 +545,11 @@ const swapDietMeal = async (rawInput) => {
             foodsToAvoid: input.avoidFoods || "None provided",
         },
     };
-    const prompt = `You are FitSwap's wellness meal-planning assistant. Replace exactly one meal with a practical Indian-food alternative for a healthy adult. This is general fitness guidance only, not medical advice. Do not mention treatment, supplements, medicines, disease management, allergies, or exact nutritional claims. Honour every supplied preference. Keep the replacement close to the supplied calorie target using normal household portions. Return a concise suggestion and a brief practical note.\n\nMeal to replace:\n${JSON.stringify({ day, mealLabel, targetCalories, currentSuggestion })}\n\nProfile:\n${JSON.stringify(safeProfile)}`;
+    const prompt = `You are FitSwap's wellness meal-planning assistant. Replace exactly one meal with a practical Indian-food alternative for a healthy adult. This is general fitness guidance only, not medical advice. Do not mention treatment, supplements, medicines, disease management, allergies, or exact nutritional claims. Honour every supplied preference. Keep the replacement close to the supplied calorie target using normal household portions. Return one valid JSON object only, with no Markdown or extra text, containing exactly suggestion (string) and note (string).\n\nMeal to replace:\n${JSON.stringify({ day, mealLabel, targetCalories, currentSuggestion })}\n\nProfile:\n${JSON.stringify(safeProfile)}`;
     const generated = await requestGroqJson({
         apiKey,
         model,
         prompt,
-        schema: mealSwapSchema,
-        schemaName: "meal_swap",
         maxTokens: 500,
     });
     const suggestion = cleanText(generated.suggestion, 280);
