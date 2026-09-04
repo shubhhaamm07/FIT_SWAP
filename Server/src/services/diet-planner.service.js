@@ -134,7 +134,7 @@ const validateInput = (input = {}) => {
         throw createError("Meals per day must be 3, 4, or 5.");
     }
     if (input.aiConsent !== true) {
-        throw createError("Confirm that FitSwap may send these plan preferences to Gemini to generate your diet plan.");
+        throw createError("Confirm that FitSwap may send these plan preferences to its AI service to generate your diet plan.");
     }
 
     const dietaryNotes = String(input.dietaryNotes || "").trim().slice(0, 180);
@@ -246,7 +246,7 @@ const getGeminiConfig = () => {
     const apiKey = String(process.env.GEMINI_API_KEY || "").trim();
     if (!apiKey) {
         throw createError(
-            "AI diet generation is not configured. Add GEMINI_API_KEY to the server environment.",
+            "The AI diet service is not configured yet. Please try again later.",
             503,
             "GEMINI_NOT_CONFIGURED"
         );
@@ -254,9 +254,9 @@ const getGeminiConfig = () => {
 
     return {
         apiKey,
-        // Keep a stable model as the default. The model can still be changed
-        // through GEMINI_MODEL without editing application code.
-        model: String(process.env.GEMINI_MODEL || "gemini-2.5-flash").trim(),
+        // Keep the model aligned with the configured Google AI Studio project.
+        // It can still be changed through GEMINI_MODEL without editing code.
+        model: String(process.env.GEMINI_MODEL || "gemini-3.7-flash").trim(),
     };
 };
 
@@ -273,25 +273,25 @@ const parseGeminiJson = (responseBody) => {
         .trim();
 
     if (!text) {
-        throw createError("Gemini did not return a usable diet plan. Please try again.", 502, "GEMINI_EMPTY_RESPONSE");
+        throw createError("Did not return a usable diet plan. Please try again.", 502, "GEMINI_EMPTY_RESPONSE");
     }
 
     try {
         return JSON.parse(text.replace(/^```json\s*/i, "").replace(/\s*```$/, ""));
     } catch {
-        throw createError("Gemini returned an invalid diet plan. Please try again.", 502, "GEMINI_INVALID_RESPONSE");
+        throw createError("Did not return a valid diet plan. Please try again.", 502, "GEMINI_INVALID_RESPONSE");
     }
 };
 
 const normaliseWeeklyPlan = (aiPlan, mealStructure) => {
     if (!Array.isArray(aiPlan) || aiPlan.length !== 7) {
-        throw createError("Gemini returned an incomplete weekly plan. Please try again.", 502, "GEMINI_INVALID_PLAN");
+        throw createError("Did not return a complete weekly plan. Please try again.", 502, "GEMINI_INVALID_PLAN");
     }
 
     return mealStructure.map((day, dayIndex) => {
         const generatedDay = aiPlan[dayIndex];
         if (!Array.isArray(generatedDay?.meals) || generatedDay.meals.length !== day.meals.length) {
-            throw createError("Gemini returned an incomplete daily meal plan. Please try again.", 502, "GEMINI_INVALID_PLAN");
+            throw createError("Did not return a complete daily meal plan. Please try again.", 502, "GEMINI_INVALID_PLAN");
         }
 
         return {
@@ -299,7 +299,7 @@ const normaliseWeeklyPlan = (aiPlan, mealStructure) => {
             meals: day.meals.map((meal, mealIndex) => {
                 const suggestion = cleanText(generatedDay.meals[mealIndex]?.suggestion, 280);
                 if (!suggestion) {
-                    throw createError("Gemini omitted a meal suggestion. Please try again.", 502, "GEMINI_INVALID_PLAN");
+                    throw createError("Did not return a meal suggestion. Please try again.", 502, "GEMINI_INVALID_PLAN");
                 }
                 return { ...meal, suggestion };
             }),
@@ -307,8 +307,12 @@ const normaliseWeeklyPlan = (aiPlan, mealStructure) => {
     });
 };
 
-const generateWithGemini = async (input, basePlan) => {
-    const { apiKey, model } = getGeminiConfig();
+const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+const generateWithGemini = async (input, basePlan, options = {}) => {
+    const { apiKey, model: configuredModel } = getGeminiConfig();
+    const model = options.modelOverride || configuredModel;
+    const attempt = options.attempt || 0;
     const safeProfile = {
         goal: basePlan.profile.goalLabel,
         dietaryPreference: input.diet,
@@ -360,36 +364,48 @@ const generateWithGemini = async (input, basePlan) => {
         });
 
         if (error.name === "TimeoutError") {
-            throw createError("Gemini took too long to respond. Please try again.", 504, "GEMINI_TIMEOUT");
+            throw createError("Took too long to respond. Please try again.", 504, "GEMINI_TIMEOUT");
         }
         if (error?.cause?.code === "ENOTFOUND") {
-            throw createError("The server could not reach Gemini. Check its internet or DNS connection and try again.", 502, "GEMINI_NETWORK_DNS");
+            throw createError("The AI service could not be reached. Please try again.", 502, "GEMINI_NETWORK_DNS");
         }
-        throw createError("FitSwap could not reach Gemini. Please try again.", 502, "GEMINI_UNAVAILABLE");
+        throw createError("FitSwap could not reach. Please try again.", 502, "GEMINI_UNAVAILABLE");
     }
 
     let responseBody;
     try {
         responseBody = await response.json();
     } catch {
-        throw createError("Gemini returned an unreadable response. Please try again.", 502, "GEMINI_INVALID_RESPONSE");
+        throw createError("Did not return a readable response. Please try again.", 502, "GEMINI_INVALID_RESPONSE");
     }
 
     if (!response.ok) {
         console.error("Gemini diet planner request failed", { status: response.status, body: responseBody?.error?.message });
         if (response.status === 401 || response.status === 403) {
-            throw createError("Gemini authentication failed. Check GEMINI_API_KEY on the server.", 502, "GEMINI_AUTH_FAILED");
+            throw createError("The AI service is unavailable right now. Please try again later.", 502, "GEMINI_AUTH_FAILED");
         }
         if (response.status === 404) {
-            throw createError("The selected Gemini model is unavailable. Set GEMINI_MODEL to gemini-2.5-flash and try again.", 502, "GEMINI_MODEL_UNAVAILABLE");
+            throw createError("The AI service is unavailable right now. Please try again later.", 502, "GEMINI_MODEL_UNAVAILABLE");
         }
         if (response.status === 429) {
-            throw createError("Gemini's free request limit has been reached. Please wait a few minutes and try again.", 429, "GEMINI_RATE_LIMITED");
+            throw createError("The AI service is busy. Please wait a few minutes and try again.", 429, "GEMINI_RATE_LIMITED");
+        }
+        if (response.status >= 500 && attempt === 0) {
+            // A short retry handles temporary provider overloads without
+            // making a user manually resubmit their wellness profile.
+            await wait(800);
+            return generateWithGemini(input, basePlan, { modelOverride: model, attempt: 1 });
+        }
+        if (response.status >= 500 && model === configuredModel && model === "gemini-3.7-flash") {
+            // Keep 3.7 Flash as the preferred model, with a stable fallback
+            // only if Gemini reports a temporary server-side failure twice.
+            console.warn("Gemini 3.7 Flash remained unavailable; trying the fallback model.");
+            return generateWithGemini(input, basePlan, { modelOverride: "gemini-2.5-flash" });
         }
         if (response.status >= 500) {
-            throw createError("Gemini is temporarily unavailable. Please try again shortly.", 503, "GEMINI_PROVIDER_UNAVAILABLE");
+            throw createError("The AI service is temporarily unavailable. Please try again shortly.", 503, "GEMINI_PROVIDER_UNAVAILABLE");
         }
-        throw createError("Gemini could not generate a diet plan right now. Please try again.", 502, "GEMINI_REQUEST_FAILED");
+        throw createError("The AI service could not generate a diet plan right now. Please try again.", 502, "GEMINI_REQUEST_FAILED");
     }
 
     const generated = parseGeminiJson(responseBody);
@@ -399,8 +415,8 @@ const generateWithGemini = async (input, basePlan) => {
         : [];
 
     return {
-        model: `Gemini · ${model}`,
-        generationMethod: "gemini-ai-generated-wellness-guidance",
+        model: "FitSwap AI",
+        generationMethod: "ai-generated-wellness-guidance",
         requiresProfessionalReview: false,
         profile: basePlan.profile,
         dailyTargets: basePlan.dailyTargets,
@@ -417,8 +433,8 @@ const generateWithGemini = async (input, basePlan) => {
             basePlan.goalMessage,
             `Your activity level is used to estimate maintenance energy near ${basePlan.dailyTargets.estimatedMaintenanceCalories} kcal/day.`,
             input.weeklyBudgetInr
-                ? `Gemini was asked to keep the weekly food ideas mindful of a ₹${input.weeklyBudgetInr} budget.`
-                : `Gemini was asked to use ${input.budget.toLowerCase()} budget-friendly meal ideas.`,
+                ? `Your AI plan is designed to keep weekly food ideas mindful of a ₹${input.weeklyBudgetInr} budget.`
+                : `Your AI plan is designed to use ${input.budget.toLowerCase()} budget-friendly meal ideas.`,
         ],
         warnings: [
             "This is AI-generated general fitness guidance, not medical advice or a treatment plan.",

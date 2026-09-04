@@ -97,10 +97,12 @@ function DietPlannerPage() {
   }, [plan]);
 
   const updateForm = (field, value) => {
+    setError("");
     setForm((current) => ({ ...current, [field]: value }));
   };
 
   const toggleHealthConcern = (concern) => {
+    setError("");
     setForm((current) => ({
       ...current,
       healthConcerns: current.healthConcerns.includes(concern)
@@ -144,7 +146,7 @@ function DietPlannerPage() {
               <BrainCircuit size={15} /> FitSwap AI Diet Planner · Beta
             </div>
             <h1 className="mt-5 text-3xl font-black tracking-tight text-white sm:text-4xl">Eat with a plan. Train with purpose.</h1>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-zinc-300 sm:text-base">Gemini creates a practical Indian-food meal structure from your goal, movement, diet, preferences, and budget. FitSwap does not store the details you enter here.</p>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-zinc-300 sm:text-base">FitSwap AI creates a practical Indian-food meal structure from your goal, movement, diet, preferences, and budget. FitSwap does not store the details you enter here.</p>
           </div>
           <div className="relative mt-6 flex flex-wrap gap-3 text-xs text-zinc-300">
             <FeatureChip icon={Sparkles} text="Goal-based calories" />
@@ -202,12 +204,12 @@ function DietPlannerPage() {
                   return <button key={value} type="button" onClick={() => toggleHealthConcern(value)} aria-pressed={selected} className={`rounded-full border px-3 py-2 text-xs font-semibold transition ${selected ? "border-amber-300/55 bg-amber-400/15 text-amber-100" : "border-white/[0.09] bg-black/10 text-zinc-400 hover:border-amber-300/30 hover:text-amber-100"}`}>{label}</button>;
                 })}
               </div>
-              {form.healthConcerns.length > 0 && <p className="mt-3 flex items-start gap-2 text-xs leading-5 text-amber-100"><AlertTriangle size={15} className="mt-0.5 shrink-0" /> Automatic Gemini meal generation will pause for this profile. A professional-review guide will be shown instead.</p>}
+              {form.healthConcerns.length > 0 && <p className="mt-3 flex items-start gap-2 text-xs leading-5 text-amber-100"><AlertTriangle size={15} className="mt-0.5 shrink-0" /> Automatic AI meal generation will pause for this profile. A professional-review guide will be shown instead.</p>}
             </fieldset>
 
             <label className="mt-5 flex cursor-pointer items-start gap-3 rounded-2xl border border-white/[0.08] bg-black/15 p-4 text-sm text-zinc-400">
               <input required type="checkbox" checked={form.aiConsent} onChange={(event) => updateForm("aiConsent", event.target.checked)} className="mt-0.5 h-4 w-4 rounded border-white/20 bg-black/30 accent-violet-500" />
-              <span>I understand that FitSwap will send these plan preferences—not my name or account details—to Gemini to create this one-time plan. They are not saved in my FitSwap profile.</span>
+              <span>I understand that FitSwap will send these plan preferences—not my name or account details—to its AI service to create this one-time plan. They are not saved in my FitSwap profile.</span>
             </label>
 
             {error && <div role="alert" className="mt-5 flex items-start gap-2 rounded-xl border border-red-500/25 bg-red-500/[0.06] px-4 py-3 text-sm leading-5 text-red-200"><AlertTriangle size={17} className="mt-0.5 shrink-0" />{error}</div>}
@@ -215,7 +217,7 @@ function DietPlannerPage() {
             <div className="mt-6 flex flex-col gap-3 border-t border-white/[0.08] pt-5 sm:flex-row sm:items-center sm:justify-between">
               <p className="max-w-md text-xs leading-5 text-zinc-500">By continuing, you understand that this is general fitness guidance—not medical, allergy-safe, or therapeutic nutrition advice.</p>
               <button disabled={loading} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-violet-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-violet-950/40 transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-60">
-                {loading ? <><LoaderCircle size={17} className="animate-spin" /> Creating your plan…</> : <><Sparkles size={17} /> Generate my plan <ArrowRight size={16} /></>}
+                {loading ? <><LoaderCircle size={17} className="animate-spin" /> Creating your plan…</> : form.healthConcerns.length > 0 ? <><AlertTriangle size={17} /> Show health guidance <ArrowRight size={16} /></> : <><Sparkles size={17} /> Generate my plan <ArrowRight size={16} /></>}
               </button>
             </div>
           </form>
@@ -236,7 +238,7 @@ function DietPlannerPage() {
           <div className="rounded-3xl border border-violet-400/20 bg-[radial-gradient(circle_at_top_right,rgba(124,58,237,.18),transparent_32%),#11121a] p-5 sm:p-7">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-200"><Sparkles size={14} /> Generated with Gemini</div>
+                <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-200"><Sparkles size={14} /> Generated with FitSwap AI</div>
                 <h2 className="mt-3 text-2xl font-black tracking-tight text-white sm:text-3xl">{plan.headline || "Your AI-created nutrition rhythm."}</h2>
                 <p className="mt-2 text-sm text-zinc-400">{plan.summary || profileSummary}</p>
                 <p className="mt-1 text-xs text-zinc-600">{profileSummary} · {plan.model}</p>
@@ -308,7 +310,7 @@ function InfoCard({ icon: Icon, title, items }) {
 
 function ProfessionalReview({ plan }) {
   const concerns = plan.healthConcerns?.map(formatHealthConcern).join(", ") || "Your health notes";
-  return <section id="your-diet-plan" className="mt-8 scroll-mt-28 rounded-3xl border border-amber-400/20 bg-[radial-gradient(circle_at_top_right,rgba(245,158,11,.12),transparent_32%),#11121a] p-5 sm:p-7"><div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between"><div><div className="inline-flex items-center gap-2 rounded-full bg-amber-400/10 px-3 py-1.5 text-xs font-bold text-amber-100"><AlertTriangle size={14} /> Professional review recommended</div><h2 className="mt-4 text-2xl font-black tracking-tight text-white">Health-aware mode is protecting you.</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">You selected: <span className="font-semibold text-amber-100">{concerns}</span>. FitSwap will not let Gemini create a disease-specific or allergy-safe diet from limited information.</p></div><button type="button" onClick={() => document.getElementById("diet-profile-form")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-white/[0.1] bg-black/15 px-4 py-2.5 text-sm font-semibold text-zinc-200 transition hover:bg-white/[0.06]"><RefreshCw size={16} /> Update details</button></div><div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><TargetCard icon={Flame} label="General energy estimate" value={`${plan.dailyTargets.calories} kcal`} detail="Share with a professional" tone="violet" /><TargetCard icon={Dumbbell} label="Protein estimate" value={`${plan.dailyTargets.proteinGrams} g`} detail="Share with a professional" tone="emerald" /><TargetCard icon={Wheat} label="Carbohydrate estimate" value={`${plan.dailyTargets.carbohydrateGrams} g`} detail="Share with a professional" tone="amber" /><TargetCard icon={Salad} label="Healthy-fat estimate" value={`${plan.dailyTargets.fatGrams} g`} detail="Share with a professional" tone="rose" /></div><div className="mt-6 rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] p-5"><p className="font-semibold text-amber-100">What to do next</p><ul className="mt-3 space-y-2 text-sm leading-6 text-amber-100/75">{plan.warnings.map((warning) => <li key={warning}>• {warning}</li>)}</ul></div></section>;
+  return <section id="your-diet-plan" className="mt-8 scroll-mt-28 rounded-3xl border border-amber-400/20 bg-[radial-gradient(circle_at_top_right,rgba(245,158,11,.12),transparent_32%),#11121a] p-5 sm:p-7"><div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between"><div><div className="inline-flex items-center gap-2 rounded-full bg-amber-400/10 px-3 py-1.5 text-xs font-bold text-amber-100"><AlertTriangle size={14} /> Professional review recommended</div><h2 className="mt-4 text-2xl font-black tracking-tight text-white">Health-aware mode is protecting you.</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">You selected: <span className="font-semibold text-amber-100">{concerns}</span>. FitSwap will not create a disease-specific or allergy-safe diet from limited information.</p></div><button type="button" onClick={() => document.getElementById("diet-profile-form")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-white/[0.1] bg-black/15 px-4 py-2.5 text-sm font-semibold text-zinc-200 transition hover:bg-white/[0.06]"><RefreshCw size={16} /> Update details</button></div><div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><TargetCard icon={Flame} label="General energy estimate" value={`${plan.dailyTargets.calories} kcal`} detail="Share with a professional" tone="violet" /><TargetCard icon={Dumbbell} label="Protein estimate" value={`${plan.dailyTargets.proteinGrams} g`} detail="Share with a professional" tone="emerald" /><TargetCard icon={Wheat} label="Carbohydrate estimate" value={`${plan.dailyTargets.carbohydrateGrams} g`} detail="Share with a professional" tone="amber" /><TargetCard icon={Salad} label="Healthy-fat estimate" value={`${plan.dailyTargets.fatGrams} g`} detail="Share with a professional" tone="rose" /></div><div className="mt-6 rounded-2xl border border-amber-400/20 bg-amber-400/[0.06] p-5"><p className="font-semibold text-amber-100">What to do next</p><ul className="mt-3 space-y-2 text-sm leading-6 text-amber-100/75">{plan.warnings.map((warning) => <li key={warning}>• {warning}</li>)}</ul></div></section>;
 }
 
 function formatDiet(value) {
