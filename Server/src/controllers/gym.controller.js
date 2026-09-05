@@ -73,12 +73,13 @@ const updateGymStatus = async (req, res) => {
 
         const gym = await gymService.updateGymStatus(
             req.params.id,
-            status
+            status,
+            req.user.userId
         );
 
         try {
             await adminService.createAuditLog({
-                adminId: req.user.id,
+                adminId: req.user.userId,
                 action: 'GYM_STATUS_UPDATED',
                 targetType: 'GYM',
                 targetId: gym.id,
@@ -106,7 +107,9 @@ const updateGym = async (req, res) => {
         const gym = await gymService.updateGymByOwner(req.params.id, req.user.userId, req.body);
         return res.status(200).json({
             success: true,
-            message: 'Gym profile updated successfully',
+            message: gym.status === 'PENDING'
+                ? 'Gym profile updated. Approval is required before it appears publicly.'
+                : 'Gym profile updated successfully',
             data: gym
         });
     } catch (error) {

@@ -251,6 +251,37 @@ textarea:focus-visible,
     color: #526077 !important;
 }
 
+/* Pastel Tailwind shades look good on the dark dashboard but do not always
+   meet text contrast on a white card. Keep the same visual meaning in light
+   mode while using the accessible darker shade of each colour. */
+:root[data-theme="light"] .app-dashboard :is(
+    [class~="text-violet-200"], [class~="text-violet-300"], [class~="text-violet-400"]
+) { color: #5b21b6 !important; }
+
+:root[data-theme="light"] .app-dashboard :is(
+    [class~="text-cyan-200"], [class~="text-cyan-300"], [class~="text-cyan-400"]
+) { color: #155e75 !important; }
+
+:root[data-theme="light"] .app-dashboard :is(
+    [class~="text-amber-200"], [class~="text-amber-300"], [class~="text-amber-400"]
+) { color: #92400e !important; }
+
+:root[data-theme="light"] .app-dashboard :is(
+    [class~="text-red-200"], [class~="text-red-300"], [class~="text-red-400"]
+) { color: #b91c1c !important; }
+
+:root[data-theme="light"] .app-dashboard :is(
+    [class~="text-emerald-200"], [class~="text-emerald-300"], [class~="text-emerald-400"]
+) { color: #047857 !important; }
+
+:root[data-theme="light"] .app-dashboard :is(
+    [class~="text-sky-200"], [class~="text-sky-300"], [class~="text-sky-400"]
+) { color: #0369a1 !important; }
+
+:root[data-theme="light"] .app-dashboard :is(
+    [class~="text-fuchsia-200"], [class~="text-fuchsia-300"], [class~="text-fuchsia-400"]
+) { color: #a21caf !important; }
+
 :root[data-theme="light"] .app-dashboard :is(
     [class~="border-white/5"],
     [class~="border-white/10"],

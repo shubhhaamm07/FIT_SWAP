@@ -1,6 +1,8 @@
 const prisma = require('../lib/prisma');
+const notificationService = require('./notification.service');
 
 const REQUIRED_GYM_FIELDS = ['name', 'address', 'city', 'state', 'pincode', 'phone'];
+const REAPPROVAL_FIELDS = ['address', 'city', 'state', 'pincode', 'latitude', 'longitude'];
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
@@ -100,6 +102,53 @@ const sanitizeGymData = (gymData) => {
     return sanitized;
 };
 
+const suspendFutureTrialOperations = async (database, gymId, { reason, actorId = null }) => {
+    const now = new Date();
+    const activeStatuses = ['PENDING', 'CONFIRMED'];
+    const affectedBookings = await database.gymTrialBooking.findMany({
+        where: {
+            status: { in: activeStatuses },
+            slot: { gymId, startAt: { gt: now } }
+        },
+        select: { userId: true }
+    });
+
+    await database.gymTrialBooking.updateMany({
+        where: {
+            status: { in: activeStatuses },
+            slot: { gymId, startAt: { gt: now } }
+        },
+        data: {
+            status: 'CANCELLED',
+            cancellationReason: reason,
+            cancelledAt: now,
+            ...(actorId ? { lastUpdatedById: actorId } : {})
+        }
+    });
+
+    await database.gymTrialSlot.updateMany({
+        where: { gymId, isActive: true, startAt: { gt: now } },
+        data: { isActive: false, bookedCount: 0 }
+    });
+
+    return [...new Set(affectedBookings.map((booking) => booking.userId))];
+};
+
+const notifySuspendedTrialBookings = async (userIds, gymName, message) => {
+    await Promise.all(userIds.map(async (userId) => {
+        try {
+            await notificationService.createNotification(
+                userId,
+                'Gym trial cancelled',
+                `Your upcoming trial at ${gymName} was cancelled because ${message}. Please choose another available slot.`,
+                { category: 'TRANSACTIONAL' }
+            );
+        } catch (_error) {
+            // The business change succeeded; inbox delivery can safely fail alone.
+        }
+    }));
+};
+
 const createGym = async (gymData, ownerId) => {
     const sanitizedGymData = sanitizeGymData(gymData);
 
@@ -156,23 +205,54 @@ const getAllGyms = async () => {
 
     return gyms;
 };
-const updateGymStatus = async (gymId, status) => {
-    const gym = await prisma.gym.update({
-        where: {
-            id: gymId
-        },
-        data: {
-            status
-        }
+const updateGymStatus = async (gymId, status, actorId = null) => {
+    const result = await prisma.$transaction(async (tx) => {
+        const existingGym = await tx.gym.findUnique({
+            where: { id: gymId },
+            select: { id: true, name: true }
+        });
+        if (!existingGym) throw new Error('Gym not found');
+
+        const gym = await tx.gym.update({
+            where: { id: gymId },
+            data: { status }
+        });
+
+        const affectedUserIds = status === 'APPROVED'
+            ? []
+            : await suspendFutureTrialOperations(tx, gymId, {
+                reason: 'This gym is no longer approved for trial sessions',
+                actorId
+            });
+
+        return { gym, affectedUserIds };
     });
 
-    return gym;
+    if (result.affectedUserIds.length) {
+        await notifySuspendedTrialBookings(
+            result.affectedUserIds,
+            result.gym.name,
+            'the gym is no longer approved for trial sessions'
+        );
+    }
+
+    return result.gym;
 };
 
 const updateGymByOwner = async (gymId, ownerId, gymData) => {
     const gym = await prisma.gym.findFirst({
         where: { id: gymId, ownerId },
-        select: { id: true }
+        select: {
+            id: true,
+            name: true,
+            status: true,
+            address: true,
+            city: true,
+            state: true,
+            pincode: true,
+            latitude: true,
+            longitude: true
+        }
     });
 
     if (!gym) {
@@ -180,11 +260,40 @@ const updateGymByOwner = async (gymId, ownerId, gymData) => {
     }
 
     const sanitizedGymData = sanitizeGymData(gymData);
+    const requiresReapproval = gym.status === 'APPROVED'
+        && REAPPROVAL_FIELDS.some((field) => (
+            hasOwn(sanitizedGymData, field)
+            && gym[field] !== sanitizedGymData[field]
+        ));
 
-    return prisma.gym.update({
-        where: { id: gymId },
-        data: sanitizedGymData
+    if (!requiresReapproval) {
+        return prisma.gym.update({
+            where: { id: gymId },
+            data: sanitizedGymData
+        });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+        const updatedGym = await tx.gym.update({
+            where: { id: gymId },
+            data: { ...sanitizedGymData, status: 'PENDING' }
+        });
+        const affectedUserIds = await suspendFutureTrialOperations(tx, gymId, {
+            reason: 'The gym location details were changed and need approval',
+            actorId: ownerId
+        });
+        return { gym: updatedGym, affectedUserIds };
     });
+
+    if (result.affectedUserIds.length) {
+        await notifySuspendedTrialBookings(
+            result.affectedUserIds,
+            result.gym.name,
+            'the gym location details changed and are being reviewed'
+        );
+    }
+
+    return result.gym;
 };
 const getGymById = async (gymId) => {
     return prisma.gym.findFirst({

@@ -19,6 +19,25 @@ import MembershipModalProvider from "../context/MembershipModalProvider";
 
 import useMembership from "../hooks/useMembership";
 
+const REMINDER_TIME_ZONE = "Asia/Kolkata";
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const calendarDayNumber = (value) => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: REMINDER_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(value));
+  const date = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+
+  return Math.floor(Date.UTC(
+    Number(date.year),
+    Number(date.month) - 1,
+    Number(date.day),
+  ) / DAY_MS);
+};
+
 function MembershipSection() {
   const {
     memberships,
@@ -140,10 +159,10 @@ function MembershipSection() {
 function ExpiryReminderSummary({ memberships }) {
   const [referenceTime] = useState(() => Date.now());
   const expiring = memberships
-    .filter((membership) => membership.status === "ACTIVE")
+    .filter((membership) => ["ACTIVE", "FROZEN"].includes(membership.status))
     .map((membership) => ({
       ...membership,
-      daysRemaining: Math.ceil((new Date(membership.endDate).getTime() - referenceTime) / 86400000),
+      daysRemaining: calendarDayNumber(membership.endDate) - calendarDayNumber(referenceTime),
     }))
     .filter((membership) => membership.daysRemaining >= 0 && membership.daysRemaining <= 30)
     .sort((first, second) => first.daysRemaining - second.daysRemaining);

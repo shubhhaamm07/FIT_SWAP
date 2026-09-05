@@ -208,6 +208,7 @@ const processMembershipExpiryReminders = async ({
 module.exports = {
     processMembershipExpiryReminders,
     createInAppReminder,
+    getCalendarDayNumber,
     getDaysBeforeExpiry,
     getDueReminderDay,
     resolveTimeZone,

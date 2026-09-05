@@ -9,6 +9,8 @@ const OWNER_STATUS_UPDATES = ['CONFIRMED', ...TERMINAL_BOOKING_STATUSES];
 const TRIAL_COOLDOWN_DAYS = 30;
 const MAX_UPCOMING_BOOKINGS = 3;
 const MAX_SLOT_CAPACITY = 100;
+const MAX_AVAILABLE_SLOTS = 200;
+const SLOT_PAGE_SIZE = 100;
 
 const fail = (statusCode, message) => {
     const error = new Error(message);
@@ -185,8 +187,10 @@ const listOwnerTrialSlots = async (ownerId, query = {}) => {
     return slots.map(serializeSlot);
 };
 
-const updateTrialSlot = async (ownerId, slotId, input = {}) => {
-    const existing = await prisma.gymTrialSlot.findFirst({
+const updateTrialSlotInTransaction = (ownerId, slotId, input) => prisma.$transaction(async (tx) => {
+    // Reading and updating in one serializable transaction means a booking that
+    // arrives at the same time cannot be silently moved to a new schedule.
+    const existing = await tx.gymTrialSlot.findFirst({
         where: { id: slotId, gym: { ownerId } },
         include: { _count: { select: { bookings: true } } }
     });
@@ -216,24 +220,30 @@ const updateTrialSlot = async (ownerId, slotId, input = {}) => {
     }
     const requiresApproval = parseOptionalBoolean(input.requiresApproval, 'Requires approval');
 
-    try {
-        const slot = await prisma.gymTrialSlot.update({
-            where: { id: existing.id },
-            data: {
-                startAt,
-                endAt,
-                capacity,
-                ...(requiresApproval === undefined
-                    ? {}
-                    : { requiresApproval })
-            },
-            include: slotInclude
-        });
-        return serializeSlot(slot);
-    } catch (error) {
-        if (error.code === 'P2002') fail(409, 'A trial slot already exists for this gym at that time');
-        throw error;
+    const slot = await tx.gymTrialSlot.update({
+        where: { id: existing.id },
+        data: {
+            startAt,
+            endAt,
+            capacity,
+            ...(requiresApproval === undefined ? {} : { requiresApproval })
+        },
+        include: slotInclude
+    });
+    return serializeSlot(slot);
+}, { isolationLevel: 'Serializable' });
+
+const updateTrialSlot = async (ownerId, slotId, input = {}) => {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+            return await updateTrialSlotInTransaction(ownerId, slotId, input);
+        } catch (error) {
+            if (error.code === 'P2002') fail(409, 'A trial slot already exists for this gym at that time');
+            if (error.code !== 'P2034' || attempt === 2) throw error;
+        }
     }
+
+    return null;
 };
 
 const deactivateTrialSlot = async (ownerId, slotId, reason) => {
@@ -315,16 +325,34 @@ const listAvailableTrialSlots = async (query = {}) => {
         where.startAt = { gte: rangeStart, lt: dayEnd };
     }
 
-    const slots = await prisma.gymTrialSlot.findMany({
-        where,
-        include: slotInclude,
-        orderBy: { startAt: 'asc' },
-        take: 200
-    });
+    // Capacity is derived from two columns, so Prisma cannot express
+    // `bookedCount < capacity` here. Page through full slots instead of
+    // filtering a fixed first page and hiding later available sessions.
+    const availableSlots = [];
+    let cursorId;
 
-    return slots
-        .map(serializeSlot)
-        .filter((slot) => !slot.isFull);
+    while (availableSlots.length < MAX_AVAILABLE_SLOTS) {
+        const slots = await prisma.gymTrialSlot.findMany({
+            where,
+            include: slotInclude,
+            orderBy: [{ startAt: 'asc' }, { id: 'asc' }],
+            take: SLOT_PAGE_SIZE,
+            ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {})
+        });
+
+        if (!slots.length) break;
+
+        for (const slot of slots) {
+            const serialized = serializeSlot(slot);
+            if (!serialized.isFull) availableSlots.push(serialized);
+            if (availableSlots.length === MAX_AVAILABLE_SLOTS) break;
+        }
+
+        if (slots.length < SLOT_PAGE_SIZE) break;
+        cursorId = slots[slots.length - 1].id;
+    }
+
+    return availableSlots;
 };
 
 const generateBookingReference = () =>

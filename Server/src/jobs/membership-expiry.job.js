@@ -1,10 +1,18 @@
 const cron = require('node-cron');
 const prisma = require('../lib/prisma');
 const {
-    processMembershipExpiryReminders
+    processMembershipExpiryReminders,
+    getCalendarDayNumber,
+    resolveTimeZone
 } = require('../services/membership-expiry-reminder.service');
 
 let isRunning = false;
+let lastReminderDayKey = null;
+
+const getReminderDayKey = (now) => {
+    const timeZone = resolveTimeZone();
+    return `${timeZone}:${getCalendarDayNumber(now, timeZone)}`;
+};
 
 const runMembershipExpiryCycle = async (now = new Date()) => {
     if (isRunning) return { skipped: true };
@@ -14,12 +22,19 @@ const runMembershipExpiryCycle = async (now = new Date()) => {
         console.log('Running Membership Expiry Job...');
 
         let reminderResult = null;
-        try {
-            // Send the expiry-day alert before changing the membership status.
-            reminderResult = await processMembershipExpiryReminders({ now });
-        } catch (error) {
-            // Reminder delivery must never prevent the original expiry update.
-            console.error('Membership Expiry Reminder Job Failed:', error);
+        const reminderDayKey = getReminderDayKey(now);
+        if (lastReminderDayKey !== reminderDayKey) {
+            try {
+                // Send the expiry-day alert before changing the membership status.
+                // The expiration check runs every minute, but this candidate scan
+                // is needed only once per local calendar day.
+                reminderResult = await processMembershipExpiryReminders({ now });
+                lastReminderDayKey = reminderDayKey;
+            } catch (error) {
+                // Reminder delivery must never prevent the original expiry update.
+                // Do not advance the key on failure so the next minute can retry.
+                console.error('Membership Expiry Reminder Job Failed:', error);
+            }
         }
 
         const result = await prisma.userMembership.updateMany({
@@ -53,5 +68,6 @@ const startMembershipExpiryJob = () => {
 
 module.exports = {
     startMembershipExpiryJob,
-    runMembershipExpiryCycle
+    runMembershipExpiryCycle,
+    getReminderDayKey
 };

@@ -110,6 +110,34 @@ test('an owner can clear both saved coordinates without changing protected field
     assert.equal('ownerId' in receivedQuery.data, false);
 });
 
+test('an approved gym is not sent back for review when an edit omits unchanged coordinates', async () => {
+    let receivedQuery;
+    const service = loadService({
+        findFirst: async () => ({
+            id: 'gym-1',
+            status: 'APPROVED',
+            name: 'Fit Hub',
+            address: 'Main Road',
+            city: 'Kharar',
+            state: 'Punjab',
+            pincode: '140301',
+            latitude: 30.7421,
+            longitude: 76.6471
+        }),
+        update: async (query) => {
+            receivedQuery = query;
+            return { id: 'gym-1', status: 'APPROVED' };
+        }
+    });
+
+    const { latitude: _latitude, longitude: _longitude, ...withoutCoordinates } = validGym;
+    await service.updateGymByOwner('gym-1', 'owner-1', withoutCoordinates);
+
+    assert.equal(receivedQuery.data.status, undefined);
+    assert.equal('latitude' in receivedQuery.data, false);
+    assert.equal('longitude' in receivedQuery.data, false);
+});
+
 test('required fields and email are validated before a database write', async () => {
     let createCalls = 0;
     const service = loadService({

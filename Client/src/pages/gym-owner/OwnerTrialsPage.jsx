@@ -221,10 +221,10 @@ function OwnerTrialsPage() {
           </div>
         </section>
 
-        {showForm && activeTab === "slots" && <SlotForm gyms={approvedGyms} form={form} setForm={setForm} busy={busyId === "create-slot"} onSubmit={handleCreateSlot} onClose={() => setShowForm(false)} />}
+        {showForm && activeTab === "slots" && approvedGyms.length > 0 && <SlotForm gyms={approvedGyms} form={form} setForm={setForm} busy={busyId === "create-slot"} onSubmit={handleCreateSlot} onClose={() => setShowForm(false)} />}
 
-        {loading ? <Loading /> : !approvedGyms.length ? <Empty icon={Building2} title={gyms.length ? "Your gym is awaiting approval" : "Add and approve a gym first"} text="Trial slots can only be published after a gym has been approved by FitSwap." onRefresh={() => void loadData()} /> : activeTab === "slots" ? (
-          visibleSlots.length ? <section className="grid gap-4 md:grid-cols-2" aria-label="Gym trial slots">{visibleSlots.map((slot) => <OwnerSlotCard key={slot.id} slot={slot} busy={busyId === slot.id} onDeactivate={handleDeactivate} />)}</section> : <Empty icon={CalendarClock} title="No trial slots found" text="Create a future session and choose how many members can attend." onRefresh={() => setShowForm(true)} />
+        {loading ? <Loading /> : activeTab === "slots" ? (
+          !approvedGyms.length ? <Empty icon={Building2} title={gyms.length ? "Your gym is awaiting approval" : "Add and approve a gym first"} text="Trial slots can only be published after a gym has been approved by FitSwap." onRefresh={() => void loadData()} /> : visibleSlots.length ? <section className="grid gap-4 md:grid-cols-2" aria-label="Gym trial slots">{visibleSlots.map((slot) => <OwnerSlotCard key={slot.id} slot={slot} busy={busyId === slot.id} onDeactivate={handleDeactivate} />)}</section> : <Empty icon={CalendarClock} title="No trial slots found" text="Create a future session and choose how many members can attend." onRefresh={() => setShowForm(true)} />
         ) : visibleBookings.length ? <section className="space-y-3" aria-label="Gym trial bookings">{visibleBookings.map((booking) => <OwnerBookingRow key={booking.id} booking={booking} busy={busyId === booking.id} onStatus={handleBookingStatus} />)}</section> : <Empty icon={UsersRound} title="No trial bookings found" text="Member bookings will appear here after you publish trial slots." onRefresh={() => void loadData()} />}
       </main>
     </DashboardLayout>
