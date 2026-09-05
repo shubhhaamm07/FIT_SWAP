@@ -77,12 +77,40 @@ model Gym {
   plans MembershipPlan[]
 
   // ✅ NEW RELATION
-  images             GymImage[]
-  upiPaymentRequests UpiPaymentRequest[]
-  trialSlots         GymTrialSlot[]
+  images                GymImage[]
+  upiPaymentRequests    UpiPaymentRequest[]
+  trialSlots            GymTrialSlot[]
+  verificationDocuments GymVerificationDocument[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Immutable PDF revisions retain the evidence used for each admin decision.
+model GymVerificationDocument {
+  id           String                @id @default(cuid())
+  gymId        String
+  gym          Gym                   @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  bucket       String
+  fileKey      String                @unique
+  fileName     String
+  byteSize     Int
+  pageCount    Int
+  sha256       String
+  status       GymVerificationStatus @default(SUBMITTED)
+  reviewedById String?
+  reviewedAt   DateTime?
+  reviewNote   String?
+  createdAt    DateTime              @default(now())
+
+  @@index([gymId, createdAt])
+}
+
+enum GymVerificationStatus {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  SUPERSEDED
 }
 
 model MembershipPlan {

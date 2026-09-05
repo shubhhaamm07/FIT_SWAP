@@ -1,4 +1,5 @@
 const prisma = require('../lib/prisma');
+const { verificationDocumentSelect } = require('./gym-verification-fields');
 
 const startOfMonth = (value = new Date()) =>
     new Date(value.getFullYear(), value.getMonth(), 1);
@@ -103,6 +104,10 @@ const getPendingGyms = async () => {
             status: 'PENDING'
         },
         include: {
+            verificationDocuments: {
+                select: verificationDocumentSelect,
+                orderBy: [{ createdAt: 'desc' }, { id: 'desc' }]
+            },
             owner: {
                 select: {
                     firstName: true,

@@ -1,5 +1,6 @@
 const gymService = require('../services/gym.service');
 const adminService = require('../services/admin.service');
+const gymVerification = require('../services/gym-verification.service');
 
 const createGym = async (req, res) => {
     try {
@@ -56,7 +57,7 @@ const getAllGyms = async (req, res) => {
 };
 const updateGymStatus = async (req, res) => {
     try {
-        const { status } = req.body;
+        const { status, documentId, expectedUpdatedAt, reviewNote } = req.body || {};
 
         const validStatuses = [
             'PENDING',
@@ -68,6 +69,16 @@ const updateGymStatus = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: 'Invalid status'
+            });
+        }
+
+        if (status !== 'PENDING') {
+            const gym = await gymVerification.review({
+                gymId: req.params.id, adminId: req.user.id, status,
+                documentId, expectedUpdatedAt, reviewNote
+            });
+            return res.status(200).json({
+                success: true, message: 'Gym review saved and owner notified.', data: gym
             });
         }
 
@@ -96,9 +107,9 @@ const updateGymStatus = async (req, res) => {
             data: gym
         });
     } catch (error) {
-        return res.status(500).json({
+        return res.status(error.statusCode || 500).json({
             success: false,
-            message: error.message
+            message: error.statusCode ? error.message : 'Unable to save the gym review. Please try again.'
         });
     }
 };
@@ -113,7 +124,12 @@ const updateGym = async (req, res) => {
             data: gym
         });
     } catch (error) {
-        return res.status(400).json({ success: false, message: error.message });
+        return res.status(error.code === 'P2025' ? 409 : 400).json({
+            success: false,
+            message: error.code === 'P2025'
+                ? 'The gym changed while you were editing. Refresh its profile and try again.'
+                : error.message
+        });
     }
 };
 const getGymById = async (req, res) => {

@@ -103,6 +103,7 @@ app.get('/', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/gyms', gymRoutes);
+app.use('/api', require('./routes/gym-verification.routes'));
 app.use('/api', membershipPlanRoutes);
 app.use('/api', userMembershipRoutes);
 app.use('/api', marketplaceListingRoutes);

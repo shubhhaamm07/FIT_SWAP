@@ -33,6 +33,7 @@
     "multer-s3": "^3.0.1",
     "node-cron": "^4.4.1",
     "nodemailer": "^9.0.5",
+    "pdf-lib": "1.17.1",
     "prisma": "^6.10.1",
     "razorpay": "^2.9.8",
     "uuid": "^14.0.1",

@@ -10,8 +10,8 @@ export const getPendingGyms = async () => {
   return data.data;
 };
 
-export const updateGymApproval = async (gymId, status) => {
-  const { data } = await axios.patch(`/gyms/${gymId}/status`, { status });
+export const updateGymApproval = async (gymId, status, review = {}) => {
+  const { data } = await axios.patch(`/gyms/${gymId}/status`, { status, ...review });
   return data.data;
 };
 

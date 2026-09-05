@@ -1,8 +1,9 @@
 const prisma = require('../lib/prisma');
 const notificationService = require('./notification.service');
+const { verificationDocumentSelect } = require('./gym-verification-fields');
 
 const REQUIRED_GYM_FIELDS = ['name', 'address', 'city', 'state', 'pincode', 'phone'];
-const REAPPROVAL_FIELDS = ['address', 'city', 'state', 'pincode', 'latitude', 'longitude'];
+const REAPPROVAL_FIELDS = ['name', 'address', 'city', 'state', 'pincode', 'latitude', 'longitude'];
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
@@ -167,6 +168,10 @@ const getMyGyms = async (ownerId) => {
             ownerId
         },
         include: {
+            verificationDocuments: {
+                select: verificationDocumentSelect,
+                orderBy: [{ createdAt: 'desc' }, { id: 'desc' }]
+            },
             images: {
                 orderBy: [
                     { isPrimary: 'desc' },
@@ -251,7 +256,8 @@ const updateGymByOwner = async (gymId, ownerId, gymData) => {
             state: true,
             pincode: true,
             latitude: true,
-            longitude: true
+            longitude: true,
+            updatedAt: true
         }
     });
 
@@ -260,6 +266,9 @@ const updateGymByOwner = async (gymId, ownerId, gymData) => {
     }
 
     const sanitizedGymData = sanitizeGymData(gymData);
+    // Fail a stale edit rather than allowing it to change details that an admin
+    // has just approved. Prisma includes these guards in the UPDATE itself.
+    const updateWhere = { id: gymId, ownerId, status: gym.status, updatedAt: gym.updatedAt };
     const requiresReapproval = gym.status === 'APPROVED'
         && REAPPROVAL_FIELDS.some((field) => (
             hasOwn(sanitizedGymData, field)
@@ -268,18 +277,18 @@ const updateGymByOwner = async (gymId, ownerId, gymData) => {
 
     if (!requiresReapproval) {
         return prisma.gym.update({
-            where: { id: gymId },
+            where: updateWhere,
             data: sanitizedGymData
         });
     }
 
     const result = await prisma.$transaction(async (tx) => {
         const updatedGym = await tx.gym.update({
-            where: { id: gymId },
+            where: updateWhere,
             data: { ...sanitizedGymData, status: 'PENDING' }
         });
         const affectedUserIds = await suspendFutureTrialOperations(tx, gymId, {
-            reason: 'The gym location details were changed and need approval',
+            reason: 'The gym name or location details were changed and need approval',
             actorId: ownerId
         });
         return { gym: updatedGym, affectedUserIds };
@@ -289,7 +298,7 @@ const updateGymByOwner = async (gymId, ownerId, gymData) => {
         await notifySuspendedTrialBookings(
             result.affectedUserIds,
             result.gym.name,
-            'the gym location details changed and are being reviewed'
+            'the gym name or location details changed and are being reviewed'
         );
     }
 
@@ -315,5 +324,6 @@ const getGymById = async (gymId) => {
     });
 };
 module.exports = {
-    createGym, getMyGyms, getAllGyms, updateGymStatus, updateGymByOwner, getGymById
+    createGym, getMyGyms, getAllGyms, updateGymStatus, updateGymByOwner, getGymById,
+    suspendFutureTrialOperations
 };
