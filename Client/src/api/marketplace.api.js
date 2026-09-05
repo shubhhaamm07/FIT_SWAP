@@ -13,13 +13,19 @@ export const mapMarketplaceListing = (listing) => {
         ? Math.max(0, Math.ceil((endDate - new Date()) / 86_400_000))
         : 0;
     const primaryImage = gym.images?.find((image) => image.isPrimary);
+    const latitude = gym.latitude == null ? null : Number(gym.latitude);
+    const longitude = gym.longitude == null ? null : Number(gym.longitude);
 
     return {
         id: listing.id,
         gym: gym.name || "FitSwap Partner Gym",
         membership: plan.name || "Gym Membership",
         seller: [seller.firstName, seller.lastName].filter(Boolean).join(" ") || "FitSwap Member",
-        location: gym.city || gym.state || "Location pending",
+        location: [gym.city, gym.state].filter(Boolean).join(", ") || "Location pending",
+        city: gym.city || "",
+        state: gym.state || "",
+        latitude: Number.isFinite(latitude) ? latitude : null,
+        longitude: Number.isFinite(longitude) ? longitude : null,
         price: Number(listing.askingPrice || 0),
         originalPrice: Number(plan.price || listing.askingPrice || 0),
         remainingDays,

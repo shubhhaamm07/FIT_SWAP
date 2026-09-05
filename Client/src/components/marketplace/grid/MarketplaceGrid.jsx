@@ -18,12 +18,17 @@ const MarketplaceGrid = () => {
     loading,
     error,
     refreshListings,
+    userLocation,
   } = useMarketplaceContext();
+
+  const resultLabel = userLocation && filters.distance !== "all"
+    ? `${totalListings} memberships within ${filters.distance} km`
+    : `${totalListings} matching memberships`;
 
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between">
-        <p className="text-sm text-zinc-400">{totalListings} memberships available near you</p>
+        <p className="text-sm text-zinc-400">{resultLabel}</p>
         <div className="flex items-center gap-2">
           <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-600/20 text-violet-400"><Grid2X2 size={15} /></button>
           <button className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.08] bg-[#11121a] text-zinc-400"><List size={16} /></button>
@@ -33,10 +38,11 @@ const MarketplaceGrid = () => {
             onChange={(e) => updateFilter("sortBy", e.target.value)}
             className="sr-only"
           >
-          <option value="newest">Newest First</option>
-          <option value="price-low">Price: Low to High</option>
-          <option value="price-high">Price: High to Low</option>
-          <option value="remaining-days">Remaining Days</option>
+            <option value="newest">Newest First</option>
+            <option value="nearest">Nearest First</option>
+            <option value="price-low">Price: Low to High</option>
+            <option value="price-high">Price: High to Low</option>
+            <option value="remaining-days">Remaining Days</option>
           </select>
         </div>
       </div>

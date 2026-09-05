@@ -74,7 +74,15 @@ const ListingCard = ({ listing, isSaved = false, onSavedChange }) => {
       <div className="space-y-3 p-3">
         <div>
           <div className="flex items-center justify-between gap-2"><h3 className="truncate text-xs font-semibold text-white">{listing.gym}</h3><span className="flex shrink-0 items-center gap-0.5 text-[10px] text-amber-300"><Star size={11} fill="currentColor" /> 4.7</span></div>
-          <p className="mt-1 flex items-center gap-1 text-[10px] text-zinc-500"><MapPin size={10} />{listing.location}</p>
+          <p className="mt-1 flex items-center gap-1 text-[10px] text-zinc-500">
+            <MapPin size={10} className="shrink-0" />
+            <span className="truncate">{listing.location}</span>
+            {listing.distanceKm !== null && listing.distanceKm !== undefined && (
+              <span className="shrink-0 text-violet-300">
+                · {listing.distanceKm < 10 ? listing.distanceKm.toFixed(1) : Math.round(listing.distanceKm)} km
+              </span>
+            )}
+          </p>
         </div>
         <div><p className="text-[10px] font-medium text-zinc-200">{listing.membership}</p><p className="mt-1 text-[10px] text-zinc-500">Valid till {listing.validTill || "15 Dec 2026"}<span className="float-right text-violet-400">{Math.max(1, Math.round(listing.remainingDays / 30))} months left</span></p></div>
 

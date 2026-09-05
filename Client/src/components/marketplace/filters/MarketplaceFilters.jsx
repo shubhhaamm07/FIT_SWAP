@@ -4,12 +4,23 @@ import {
   MapPin,
   CalendarDays,
   Building2,
+  LocateFixed,
+  LoaderCircle,
   RotateCcw,
 } from "lucide-react";
 
 import SearchBar from "./SearchBar";
 
-const MarketplaceFilters = ({ filters, updateFilter, resetFilters }) => {
+const MarketplaceFilters = ({
+  filters,
+  updateFilter,
+  resetFilters,
+  locationOptions,
+  userLocation,
+  locationStatus,
+  requestUserLocation,
+  clearUserLocation,
+}) => {
   return (
     <aside className="sticky top-6 rounded-xl border border-white/[0.08] bg-[#0e0f15] p-4">
       <div className="mb-4 flex items-center justify-between">
@@ -34,39 +45,79 @@ const MarketplaceFilters = ({ filters, updateFilter, resetFilters }) => {
 
       <div className="mb-4">
         <label className="mb-2 flex items-center gap-2 text-xs font-medium text-zinc-300">
-          <Building2 size={14} /> Location
+          <Building2 size={14} /> State
         </label>
 
-        <select
+        <input
+          list="marketplace-states"
+          value={filters.state}
+          onChange={(event) => updateFilter("state", event.target.value)}
+          placeholder="All available states"
+          autoComplete="off"
+          className="w-full rounded-lg border border-white/[0.08] bg-[#15161e] px-3 py-2.5 text-xs text-white outline-none placeholder:text-zinc-500 focus:border-violet-400"
+        />
+        <datalist id="marketplace-states">
+          {locationOptions.states.map((state) => <option key={state} value={state} />)}
+        </datalist>
+
+        <label className="mb-2 mt-3 block text-xs font-medium text-zinc-300">
+          City or district
+        </label>
+        <input
+          list="marketplace-cities"
           value={filters.city}
-          onChange={(e) => updateFilter("city", e.target.value)}
-          className="w-full rounded-lg border border-white/[0.08] bg-[#15161e] px-3 py-2.5 text-xs text-white outline-none"
-        >
-          <option value="all">Select location</option>
-          <option value="Chandigarh">Chandigarh</option>
-          <option value="Delhi">Delhi</option>
-          <option value="Mumbai">Mumbai</option>
-          <option value="Mohali">Mohali</option>
-        </select>
+          onChange={(event) => updateFilter("city", event.target.value)}
+          placeholder="All available cities"
+          autoComplete="off"
+          className="w-full rounded-lg border border-white/[0.08] bg-[#15161e] px-3 py-2.5 text-xs text-white outline-none placeholder:text-zinc-500 focus:border-violet-400"
+        />
+        <datalist id="marketplace-cities">
+          {locationOptions.cities.map((city) => <option key={city} value={city} />)}
+        </datalist>
+        <p className="mt-2 text-[11px] leading-4 text-zinc-500">
+          Suggestions are created automatically from gyms with active listings.
+        </p>
       </div>
 
       {/* Distance */}
 
       <div className="mb-4">
-        <label className="mb-2 flex items-center gap-2 text-xs font-medium text-zinc-300">
-          <MapPin size={14} /> Distance
-        </label>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <label className="flex items-center gap-2 text-xs font-medium text-zinc-300">
+            <MapPin size={14} /> Distance
+          </label>
+          {userLocation && <button type="button" onClick={clearUserLocation} className="text-[11px] font-semibold text-zinc-400 hover:text-white">Clear</button>}
+        </div>
+
+        <button
+          type="button"
+          onClick={requestUserLocation}
+          disabled={locationStatus.state === "loading"}
+          className="mb-2 inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-violet-400/25 bg-violet-500/[0.07] px-3 text-xs font-semibold text-violet-200 hover:bg-violet-500/10 disabled:opacity-50"
+        >
+          {locationStatus.state === "loading" ? <LoaderCircle size={14} className="animate-spin" /> : <LocateFixed size={14} />}
+          {locationStatus.state === "loading" ? "Finding location…" : userLocation ? "Update my location" : "Use my location"}
+        </button>
 
         <select
           value={filters.distance}
           onChange={(e) => updateFilter("distance", e.target.value)}
-          className="w-full rounded-lg border border-white/[0.08] bg-[#15161e] px-3 py-2.5 text-xs text-white outline-none"
+          disabled={!userLocation}
+          className="w-full rounded-lg border border-white/[0.08] bg-[#15161e] px-3 py-2.5 text-xs text-white outline-none disabled:cursor-not-allowed disabled:opacity-45"
         >
+          <option value="all">Any distance</option>
+          <option value="5">Within 5 km</option>
           <option value="10">Within 10 km</option>
           <option value="25">Within 25 km</option>
           <option value="50">Within 50 km</option>
           <option value="75">Within 75 km</option>
         </select>
+        {locationStatus.message && <p aria-live="polite" className={`mt-2 text-[11px] leading-4 ${locationStatus.state === "error" ? "text-amber-300" : "text-zinc-400"}`}>{locationStatus.message}</p>}
+        {userLocation && filters.distance !== "all" && (
+          <p className="mt-2 text-[11px] leading-4 text-zinc-500">
+            Gyms without map coordinates are excluded from distance results.
+          </p>
+        )}
       </div>
 
       {/* Price */}

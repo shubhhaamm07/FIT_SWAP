@@ -9,7 +9,16 @@ import { MarketplaceProvider } from "../../components/marketplace/hooks/Marketpl
 import { useMarketplaceContext } from "../../components/marketplace/hooks/useMarketplaceContext";
 
 const MarketplaceContent = () => {
-  const { filters, updateFilter, resetFilters } = useMarketplaceContext();
+  const {
+    filters,
+    updateFilter,
+    resetFilters,
+    locationOptions,
+    userLocation,
+    locationStatus,
+    requestUserLocation,
+    clearUserLocation,
+  } = useMarketplaceContext();
 
   return (
     <>
@@ -21,6 +30,11 @@ const MarketplaceContent = () => {
             filters={filters}
             updateFilter={updateFilter}
             resetFilters={resetFilters}
+            locationOptions={locationOptions}
+            userLocation={userLocation}
+            locationStatus={locationStatus}
+            requestUserLocation={requestUserLocation}
+            clearUserLocation={clearUserLocation}
           />
         </aside>
 
