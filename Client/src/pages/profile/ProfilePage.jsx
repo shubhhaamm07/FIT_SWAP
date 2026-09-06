@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  BadgeCheck,
   CalendarDays,
   Camera,
+  Check,
   ChevronRight,
   CircleAlert,
+  CircleUserRound,
   Edit3,
   Heart,
   ImagePlus,
@@ -13,6 +14,8 @@ import {
   MapPin,
   Phone,
   Save,
+  ShieldCheck,
+  Sparkles,
   Store,
   X,
 } from "lucide-react";
@@ -130,6 +133,27 @@ function ProfilePage() {
       memberships.filter((membership) => membership.status === "ACTIVE").length,
     [memberships],
   );
+  const savedListings = currentProfile._count?.savedListings || 0;
+  const profileSetup = useMemo(() => {
+    const steps = [
+      { label: "Profile photo", complete: Boolean(profileImages.avatar) },
+      { label: "Your city", complete: Boolean(currentProfile.city) },
+      { label: "Short bio", complete: Boolean(currentProfile.bio) },
+      { label: "Phone number", complete: Boolean(currentProfile.phone) },
+    ];
+    const completed = steps.filter((step) => step.complete).length;
+
+    return {
+      steps,
+      completed,
+      percent: Math.round((completed / steps.length) * 100),
+    };
+  }, [
+    currentProfile.bio,
+    currentProfile.city,
+    currentProfile.phone,
+    profileImages.avatar,
+  ]);
 
   const saveProfile = async (form) => {
     try {
@@ -188,26 +212,30 @@ function ProfilePage() {
           </div>
         )}
 
-        <section className="overflow-hidden rounded-[28px] border border-white/[0.08] bg-[#11121a]">
+        <section className="overflow-hidden rounded-[28px] border border-white/[0.08] bg-[#11121a] shadow-[0_24px_70px_rgba(0,0,0,.18)]">
           <div
-            className="relative h-32 bg-[radial-gradient(circle_at_18%_20%,rgba(192,132,252,.8),transparent_25%),radial-gradient(circle_at_82%_35%,rgba(59,130,246,.55),transparent_23%),linear-gradient(115deg,#25104b,#15162d_55%,#0c1e32)] bg-cover bg-center sm:h-44"
+            className="relative h-28 overflow-hidden bg-[radial-gradient(circle_at_15%_20%,rgba(192,132,252,.8),transparent_28%),radial-gradient(circle_at_82%_30%,rgba(59,130,246,.7),transparent_25%),linear-gradient(115deg,#20103e,#13152b_52%,#0b2038)] bg-cover bg-center sm:h-36"
             style={
               profileImages.cover
                 ? {
-                    backgroundImage: `linear-gradient(rgba(8,9,13,.24), rgba(8,9,13,.34)), url(${profileImages.cover})`,
+                    backgroundImage: `linear-gradient(90deg, rgba(11,8,25,.48), rgba(8,11,20,.24)), url(${profileImages.cover})`,
                   }
                 : undefined
             }
           >
-            <div className="absolute inset-0 bg-[linear-gradient(120deg,transparent_30%,rgba(255,255,255,.07),transparent_65%)]" />
+            <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(255,255,255,.2)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.2)_1px,transparent_1px)] [background-size:28px_28px]" />
+            <div className="absolute inset-0 bg-[linear-gradient(110deg,rgba(255,255,255,.16),transparent_34%,transparent_68%,rgba(255,255,255,.08))]" />
+            <div className="absolute left-5 top-5 z-10 flex items-center gap-2 text-xs font-medium text-white/75 sm:left-7">
+              <Sparkles size={14} className="text-violet-200" />
+              Your FitSwap account
+            </div>
             <button
               type="button"
               onClick={() => coverInputRef.current?.click()}
               disabled={uploading === "cover"}
-              className="absolute right-4 top-4 z-10 inline-flex items-center gap-2 rounded-xl border border-white/20 bg-black/35 px-3 py-2 text-xs font-semibold text-white backdrop-blur transition hover:bg-black/55 disabled:opacity-60"
+              className="absolute right-4 top-4 z-10 inline-flex items-center gap-2 rounded-xl border border-white/20 bg-black/25 px-3 py-2 text-xs font-semibold text-white backdrop-blur-md transition hover:bg-black/45 disabled:opacity-60 sm:right-6"
             >
-              <ImagePlus size={15} />{" "}
-              {uploading === "cover" ? "Uploading…" : "Change cover"}
+              <ImagePlus size={15} /> {uploading === "cover" ? "Uploading…" : "Update cover"}
             </button>
             <input
               ref={coverInputRef}
@@ -221,32 +249,30 @@ function ProfilePage() {
             />
           </div>
 
-          <div className="relative px-5 pb-6 sm:px-8 sm:pb-8">
-            <div className="-mt-14 flex flex-col gap-5 sm:-mt-16 sm:flex-row sm:items-end sm:justify-between">
-              <div className="flex items-end gap-4">
-                <div className="relative h-28 w-28 shrink-0 sm:h-32 sm:w-32">
-                  <div className="grid h-full w-full place-items-center overflow-hidden rounded-full border-4 border-[#11121a] bg-gradient-to-br from-violet-500 via-fuchsia-500 to-sky-500 text-3xl font-black text-white shadow-2xl shadow-violet-950/50">
-                    {profileImages.avatar ? (
-                      <img
-                        src={profileImages.avatar}
-                        alt={`${displayName}'s profile`}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      initials
-                    )}
-                  </div>
+          <div className="relative px-5 pb-6 sm:px-7 sm:pb-7">
+            <div className="-mt-10 flex flex-col gap-5 sm:-mt-12 sm:flex-row sm:items-end sm:justify-between">
+              <div className="flex min-w-0 items-end gap-4">
+                <div className="relative grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-2xl border-4 border-[#11121a] bg-gradient-to-br from-violet-500 via-fuchsia-500 to-sky-500 text-2xl font-black text-white shadow-xl shadow-black/30 sm:h-24 sm:w-24">
+                  {profileImages.avatar ? (
+                    <img
+                      src={profileImages.avatar}
+                      alt={`${displayName}'s profile`}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    initials
+                  )}
                   <button
                     type="button"
                     onClick={() => avatarInputRef.current?.click()}
                     disabled={uploading === "avatar"}
                     aria-label="Change profile photo"
-                    className="absolute bottom-0 right-0 z-10 grid h-9 w-9 place-items-center rounded-full border-2 border-[#11121a] bg-violet-600 text-white shadow-lg transition hover:bg-violet-500 disabled:opacity-60"
+                    className="absolute bottom-1.5 right-1.5 grid h-7 w-7 place-items-center rounded-lg border border-white/20 bg-[#171127]/90 text-white shadow-lg backdrop-blur transition hover:bg-violet-600 disabled:opacity-60"
                   >
                     {uploading === "avatar" ? (
-                      <LoaderCircle size={16} className="animate-spin" />
+                      <LoaderCircle size={14} className="animate-spin" />
                     ) : (
-                      <Camera size={16} />
+                      <Camera size={14} />
                     )}
                   </button>
                   <input
@@ -260,76 +286,111 @@ function ProfilePage() {
                     }}
                   />
                 </div>
-                <div className="pb-1">
-                  <p className="flex items-center gap-1.5 text-xl font-bold text-white">
-                    {displayName}{" "}
-                    <BadgeCheck
-                      size={18}
-                      className="fill-violet-500 text-white"
-                    />
+                <div className="min-w-0 pb-0.5">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.17em] text-violet-300">
+                    {roleLabel(currentProfile.role)}
                   </p>
-                  <p className="mt-1 text-sm text-zinc-400">@{handle}</p>
+                  <h1 className="mt-1 truncate text-2xl font-bold tracking-tight text-white sm:text-3xl">
+                    {displayName}
+                  </h1>
+                  <p className="mt-1 truncate text-sm text-zinc-400">@{handle}</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setEditing(true)}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.12] bg-white/[0.05] px-4 py-2.5 text-sm font-semibold text-white transition hover:border-violet-400/40 hover:bg-violet-500/10 sm:w-auto"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/[0.12] bg-white/[0.06] px-4 py-2.5 text-sm font-semibold text-white transition hover:border-violet-400/40 hover:bg-violet-500/10 sm:w-auto"
               >
                 <Edit3 size={15} /> Edit profile
               </button>
             </div>
 
-            <div className="mt-6 grid gap-4 border-y border-white/[0.08] py-5 sm:grid-cols-[1fr_auto] sm:items-center">
+            <div className="mt-6 grid gap-5 border-t border-white/[0.08] pt-5 lg:grid-cols-[minmax(0,1.25fr)_minmax(235px,.75fr)]">
               <div>
-                <p className="text-sm leading-6 text-zinc-300">
-                  {currentProfile.bio || "A FitSwap member finding better value in every workout. Manage memberships, resell unused time, and discover your next gym."}
+                <p className="max-w-2xl text-sm leading-6 text-zinc-300">
+                  {currentProfile.bio || "Make your profile yours. Add a few details so your marketplace activity feels personal and trustworthy."}
                 </p>
-                <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs text-zinc-500">
-                  <span className="inline-flex items-center gap-1.5">
-                    <Mail size={13} />{" "}
-                    {currentProfile.email || "Email not available"}
-                  </span>
-                  {currentProfile.city && (
-                    <span className="inline-flex items-center gap-1.5">
-                      <MapPin size={13} /> {currentProfile.city}
-                    </span>
-                  )}
-                  {currentProfile.phone && (
-                    <span className="inline-flex items-center gap-1.5">
-                      <Phone size={13} /> {currentProfile.phone}
-                    </span>
-                  )}
-                  <span className="inline-flex items-center gap-1.5">
-                    <CalendarDays size={13} /> Joined{" "}
-                    {formatMonth(currentProfile.createdAt)}
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  <ProfileDetail icon={Mail} label="Email" value={currentProfile.email || "Email not available"} />
+                  <ProfileDetail icon={MapPin} label="Based in" value={currentProfile.city || "Add your city"} muted={!currentProfile.city} />
+                  <ProfileDetail icon={Phone} label="Phone" value={currentProfile.phone || "Add a phone number"} muted={!currentProfile.phone} />
+                  <ProfileDetail icon={CalendarDays} label="Member since" value={formatMonth(currentProfile.createdAt)} />
+                </div>
+              </div>
+              <div className="rounded-2xl border border-white/[0.08] bg-black/15 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-white">Profile visibility</p>
+                    <p className="mt-1 text-xs leading-5 text-zinc-500">
+                      Controls what buyers can see when you list a membership.
+                    </p>
+                  </div>
+                  <ShieldCheck size={19} className="shrink-0 text-violet-300" />
+                </div>
+                <div className="mt-4 flex items-center justify-between rounded-xl border border-white/[0.07] bg-[#15161f] px-3 py-2.5">
+                  <span className="text-xs text-zinc-400">Marketplace profile</span>
+                  <span className={`inline-flex items-center gap-1.5 text-xs font-semibold ${currentProfile.isProfilePublic ? "text-emerald-300" : "text-zinc-400"}`}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${currentProfile.isProfilePublic ? "bg-emerald-400" : "bg-zinc-500"}`} />
+                    {currentProfile.isProfilePublic ? "Visible to buyers" : "Private"}
                   </span>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2"><span className="w-fit rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1.5 text-xs font-semibold text-violet-300">{roleLabel(currentProfile.role)}</span><span className={`w-fit rounded-full border px-3 py-1.5 text-xs font-semibold ${currentProfile.isProfilePublic ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300" : "border-zinc-500/20 bg-zinc-500/10 text-zinc-300"}`}>{currentProfile.isProfilePublic ? "Public profile" : "Private profile"}</span></div>
-            </div>
-
-            <div className="mt-5 grid grid-cols-3 divide-x divide-white/[0.08] rounded-2xl border border-white/[0.07] bg-black/10 py-3">
-              <ProfileStat
-                value={loading ? "—" : activeMemberships}
-                label="Active passes"
-              />
-              <ProfileStat
-                value={loading ? "—" : listings.length}
-                label="Listings"
-              />
-              <ProfileStat
-                value={
-                  loading ? "—" : currentProfile._count?.savedListings || 0
-                }
-                label="Saved"
-              />
             </div>
           </div>
         </section>
 
+        <section className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(290px,.8fr)]">
+          <div className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5 sm:p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-zinc-500">Marketplace activity</p>
+                <h2 className="mt-1 text-lg font-bold text-white">Your FitSwap snapshot</h2>
+              </div>
+              <CircleUserRound size={20} className="text-violet-300" />
+            </div>
+            <div className="mt-5 grid grid-cols-3 divide-x divide-white/[0.08] rounded-2xl border border-white/[0.07] bg-black/10 py-4">
+              <ProfileStat value={loading ? "—" : activeMemberships} label="Active passes" />
+              <ProfileStat value={loading ? "—" : listings.length} label="Listings" />
+              <ProfileStat value={loading ? "—" : savedListings} label="Saved" />
+            </div>
+            <p className="mt-4 text-xs leading-5 text-zinc-500">
+              Your memberships and listings are collected below, so you always know where your account stands.
+            </p>
+          </div>
+
+          <div className="relative overflow-hidden rounded-2xl border border-violet-400/[0.16] bg-[linear-gradient(135deg,rgba(91,33,182,.18),rgba(17,18,26,1)_58%)] p-5 sm:p-6">
+            <div className="absolute -right-8 -top-10 h-32 w-32 rounded-full bg-violet-500/15 blur-3xl" />
+            <div className="relative flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-violet-300">Account setup</p>
+                <h2 className="mt-1 text-lg font-bold text-white">{profileSetup.percent}% complete</h2>
+              </div>
+              <span className="grid h-9 w-9 place-items-center rounded-xl border border-violet-300/15 bg-violet-500/10 text-sm font-bold text-violet-200">{profileSetup.completed}/4</span>
+            </div>
+            <div className="relative mt-4 h-2 overflow-hidden rounded-full bg-white/[0.08]">
+              <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-400 transition-all" style={{ width: `${profileSetup.percent}%` }} />
+            </div>
+            <div className="relative mt-4 grid grid-cols-2 gap-x-3 gap-y-2">
+              {profileSetup.steps.map((step) => (
+                <span key={step.label} className={`flex items-center gap-1.5 text-xs ${step.complete ? "text-zinc-300" : "text-zinc-500"}`}>
+                  <span className={`grid h-4 w-4 place-items-center rounded-full ${step.complete ? "bg-emerald-500/15 text-emerald-300" : "bg-white/[0.06] text-zinc-600"}`}>
+                    {step.complete && <Check size={10} strokeWidth={3} />}
+                  </span>
+                  {step.label}
+                </span>
+              ))}
+            </div>
+            {profileSetup.percent < 100 && (
+              <button type="button" onClick={() => setEditing(true)} className="relative mt-5 text-xs font-semibold text-violet-300 transition hover:text-violet-200">
+                Complete your profile <ChevronRight className="inline" size={14} />
+              </button>
+            )}
+          </div>
+        </section>
+
         <section className="mt-6 overflow-hidden rounded-2xl border border-white/[0.08] bg-[#11121a]">
-          <div className="flex border-b border-white/[0.08] px-4 sm:px-6">
+          <div className="flex items-center justify-between border-b border-white/[0.08] px-4 sm:px-6">
+            <div className="flex">
             <ProfileTab
               active={activeTab === "memberships"}
               onClick={() => setActiveTab("memberships")}
@@ -342,6 +403,8 @@ function ProfilePage() {
               label="Listings"
               count={listings.length}
             />
+            </div>
+            <p className="hidden text-xs text-zinc-500 sm:block">Your account activity</p>
           </div>
           <div className="p-4 sm:p-6">
             {loading ? (
@@ -385,6 +448,23 @@ function ProfileStat({ value, label }) {
     </div>
   );
 }
+
+function ProfileDetail({ icon: Icon, label, value, muted = false }) {
+  return (
+    <div className="flex min-w-0 items-center gap-2.5 rounded-xl border border-white/[0.06] bg-black/[0.12] px-3 py-2.5">
+      <Icon size={14} className="shrink-0 text-violet-300" />
+      <div className="min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600">
+          {label}
+        </p>
+        <p className={`mt-0.5 truncate text-xs ${muted ? "text-zinc-500" : "text-zinc-300"}`}>
+          {value}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function ProfileTab({ active, onClick, label, count }) {
   return (
     <button

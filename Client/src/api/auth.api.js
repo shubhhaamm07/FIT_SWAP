@@ -33,7 +33,12 @@ export const uploadProfileImage = async (type, file) => {
     const formData = new FormData();
     formData.append("image", file);
 
-    const response = await api.post(`/profile/${type}`, formData);
+    // The shared API client defaults to JSON. Explicitly clear that header so
+    // the browser supplies the multipart boundary and Multer receives
+    // `req.file` instead of an empty request body.
+    const response = await api.post(`/profile/${type}`, formData, {
+        headers: { "Content-Type": undefined },
+    });
 
     return response.data;
 };
