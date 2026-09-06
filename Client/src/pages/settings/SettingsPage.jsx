@@ -151,12 +151,13 @@ function SettingsPage() {
 
         <SettingsSection title="Security" description="Keep your account protected.">
           <div className="flex flex-col gap-4 rounded-2xl border border-white/[0.07] bg-black/10 p-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-start gap-3"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-500/10 text-emerald-300"><ShieldCheck size={19} /></div><div><p className="font-medium text-white">Password & sign-in</p><p className="mt-1 text-sm leading-5 text-zinc-500">Use a unique password with at least 8 characters.</p></div></div><button type="button" onClick={() => setShowPassword(true)} className="inline-flex items-center justify-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.04] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-white/[0.08]"><KeyRound size={16} /> Change password</button></div>
+          <button type="button" onClick={() => navigate("/security")} className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-violet-200 transition hover:text-violet-100"><ShieldCheck size={16} /> Open Security Centre <ChevronRight size={15} /></button>
         </SettingsSection>
 
         <section className="overflow-hidden rounded-2xl border border-red-500/20 bg-red-500/[0.035]"><div className="border-b border-red-500/15 px-5 py-4 sm:px-6"><h2 className="font-semibold text-red-200">Danger zone</h2><p className="mt-1 text-sm text-red-200/60">These actions cannot be undone.</p></div><div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between sm:px-6"><div><p className="font-medium text-white">Delete FitSwap account</p><p className="mt-1 max-w-xl text-sm leading-5 text-zinc-500">Removes your profile, memberships, listings, saved listings, and notifications. Gym owners must transfer or close their gyms first.</p></div><button type="button" onClick={() => setShowDelete(true)} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl border border-red-500/35 bg-red-500/10 px-4 py-2.5 text-sm font-semibold text-red-200 transition hover:bg-red-500/20"><Trash2 size={16} /> Delete account</button></div></section>
       </div>}
     </main>
-    {showPassword && <PasswordModal onClose={() => setShowPassword(false)} onSuccess={(text) => { setShowPassword(false); setMessage(text); }} />}
+    {showPassword && <PasswordModal onClose={() => setShowPassword(false)} onSuccess={() => { setShowPassword(false); logout(); navigate("/login", { replace: true }); }} />}
     {showDelete && <DeleteModal onClose={() => setShowDelete(false)} onDeleted={() => { logout(); navigate("/login", { replace: true }); }} />}
   </DashboardLayout>;
 }
@@ -177,7 +178,7 @@ function PasswordModal({ onClose, onSuccess }) {
   const [form, setForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const submit = async (event) => { event.preventDefault(); if (form.newPassword !== form.confirmPassword) { setError("New passwords do not match"); return; } try { setSaving(true); await changeUserPassword(form); onSuccess("Password updated successfully."); } catch (requestError) { setError(requestError.response?.data?.message || "Unable to change password."); } finally { setSaving(false); } };
+  const submit = async (event) => { event.preventDefault(); if (form.newPassword !== form.confirmPassword) { setError("New passwords do not match"); return; } try { setSaving(true); await changeUserPassword(form); onSuccess(); } catch (requestError) { setError(requestError.response?.data?.message || "Unable to change password."); } finally { setSaving(false); } };
   return <Modal title="Change password" onClose={onClose}><form onSubmit={submit} className="space-y-4"><p className="text-sm leading-6 text-zinc-400">Enter your current password, then choose a new password with at least 8 characters.</p><PasswordField label="Current password" value={form.currentPassword} onChange={(value) => setForm({ ...form, currentPassword: value })} /><PasswordField label="New password" value={form.newPassword} onChange={(value) => setForm({ ...form, newPassword: value })} /><PasswordField label="Confirm new password" value={form.confirmPassword} onChange={(value) => setForm({ ...form, confirmPassword: value })} />{error && <p className="text-sm text-red-300">{error}</p>}<button disabled={saving} className="w-full rounded-xl bg-violet-600 py-3 text-sm font-semibold text-white hover:bg-violet-500 disabled:opacity-60">{saving ? "Updating…" : "Update password"}</button></form></Modal>;
 }
 

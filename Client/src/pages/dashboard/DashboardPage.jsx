@@ -8,9 +8,10 @@ import DashboardStats from "../../components/dashboard/Stats/DashboardStats";
 // import MarketplaceSection from "../../components/dashboard/Marketplace/MarketplaceSection";
 // import GymSection from "../../components/dashboard/Gyms/GymSection";
 
-import QuickActions from "../../components/dashboard/RightSidebar/QuickActions";
 import NotificationPanel from "../../components/dashboard/RightSidebar/NotificationPanel";
 import RecentActivity from "../../components/dashboard/RightSidebar/RecentActivity";
+import QuickActions from "../../components/dashboard/RightSidebar/QuickActions";
+import MemberMomentum from "../../components/dashboard/Insights/MemberMomentum";
 
 import { useDashboard } from "../../hooks/useDashboard";
 
@@ -21,6 +22,8 @@ function DashboardPage() {
     notifications,
 
     activities,
+
+    memberships,
 
     loading,
 
@@ -62,6 +65,8 @@ function DashboardPage() {
       <div className="mt-6">
         <DashboardStats stats={stats} loading={loading} />
       </div>
+
+      <MemberMomentum memberships={memberships} />
 
       {/* <DashboardCharts charts={charts} loading={loading} /> */}
 

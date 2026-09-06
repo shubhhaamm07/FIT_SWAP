@@ -11,6 +11,8 @@ import {
     Settings,
     Sparkles,
     CircleHelp,
+    Dumbbell,
+    ShieldCheck,
 } from "lucide-react";
 
 export const sidebarSections = [
@@ -75,6 +77,11 @@ export const sidebarSections = [
                 to: "/diet-planner",
                 icon: Sparkles,
             },
+            {
+                label: "Workout & Meal Log",
+                to: "/wellness",
+                icon: Dumbbell,
+            },
         ],
     },
 
@@ -95,6 +102,11 @@ export const sidebarSections = [
                 label: "Settings",
                 to: "/settings",
                 icon: Settings,
+            },
+            {
+                label: "Security Centre",
+                to: "/security",
+                icon: ShieldCheck,
             },
             {
                 label: "Help & Support",

@@ -1,4 +1,10 @@
-import { Plus, Store, CreditCard, Dumbbell } from "lucide-react";
+import {
+  CalendarCheck2,
+  Dumbbell,
+  Salad,
+  ShieldCheck,
+  Store,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 function QuickActions() {
@@ -11,22 +17,22 @@ function QuickActions() {
       to: "/marketplace/sell",
     },
     {
-      title: "Buy Membership",
-      icon: CreditCard,
-      color: "bg-emerald-600 hover:bg-emerald-500",
-      to: "/marketplace",
-    },
-    {
-      title: "Find Gyms",
+      title: "Workout & Meals",
       icon: Dumbbell,
-      color: "bg-sky-600 hover:bg-sky-500",
-      to: "/marketplace",
+      color: "bg-emerald-600 hover:bg-emerald-500",
+      to: "/wellness",
     },
     {
-      title: "Create Listing",
-      icon: Plus,
+      title: "AI Diet Planner",
+      icon: Salad,
+      color: "bg-sky-600 hover:bg-sky-500",
+      to: "/diet-planner",
+    },
+    {
+      title: "Book a Trial",
+      icon: CalendarCheck2,
       color: "bg-amber-600 hover:bg-amber-500",
-      to: "/marketplace/sell",
+      to: "/trials",
     },
   ];
 
@@ -49,7 +55,7 @@ function QuickActions() {
                 ${action.color}
                 group
                 flex
-                h-[108px]
+                min-h-[96px]
                 flex-col
                 items-center
                 justify-center
@@ -64,7 +70,9 @@ function QuickActions() {
                 className="mb-2 transition-transform duration-300 group-hover:scale-110"
               />
 
-              <span className="text-xs font-medium">{action.title}</span>
+              <span className="text-center text-xs font-medium leading-4">
+                {action.title}
+              </span>
             </button>
           );
         })}

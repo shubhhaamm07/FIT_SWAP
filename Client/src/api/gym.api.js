@@ -69,3 +69,13 @@ export const updateMyGym = async (gymId, gymData) => {
     const { data } = await axios.patch(`/gyms/${gymId}`, gymData);
     return data.data;
 };
+
+export const getGymCrowdLevel = async (gymId) => {
+    const { data } = await axios.get(`/gyms/${gymId}/crowd`);
+    return data.data;
+};
+
+export const reportGymCrowdLevel = async (gymId, level) => {
+    const { data } = await axios.post(`/gyms/${gymId}/crowd-reports`, { level });
+    return data.data;
+};

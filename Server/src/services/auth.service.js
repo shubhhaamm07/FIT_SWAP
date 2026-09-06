@@ -263,6 +263,8 @@ const resetPasswordWithToken = async ({ token, newPassword }) => {
             where: { userId: authToken.userId, type: 'PASSWORD_RESET' }
         });
     });
+
+    return { userId: authToken.userId };
 };
 
 const withProfileImageAvailability = (user) => {

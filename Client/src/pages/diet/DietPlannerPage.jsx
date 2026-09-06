@@ -21,6 +21,7 @@ import {
 
 import DashboardLayout from "../../layouts/DashboardLayout";
 import { generateDietPlan, swapDietMeal } from "../../api/diet-planner.api";
+import { createMealLog } from "../../api/wellness.api";
 
 const initialForm = {
   age: "",
@@ -124,7 +125,9 @@ function DietPlannerPage() {
   const [selectedDay, setSelectedDay] = useState(0);
   const [loading, setLoading] = useState(false);
   const [swappingMeal, setSwappingMeal] = useState("");
+  const [savingMeal, setSavingMeal] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   const selectedDayPlan = plan?.weeklyPlan?.[selectedDay] || null;
   const profileSummary = useMemo(() => {
@@ -134,11 +137,13 @@ function DietPlannerPage() {
 
   const updateForm = (field, value) => {
     setError("");
+    setNotice("");
     setForm((current) => ({ ...current, [field]: value }));
   };
 
   const toggleHealthConcern = (concern) => {
     setError("");
+    setNotice("");
     setForm((current) => ({
       ...current,
       healthConcerns: current.healthConcerns.includes(concern)
@@ -159,6 +164,7 @@ function DietPlannerPage() {
   const handleGenerate = async (event) => {
     event.preventDefault();
     setError("");
+    setNotice("");
     setLoading(true);
 
     try {
@@ -188,6 +194,7 @@ function DietPlannerPage() {
 
     const key = `${selectedDayPlan.day}-${mealIndex}`;
     setError("");
+    setNotice("");
     setSwappingMeal(key);
 
     try {
@@ -216,6 +223,35 @@ function DietPlannerPage() {
     }
   };
 
+  const handleLogMeal = async (meal, mealIndex) => {
+    if (!selectedDayPlan) return;
+    const key = `${selectedDayPlan.day}-${mealIndex}`;
+    const label = String(meal.label || "").toUpperCase();
+    const mealType = label.includes("BREAKFAST") ? "BREAKFAST"
+      : label.includes("LUNCH") ? "LUNCH"
+        : label.includes("DINNER") ? "DINNER"
+          : label.includes("SNACK") ? "SNACK" : "OTHER";
+    const now = new Date();
+    const mealDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    setError("");
+    setSavingMeal(key);
+    try {
+      await createMealLog({
+        mealDate,
+        mealType,
+        label: meal.suggestion,
+        description: `${meal.label} suggestion saved from your FitSwap AI plan.`,
+        estimatedCalories: meal.targetCalories,
+        source: "AI_PLAN",
+      });
+      setNotice("Meal saved to your Meal Log. Mark it followed after you have it.");
+    } catch (requestError) {
+      setError(requestError.response?.data?.message || "We could not save that meal. Please try again.");
+    } finally {
+      setSavingMeal("");
+    }
+  };
+
   return (
     <DashboardLayout>
       <main className="mx-auto w-full max-w-6xl pb-10">
@@ -226,7 +262,7 @@ function DietPlannerPage() {
               <BrainCircuit size={15} /> FitSwap AI Diet Planner · Beta
             </div>
             <h1 className="mt-5 text-3xl font-black tracking-tight text-white sm:text-4xl">Eat with a plan. Train with purpose.</h1>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-zinc-300 sm:text-base">FitSwap AI creates a practical Indian-food meal structure from your goal, movement, diet, preferences, and budget. FitSwap does not store the details you enter here.</p>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-zinc-300 sm:text-base">FitSwap AI creates a practical Indian-food meal structure from your goal, movement, diet, preferences, and budget. FitSwap does not store the details you enter here; meals are saved only when you choose to log one.</p>
           </div>
           <div className="relative mt-6 flex flex-wrap gap-3 text-xs text-zinc-300">
             <FeatureChip icon={Sparkles} text="Goal-based calories" />
@@ -314,6 +350,7 @@ function DietPlannerPage() {
             </label>
 
             {error && <div role="alert" className="mt-5 flex items-start gap-2 rounded-xl border border-red-500/25 bg-red-500/[0.06] px-4 py-3 text-sm leading-5 text-red-200"><AlertTriangle size={17} className="mt-0.5 shrink-0" />{error}</div>}
+            {notice && <div role="status" className="mt-5 flex items-start gap-2 rounded-xl border border-emerald-500/25 bg-emerald-500/[0.06] px-4 py-3 text-sm leading-5 text-emerald-200"><Check size={17} className="mt-0.5 shrink-0" />{notice}</div>}
 
             <div className="mt-6 flex flex-col gap-3 border-t border-white/[0.08] pt-5 sm:flex-row sm:items-center sm:justify-between">
               <p className="max-w-md text-xs leading-5 text-zinc-500">By continuing, you understand that this is general fitness guidance—not medical, allergy-safe, or therapeutic nutrition advice.</p>
@@ -330,7 +367,7 @@ function DietPlannerPage() {
             <ul className="mt-5 space-y-3 text-sm leading-5 text-zinc-300">
               <SafetyPoint text="Do not use it for food allergies or medical conditions without professional advice." />
               <SafetyPoint text="Speak with a doctor or dietitian for pregnancy, eating disorders, diabetes, kidney conditions, or a therapeutic diet." />
-              <SafetyPoint text="No body measurements are stored when you generate a plan." />
+              <SafetyPoint text="No body measurements are stored when you generate a plan. Only meals you explicitly log are saved." />
             </ul>
           </aside>
         </section>
@@ -364,7 +401,8 @@ function DietPlannerPage() {
                   {selectedDayPlan.meals.map((meal, index) => {
                     const swapKey = `${selectedDayPlan.day}-${index}`;
                     const isSwapping = swappingMeal === swapKey;
-                    return <article key={`${selectedDayPlan.day}-${meal.label}-${index}`} className="rounded-2xl border border-white/[0.08] bg-[#14151e] p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.12em] text-violet-300">{meal.label}</p><p className="mt-2 font-semibold leading-6 text-white">{meal.suggestion}</p></div><span className="shrink-0 rounded-lg bg-white/[0.06] px-2 py-1 text-[11px] font-bold text-zinc-300">~{meal.targetCalories} kcal</span></div>{meal.swapNote && <p className="mt-3 text-xs leading-5 text-emerald-200/80">{meal.swapNote}</p>}<button type="button" onClick={() => handleSwapMeal(meal, index)} disabled={Boolean(swappingMeal)} className="mt-4 inline-flex items-center gap-1.5 text-xs font-bold text-violet-200 transition hover:text-violet-100 disabled:cursor-not-allowed disabled:opacity-60">{isSwapping ? <><LoaderCircle size={14} className="animate-spin" /> Finding an alternative…</> : <><Shuffle size={14} /> Swap this meal</>}</button></article>;
+                    const isSaving = savingMeal === swapKey;
+                    return <article key={`${selectedDayPlan.day}-${meal.label}-${index}`} className="rounded-2xl border border-white/[0.08] bg-[#14151e] p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.12em] text-violet-300">{meal.label}</p><p className="mt-2 font-semibold leading-6 text-white">{meal.suggestion}</p></div><span className="shrink-0 rounded-lg bg-white/[0.06] px-2 py-1 text-[11px] font-bold text-zinc-300">~{meal.targetCalories} kcal</span></div>{meal.swapNote && <p className="mt-3 text-xs leading-5 text-emerald-200/80">{meal.swapNote}</p>}<div className="mt-4 flex flex-wrap gap-x-4 gap-y-2"><button type="button" onClick={() => handleSwapMeal(meal, index)} disabled={Boolean(swappingMeal) || Boolean(savingMeal)} className="inline-flex items-center gap-1.5 text-xs font-bold text-violet-200 transition hover:text-violet-100 disabled:cursor-not-allowed disabled:opacity-60">{isSwapping ? <><LoaderCircle size={14} className="animate-spin" /> Finding an alternative…</> : <><Shuffle size={14} /> Swap this meal</>}</button><button type="button" onClick={() => handleLogMeal(meal, index)} disabled={Boolean(swappingMeal) || Boolean(savingMeal)} className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-200 transition hover:text-emerald-100 disabled:cursor-not-allowed disabled:opacity-60">{isSaving ? <><LoaderCircle size={14} className="animate-spin" /> Saving…</> : <><Check size={14} /> Save to meal log</>}</button></div></article>;
                   })}
                 </div>}
               </div>

@@ -38,6 +38,9 @@ const platformBillingRoutes = require('./routes/platform-billing.routes');
 const dietPlannerRoutes = require('./routes/diet-planner.routes');
 const trialBookingRoutes = require('./routes/trial-booking.routes');
 const supportTicketRoutes = require('./routes/support-ticket.routes');
+const wellnessRoutes = require('./routes/wellness.routes');
+const securityRoutes = require('./routes/security.routes');
+const crowdReportRoutes = require('./routes/crowd-report.routes');
 const {
     apiLimiter,
 } = require("./middlewares/rateLimiter.middleware");
@@ -121,6 +124,9 @@ app.use('/api', platformBillingRoutes);
 app.use('/api', dietPlannerRoutes);
 app.use('/api', trialBookingRoutes);
 app.use('/api', supportTicketRoutes);
+app.use('/api', wellnessRoutes);
+app.use('/api', securityRoutes);
+app.use('/api', crowdReportRoutes);
 
 app.use((req, res) => {
     return res.status(404).json({

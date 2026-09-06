@@ -55,6 +55,14 @@ model User {
   platformPaymentApprovals  PlatformPaymentRequest[]   @relation("PlatformPaymentApprover")
   membershipExpiryReminders MembershipExpiryReminder[]
   trialBookings             GymTrialBooking[]
+  workoutSchedules          WorkoutSchedule[]
+  workoutCompletions        WorkoutCompletion[]
+  mealLogs                  MealLog[]
+  sessions                  UserSession[]
+  loginAudits               LoginAudit[]
+  passwordChanges           PasswordChangeAudit[]
+  crowdReports              GymCrowdReport[]
+  crowdReportHistory        GymCrowdReportHistory[]
   supportTickets            SupportTicket[]           @relation("SupportTicketCreator")
   assignedSupportTickets    SupportTicket[]           @relation("SupportTicketAssignee")
   supportMessages           SupportMessage[]          @relation("SupportMessageSender")
@@ -84,6 +92,8 @@ model Gym {
   upiPaymentRequests    UpiPaymentRequest[]
   trialSlots            GymTrialSlot[]
   verificationDocuments GymVerificationDocument[]
+  crowdReports          GymCrowdReport[]
+  crowdReportHistory    GymCrowdReportHistory[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -589,6 +599,145 @@ model GymImage {
   @@index([gymId])
 }
 
+// A member's reusable weekly workout template. Completing a session is stored
+// separately, so the plan remains useful while the completion history stays
+// queryable for adherence calculations.
+model WorkoutSchedule {
+  id              String   @id @default(cuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekday         Int
+  title           String
+  focus           String?
+  durationMinutes Int?
+  notes           String?
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  completions     WorkoutCompletion[]
+
+  @@index([userId, weekday, isActive])
+}
+
+model WorkoutCompletion {
+  id              String          @id @default(cuid())
+  userId          String
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scheduleId      String
+  schedule        WorkoutSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  completedOn     DateTime        @db.Date
+  durationMinutes Int?
+  notes           String?
+  createdAt       DateTime        @default(now())
+
+  @@unique([scheduleId, completedOn])
+  @@index([userId, completedOn])
+}
+
+// This is deliberately limited to meals a member explicitly saves. It does
+// not retain the health profile submitted to the diet-planner generator.
+model MealLog {
+  id                String        @id @default(cuid())
+  userId            String
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mealDate          DateTime      @db.Date
+  mealType          MealType      @default(OTHER)
+  label             String
+  description       String?
+  estimatedCalories Int?
+  source            MealLogSource @default(MANUAL)
+  isFollowed        Boolean       @default(false)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([userId, mealDate])
+}
+
+// JWTs reference a server-side session record. This makes individual-device
+// sign-out possible while still keeping the cookie itself HTTP-only.
+model UserSession {
+  id            String          @id @default(cuid())
+  userId        String
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceName    String
+  userAgent     String?
+  ipAddress     String?
+  authMethod    LoginAuthMethod
+  createdAt     DateTime        @default(now())
+  lastSeenAt    DateTime        @default(now())
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  revokedReason String?
+
+  @@index([userId, revokedAt, expiresAt])
+}
+
+// Login events are kept separately from live sessions so members can see
+// failed or unfamiliar sign-in attempts even after a session has expired.
+model LoginAudit {
+  id         String           @id @default(cuid())
+  userId     String?
+  user       User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  email      String?
+  deviceName String?
+  userAgent  String?
+  ipAddress  String?
+  authMethod LoginAuthMethod?
+  status     LoginAuditStatus
+  riskLevel  LoginRiskLevel   @default(NONE)
+  detail     String?
+  createdAt  DateTime         @default(now())
+
+  @@index([userId, createdAt])
+  @@index([email, createdAt])
+}
+
+model PasswordChangeAudit {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  source     String
+  deviceName String?
+  ipAddress  String?
+  changedAt  DateTime @default(now())
+
+  @@index([userId, changedAt])
+}
+
+// A crowd indication expires quickly: the app presents a current pulse rather
+// than a permanent review. Each member can refresh their own report at will.
+model GymCrowdReport {
+  id         String     @id @default(cuid())
+  gymId      String
+  gym        Gym        @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level      CrowdLevel
+  reportedAt DateTime   @default(now())
+  expiresAt  DateTime
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@index([gymId, expiresAt])
+  @@index([userId, reportedAt])
+  @@unique([gymId, userId])
+}
+
+// Live reports expire quickly. This append-only history is intentionally
+// separate so day/time averages never masquerade as a current crowd level.
+model GymCrowdReportHistory {
+  id         String     @id @default(cuid())
+  gymId      String
+  gym        Gym        @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  level      CrowdLevel
+  reportedAt DateTime   @default(now())
+
+  @@index([gymId, reportedAt])
+  @@index([userId, reportedAt])
+}
+
 enum UserRole {
   USER
   GYM_OWNER
@@ -730,6 +879,41 @@ enum TrialBookingStatus {
   COMPLETED
   NO_SHOW
   CANCELLED
+}
+
+enum MealType {
+  BREAKFAST
+  LUNCH
+  DINNER
+  SNACK
+  OTHER
+}
+
+enum MealLogSource {
+  AI_PLAN
+  MANUAL
+}
+
+enum LoginAuthMethod {
+  PASSWORD
+  GOOGLE
+}
+
+enum LoginAuditStatus {
+  SUCCESS
+  FAILURE
+}
+
+enum LoginRiskLevel {
+  NONE
+  NEW_DEVICE
+  SUSPICIOUS
+}
+
+enum CrowdLevel {
+  LOW
+  MEDIUM
+  HIGH
 }
 
 enum AdminAuditAction {

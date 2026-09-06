@@ -1,5 +1,6 @@
 const authService = require('../services/auth.service');
 const generateToken = require('../utils/generate-token');
+const securityService = require('../services/security.service');
 
 const sessionCookieOptions = () => ({
     httpOnly: true,
@@ -63,10 +64,11 @@ const register = async (req, res) => {
     }
 };
 const login = async (req, res) => {
+    let user;
     try {
-        const user = await authService.loginUser(req.body);
-
-        const token = generateToken(user);
+        user = await authService.loginUser(req.body);
+        const session = await securityService.createSession({ user, req, authMethod: 'PASSWORD' });
+        const token = generateToken(user, session.id);
 
         setSessionCookie(res, token);
         return res.status(200).json({
@@ -74,18 +76,21 @@ const login = async (req, res) => {
             user: authResponseUser(user)
         });
     } catch (error) {
-        return res.status(error.statusCode || 401).json({
+        if (!user) securityService.recordFailedLogin(req.body?.email, req, 'PASSWORD').catch(() => undefined);
+        return res.status(error.statusCode || (user ? 500 : 401)).json({
             success: false,
-            message: error.message,
+            message: user ? 'Unable to create a secure session. Please try again.' : error.message,
             code: error.code
         });
     }
 };
 
 const googleLogin = async (req, res) => {
+    let user;
     try {
-        const user = await authService.loginWithGoogleCredential(req.body?.credential);
-        const token = generateToken(user);
+        user = await authService.loginWithGoogleCredential(req.body?.credential);
+        const session = await securityService.createSession({ user, req, authMethod: 'GOOGLE' });
+        const token = generateToken(user, session.id);
 
         setSessionCookie(res, token);
         return res.status(200).json({
@@ -93,9 +98,9 @@ const googleLogin = async (req, res) => {
             user: authResponseUser(user)
         });
     } catch (error) {
-        return res.status(error.statusCode || 401).json({
+        return res.status(error.statusCode || (user ? 500 : 401)).json({
             success: false,
-            message: error.message,
+            message: user ? 'Unable to create a secure session. Please try again.' : error.message,
             code: error.code
         });
     }
@@ -116,14 +121,21 @@ const requestPasswordReset = async (req, res) => {
     }
 };
 
-const logout = (req, res) => {
+const logout = async (req, res) => {
+    if (req.user?.sessionId) {
+        await securityService.revokeSession(req.user.sessionId, req.user.id, 'SIGNED_OUT');
+    }
     clearSessionCookie(res);
     return res.status(204).send();
 };
 
 const resetPassword = async (req, res) => {
     try {
-        await authService.resetPasswordWithToken(req.body || {});
+        const result = await authService.resetPasswordWithToken(req.body || {});
+        await Promise.all([
+            securityService.revokeAllSessions(result.userId, 'PASSWORD_RESET'),
+            securityService.recordPasswordChange(result.userId, req, 'PASSWORD_RESET')
+        ]);
         return res.status(200).json({
             success: true,
             message: 'Password reset successfully. You can now sign in.'
@@ -230,9 +242,15 @@ const updateSettings = async (req, res) => {
 const changePassword = async (req, res) => {
     try {
         await authService.changePassword(req.user.id, req.body);
+        await Promise.all([
+            securityService.revokeAllSessions(req.user.id, 'PASSWORD_CHANGED'),
+            securityService.recordPasswordChange(req.user.id, req, 'PASSWORD_CHANGED')
+        ]);
+        clearSessionCookie(res);
         return res.status(200).json({
             success: true,
-            message: 'Password updated successfully'
+            message: 'Password updated successfully. Please sign in again on this device.',
+            reauthenticationRequired: true
         });
     } catch (error) {
         return res.status(400).json({

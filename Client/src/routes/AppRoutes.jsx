@@ -25,6 +25,8 @@ const NearbyGymsPage = lazy(() => import("../pages/gyms/NearbyGymsPage"));
 const GymDetailsPage = lazy(() => import("../pages/gyms/GymDetailsPage"));
 const TrialBookingPage = lazy(() => import("../pages/trials/TrialBookingPage"));
 const DietPlannerPage = lazy(() => import("../pages/diet/DietPlannerPage"));
+const WellnessPage = lazy(() => import("../pages/wellness/WellnessPage"));
+const SecurityCentrePage = lazy(() => import("../pages/security/SecurityCentrePage"));
 const GymOwnerDashboardPage = lazy(() => import("../pages/gym-owner/GymOwnerDashboardPage"));
 const GymOwnerOperationsPage = lazy(() => import("../pages/gym-owner/GymOwnerOperationsPage"));
 const OwnerTrialsPage = lazy(() => import("../pages/gym-owner/OwnerTrialsPage"));
@@ -196,6 +198,16 @@ function AppRoutes() {
         <Route
           path="/diet-planner"
           element={<RoleRoute allowedRoles={["USER"]}><DietPlannerPage /></RoleRoute>}
+        />
+
+        <Route
+          path="/wellness"
+          element={<RoleRoute allowedRoles={["USER"]}><WellnessPage /></RoleRoute>}
+        />
+
+        <Route
+          path="/security"
+          element={<ProtectedRoute><SecurityCentrePage /></ProtectedRoute>}
         />
 
         <Route
