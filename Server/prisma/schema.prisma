@@ -55,6 +55,9 @@ model User {
   platformPaymentApprovals  PlatformPaymentRequest[]   @relation("PlatformPaymentApprover")
   membershipExpiryReminders MembershipExpiryReminder[]
   trialBookings             GymTrialBooking[]
+  supportTickets            SupportTicket[]           @relation("SupportTicketCreator")
+  assignedSupportTickets    SupportTicket[]           @relation("SupportTicketAssignee")
+  supportMessages           SupportMessage[]          @relation("SupportMessageSender")
 }
 
 model Gym {
@@ -358,6 +361,84 @@ model Notification {
   createdAt DateTime @default(now())
 }
 
+// Support records use a stable human reference and retain every reply and
+// decision. Related business records are stored as references instead of
+// foreign keys because a ticket can concern any FitSwap workflow.
+model SupportTicket {
+  id              String               @id @default(cuid())
+  ticketNumber    String               @unique
+  creatorId       String
+  creator         User                 @relation("SupportTicketCreator", fields: [creatorId], references: [id])
+  assignedToId    String?
+  assignedTo      User?                @relation("SupportTicketAssignee", fields: [assignedToId], references: [id])
+  category        SupportTicketCategory
+  subject         String
+  priority        SupportTicketPriority @default(NORMAL)
+  status          SupportTicketStatus   @default(OPEN)
+  relatedType     SupportRelatedType     @default(NONE)
+  relatedEntityId String?
+  relatedLabel    String?
+  lastMessageAt   DateTime              @default(now())
+  resolvedAt      DateTime?
+  closedAt        DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  messages  SupportMessage[]
+  auditLogs SupportTicketAuditLog[]
+
+  @@index([creatorId, status, lastMessageAt])
+  @@index([assignedToId, status, lastMessageAt])
+  @@index([status, priority, lastMessageAt])
+  @@index([relatedType, relatedEntityId])
+}
+
+model SupportMessage {
+  id        String        @id @default(cuid())
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  senderId  String
+  sender    User          @relation("SupportMessageSender", fields: [senderId], references: [id])
+  body      String
+  createdAt DateTime      @default(now())
+
+  attachments SupportAttachment[]
+
+  @@index([ticketId, createdAt])
+}
+
+model SupportAttachment {
+  id          String         @id @default(cuid())
+  messageId   String
+  message     SupportMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  bucket      String
+  fileKey     String         @unique
+  fileName    String
+  contentType String
+  byteSize    Int
+  createdAt   DateTime       @default(now())
+
+  @@index([messageId])
+}
+
+// Actor IDs are deliberately retained as values so the audit trail remains
+// useful even if a user account is later removed or deactivated.
+model SupportTicketAuditLog {
+  id         String        @id @default(cuid())
+  ticketId   String
+  ticket     SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  actorId    String
+  actorRole  String
+  action     String
+  fromStatus String?
+  toStatus   String?
+  detail     String?
+  createdAt  DateTime      @default(now())
+
+  @@index([ticketId, createdAt])
+  @@index([actorId, createdAt])
+}
+
 // Delivery ledger for membership-expiry alerts. The compound unique key makes
 // each reminder idempotent even if multiple server instances run the cron job.
 model MembershipExpiryReminder {
@@ -513,6 +594,42 @@ enum UserRole {
   GYM_OWNER
   GYM_STAFF
   ADMIN
+}
+
+enum SupportTicketCategory {
+  TRANSFER
+  PAYMENT
+  MEMBERSHIP
+  GYM
+  LISTING
+  ACCOUNT
+  TECHNICAL
+  OTHER
+}
+
+enum SupportTicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum SupportTicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_FOR_USER
+  RESOLVED
+  CLOSED
+}
+
+enum SupportRelatedType {
+  NONE
+  MEMBERSHIP
+  TRANSFER
+  PAYMENT
+  LISTING
+  GYM
+  TRIAL
 }
 
 enum GymStatus {

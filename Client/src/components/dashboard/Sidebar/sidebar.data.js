@@ -10,6 +10,7 @@ import {
     UserRound,
     Settings,
     Sparkles,
+    CircleHelp,
 } from "lucide-react";
 
 export const sidebarSections = [
@@ -94,6 +95,11 @@ export const sidebarSections = [
                 label: "Settings",
                 to: "/settings",
                 icon: Settings,
+            },
+            {
+                label: "Help & Support",
+                to: "/support",
+                icon: CircleHelp,
             },
         ],
     },

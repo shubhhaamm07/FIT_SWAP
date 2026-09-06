@@ -34,6 +34,7 @@ const AdminNotificationCentrePage = lazy(() => import("../pages/admin/AdminNotif
 const AdminAuditLogsPage = lazy(() => import("../pages/admin/AdminAuditLogsPage"));
 const AdminTransferAuditPage = lazy(() => import("../pages/admin/AdminTransferAuditPage"));
 const AdminFraudAlertsPage = lazy(() => import("../pages/admin/AdminFraudAlertsPage"));
+const SupportTicketsPage = lazy(() => import("../pages/support/SupportTicketsPage"));
 
 import ProtectedRoute from "./ProtectedRoute";
 import RoleRoute from "./RoleRoute";
@@ -165,6 +166,11 @@ function AppRoutes() {
               <NotificationsPage />
             </ProtectedRoute>
           }
+        />
+
+        <Route
+          path="/support"
+          element={<ProtectedRoute><SupportTicketsPage /></ProtectedRoute>}
         />
 
         <Route

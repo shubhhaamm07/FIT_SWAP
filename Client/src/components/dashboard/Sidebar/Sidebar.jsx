@@ -17,6 +17,7 @@ import {
   UserRound,
   UsersRound,
   WalletCards,
+  CircleHelp,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -70,6 +71,7 @@ function Sidebar({ onNavigate }) {
             { label: "Notification Centre", to: "/admin/announcements", icon: Bell },
             { label: "Audit Logs", to: "/admin/audit-logs", icon: ClipboardList },
             { label: "Transfer Audit", to: "/admin/transfer-audit", icon: ClipboardList },
+            { label: "Support tickets", to: "/support", icon: CircleHelp },
           ],
         },
         {
@@ -78,6 +80,7 @@ function Sidebar({ onNavigate }) {
             { label: "Notifications", to: "/notifications", icon: Bell },
             { label: "Profile", to: "/profile", icon: UserRound },
             { label: "Settings", to: "/settings", icon: Settings },
+            { label: "Help & Support", to: "/support", icon: CircleHelp },
           ],
         },
       ]
@@ -130,6 +133,7 @@ function Sidebar({ onNavigate }) {
             { label: "Notifications", to: "/notifications", icon: Bell },
             { label: "Profile", to: "/profile", icon: UserRound },
             { label: "Settings", to: "/settings", icon: Settings },
+            { label: "Help & Support", to: "/support", icon: CircleHelp },
           ],
         },
       ]

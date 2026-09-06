@@ -37,6 +37,7 @@ const upiPaymentRoutes = require('./routes/upi-payment.routes');
 const platformBillingRoutes = require('./routes/platform-billing.routes');
 const dietPlannerRoutes = require('./routes/diet-planner.routes');
 const trialBookingRoutes = require('./routes/trial-booking.routes');
+const supportTicketRoutes = require('./routes/support-ticket.routes');
 const {
     apiLimiter,
 } = require("./middlewares/rateLimiter.middleware");
@@ -119,6 +120,7 @@ app.use('/api', upiPaymentRoutes);
 app.use('/api', platformBillingRoutes);
 app.use('/api', dietPlannerRoutes);
 app.use('/api', trialBookingRoutes);
+app.use('/api', supportTicketRoutes);
 
 app.use((req, res) => {
     return res.status(404).json({
