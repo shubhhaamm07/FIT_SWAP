@@ -1,5 +1,6 @@
 const prisma = require('../lib/prisma');
 const { buildFairPriceSuggestion } = require('../domain/pricing/fair-price-suggestion');
+const notificationService = require('./notification.service');
 const {
     assertMembershipEligible,
     writeTransferAudit,
@@ -11,6 +12,48 @@ const {
     ListingLocks,
     ListingTransitions
 } = require('../domain/marketplace');
+
+const formatAmount = (amount) => `₹${Math.round(Number(amount || 0)).toLocaleString('en-IN')}`;
+
+// Marketplace discovery is intentionally local rather than a platform-wide
+// blast: members who opted in and set the same city as the gym are alerted.
+const notifyNearbyMembersOfNewListing = async ({ sellerId, city, gymName, planName, askingPrice }) => {
+    const normalizedCity = String(city || '').trim();
+    if (!normalizedCity) return;
+
+    const recipients = await prisma.user.findMany({
+        where: {
+            id: { not: sellerId },
+            role: 'USER',
+            isActive: true,
+            marketplaceNotifications: true,
+            city: { equals: normalizedCity, mode: 'insensitive' },
+        },
+        select: { id: true },
+        take: 200,
+    });
+    await Promise.all(recipients.map(({ id }) => notificationService.createNotification(
+        id,
+        'New membership listing near you',
+        `${planName} at ${gymName} is now listed for ${formatAmount(askingPrice)}.`
+    )));
+};
+
+const notifySavedUsersOfPriceDrop = async ({ listingId, sellerId, previousPrice, newPrice, gymName, planName }) => {
+    const savedBy = await prisma.savedListing.findMany({
+        where: { listingId, userId: { not: sellerId } },
+        select: { userId: true },
+    });
+    const recipientIds = [...new Set(savedBy.map((saved) => saved.userId))];
+    if (!recipientIds.length) return;
+
+    const savedAmount = formatAmount(previousPrice - newPrice);
+    await Promise.all(recipientIds.map((userId) => notificationService.createNotification(
+        userId,
+        'Price drop on a saved listing',
+        `${planName} at ${gymName} dropped by ${savedAmount}; it is now ${formatAmount(newPrice)}.`
+    )));
+};
 
 const createListing = async (
     sellerId,
@@ -119,7 +162,7 @@ const createListing = async (
 
     }
 
-    return prisma.$transaction(async (tx) => {
+    const listing = await prisma.$transaction(async (tx) => {
         const listing = await tx.marketplaceListing.create({
             data: {
                 membershipId,
@@ -138,6 +181,22 @@ const createListing = async (
         });
         return listing;
     });
+
+    // Alerts are deliberately sent after the database transaction commits so
+    // members never receive a notification for a listing that failed to save.
+    try {
+        await notifyNearbyMembersOfNewListing({
+            sellerId,
+            city: membership.plan.gym.city,
+            gymName: membership.plan.gym.name,
+            planName: membership.plan.name,
+            askingPrice: normalizedAskingPrice,
+        });
+    } catch (error) {
+        // A notification outage must never roll back a valid marketplace post.
+        console.error('New-listing alerts could not be delivered', { name: error.name });
+    }
+    return listing;
 
 };
 
@@ -906,7 +965,11 @@ const updateListingPrice = async (
             include: {
                 membership: {
                     include: {
-                        plan: true
+                        plan: {
+                            include: {
+                                gym: { select: { name: true } }
+                            }
+                        }
                     }
                 }
             }
@@ -954,7 +1017,7 @@ const updateListingPrice = async (
 
     }
 
-    return prisma.$transaction(
+    const updatedListing = await prisma.$transaction(
 
         async (tx) => {
 
@@ -977,6 +1040,23 @@ const updateListingPrice = async (
         }
 
     );
+
+    if (normalizedAskingPrice < Number(listing.askingPrice)) {
+        try {
+            await notifySavedUsersOfPriceDrop({
+                listingId: listing.id,
+                sellerId,
+                previousPrice: Number(listing.askingPrice),
+                newPrice: normalizedAskingPrice,
+                gymName: listing.membership.plan.gym?.name || 'your saved gym',
+                planName: listing.membership.plan.name,
+            });
+        } catch (error) {
+            // Preserve the successful price change even if alerts are delayed.
+            console.error('Price-drop alerts could not be delivered', { name: error.name });
+        }
+    }
+    return updatedListing;
 
 };
 

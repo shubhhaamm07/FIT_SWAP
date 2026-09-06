@@ -41,6 +41,14 @@ const TransferRequestsPage = () => {
     const timer = window.setInterval(() => { void loadRequests(); }, 20000);
     return () => window.clearInterval(timer);
   }, [upiPayments, loadRequests]);
+  useEffect(() => {
+    const refreshForTransferUpdate = (event) => {
+      const text = `${event.detail?.title || ""} ${event.detail?.message || ""}`.toLowerCase();
+      if (/transfer|membership handover|upi payment/.test(text)) void loadRequests();
+    };
+    window.addEventListener("fitswap:notification", refreshForTransferUpdate);
+    return () => window.removeEventListener("fitswap:notification", refreshForTransferUpdate);
+  }, [loadRequests]);
 
   const handleLegacyAction = async (requestId, action) => {
     try {

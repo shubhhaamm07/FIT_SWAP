@@ -283,7 +283,7 @@ const markPaymentPaid = async (buyerId, requestId, utr) => {
         include: requestInclude,
     });
 
-    await notificationService.createNotification(
+    await notificationService.createTransactionalNotification(
         request.recipientId,
         'UPI payment needs your confirmation',
         `Check your bank app for ${request.paymentRef} (UTR: ${normalizedUtr}) before confirming this payment.`
@@ -394,8 +394,8 @@ const confirmPaymentReceived = async (recipientId, requestId) => {
                 gymApproved: false,
             });
             await Promise.all([
-                notificationService.createNotification(request.buyerId, 'Membership transfer completed', 'The seller confirmed your UPI payment and the membership is now in your FitSwap account.'),
-                notificationService.createNotification(completed.sellerId, 'Membership transfer completed', 'Your UPI payment confirmation completed the membership handover.'),
+                notificationService.createTransactionalNotification(request.buyerId, 'Membership transfer completed', 'The seller confirmed your UPI payment and the membership is now in your FitSwap account.'),
+                notificationService.createTransactionalNotification(completed.sellerId, 'Membership transfer completed', 'Your UPI payment confirmation completed the membership handover.'),
             ]);
             return { status: 'COMPLETED', listingId: completed.listingId };
         }
@@ -423,8 +423,8 @@ const confirmPaymentReceived = async (recipientId, requestId) => {
         });
 
         await Promise.all([
-            notificationService.createNotification(request.buyerId, 'Seller confirmed your UPI payment', 'The gym now needs to approve the membership transfer.'),
-            notificationService.createNotification(request.gym.ownerId, 'UPI transfer needs gym approval', `A seller confirmed payment for ${request.listing.membership.plan.name}. Review the transfer in Owner Operations.`),
+            notificationService.createTransactionalNotification(request.buyerId, 'Seller confirmed your UPI payment', 'The gym now needs to approve the membership transfer.'),
+            notificationService.createTransactionalNotification(request.gym.ownerId, 'UPI transfer needs gym approval', `A seller confirmed payment for ${request.listing.membership.plan.name}. Review the transfer in Owner Operations.`),
         ]);
 
         return updated;
@@ -473,7 +473,7 @@ const confirmPaymentReceived = async (recipientId, requestId) => {
         return membership;
     });
 
-    await notificationService.createNotification(
+    await notificationService.createTransactionalNotification(
         request.buyerId,
         'UPI payment confirmed — membership activated',
         `Your ${request.plan.name} membership at ${request.gym.name} is now active.`
@@ -505,8 +505,8 @@ const approveMarketplaceTransfer = async (ownerId, requestId) => {
     });
 
     await Promise.all([
-        notificationService.createNotification(request.buyerId, 'Gym approved your UPI transfer', 'The membership is now available in your FitSwap account.'),
-        notificationService.createNotification(request.recipientId, 'Gym approved membership transfer', 'The buyer now owns the membership after your UPI payment confirmation.'),
+        notificationService.createTransactionalNotification(request.buyerId, 'Gym approved your UPI transfer', 'The membership is now available in your FitSwap account.'),
+        notificationService.createTransactionalNotification(request.recipientId, 'Gym approved membership transfer', 'The buyer now owns the membership after your UPI payment confirmation.'),
     ]);
 
     return { status: 'COMPLETED' };
@@ -545,7 +545,7 @@ const rejectPayment = async (actorId, requestId, reason) => {
             });
         }
     });
-    await notificationService.createNotification(request.buyerId, 'UPI payment request was rejected', rejectionReason);
+    await notificationService.createTransactionalNotification(request.buyerId, 'UPI payment request was rejected', rejectionReason);
     return { status: 'REJECTED' };
 };
 

@@ -25,6 +25,26 @@ const getMyNotifications = async (
     }
 };
 
+// A signed-in browser can keep a single long-lived connection open. No token
+// is placed in the URL: `protect` authenticates the existing HTTP-only cookie.
+const streamMyNotifications = (req, res) => {
+    res.status(200).set({
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache, no-transform',
+        Connection: 'keep-alive',
+        'X-Accel-Buffering': 'no'
+    });
+    res.flushHeaders?.();
+    res.write('event: ready\ndata: {"connected":true}\n\n');
+
+    const unsubscribe = notificationService.subscribe(req.user.id, res);
+    const keepAlive = setInterval(() => res.write(': keep-alive\n\n'), 25000);
+    req.on('close', () => {
+        clearInterval(keepAlive);
+        unsubscribe();
+    });
+};
+
 const markAsRead = async (
     req,
     res
@@ -76,6 +96,7 @@ const markAllAsRead = async (
 
 module.exports = {
     getMyNotifications,
+    streamMyNotifications,
     markAsRead,
     markAllAsRead
 };

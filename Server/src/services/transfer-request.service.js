@@ -100,7 +100,7 @@ const createTransferRequest = async (
         return created;
     });
 
-    await notificationService.createNotification(
+    await notificationService.createTransactionalNotification(
         listing.sellerId,
         'Transfer Request Received',
         'A buyer has requested your membership.'
@@ -286,8 +286,8 @@ const approveTransferRequest = async (
         });
 
         await Promise.all([
-            notificationService.createNotification(request.buyerId, 'Cash transfer awaiting gym approval', 'The seller confirmed your request. The gym owner must approve the membership handover.'),
-            notificationService.createNotification(request.listing.membership.plan.gym.ownerId, 'Cash transfer needs gym approval', `Review the cash membership handover for ${request.listing.membership.plan.name}.`),
+            notificationService.createTransactionalNotification(request.buyerId, 'Cash transfer awaiting gym approval', 'The seller confirmed your request. The gym owner must approve the membership handover.'),
+            notificationService.createTransactionalNotification(request.listing.membership.plan.gym.ownerId, 'Cash transfer needs gym approval', `Review the cash membership handover for ${request.listing.membership.plan.name}.`),
         ]);
         return awaitingApproval;
     }
@@ -373,7 +373,7 @@ const approveTransferRequest = async (
             }
         );
 
-    await notificationService.createNotification(
+    await notificationService.createTransactionalNotification(
         request.buyerId,
         'Transfer Request Approved',
         'Your transfer request has been approved.'
@@ -456,8 +456,8 @@ const approveCashTransferByGymOwner = async (requestId, ownerId) => {
     });
 
     await Promise.all([
-        notificationService.createNotification(request.buyerId, 'Gym approved your cash transfer', 'The membership is now available in your FitSwap account.'),
-        notificationService.createNotification(request.listing.sellerId, 'Gym approved cash membership transfer', 'The buyer now owns the membership.'),
+        notificationService.createTransactionalNotification(request.buyerId, 'Gym approved your cash transfer', 'The membership is now available in your FitSwap account.'),
+        notificationService.createTransactionalNotification(request.listing.sellerId, 'Gym approved cash membership transfer', 'The buyer now owns the membership.'),
     ]);
     return approved;
 };
@@ -487,7 +487,7 @@ const rejectCashTransferByGymOwner = async (requestId, ownerId) => {
         });
         return tx.transferRequest.findUnique({ where: { id: request.id } });
     });
-    await notificationService.createNotification(request.buyerId, 'Cash transfer was rejected', 'The gym owner did not approve this membership handover.');
+    await notificationService.createTransactionalNotification(request.buyerId, 'Cash transfer was rejected', 'The gym owner did not approve this membership handover.');
     return rejected;
 };
 
@@ -551,7 +551,7 @@ const rejectTransferRequest = async (
         summary: 'Seller rejected a cash transfer request.',
     });
 
-    await notificationService.createNotification(
+    await notificationService.createTransactionalNotification(
         request.buyerId,
         'Transfer Request Rejected',
         'Your transfer request has been rejected.'
@@ -608,7 +608,7 @@ const cancelTransferRequest = async (
         summary: 'Buyer cancelled a cash transfer request.',
     });
 
-    await notificationService.createNotification(
+    await notificationService.createTransactionalNotification(
         request.listing.sellerId,
         'Transfer Request Cancelled',
         'A buyer has cancelled their transfer request.'

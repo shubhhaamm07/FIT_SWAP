@@ -15,6 +15,12 @@ router.get(
     notificationController.getMyNotifications
 );
 
+router.get(
+    '/notifications/stream',
+    protect,
+    notificationController.streamMyNotifications
+);
+
 router.patch(
     '/notifications/:notificationId/read',
     protect,

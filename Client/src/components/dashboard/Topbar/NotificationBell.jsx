@@ -2,16 +2,47 @@ import { useEffect, useState } from "react";
 import { Bell } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { getNotifications } from "../../../api/notification.api";
+import { useToast } from "../../../hooks/useToast";
+
+const apiBaseUrl = import.meta.env.VITE_API_URL?.trim() || "/api";
+const notificationStreamUrl = `${apiBaseUrl.replace(/\/$/, "")}/notifications/stream`;
 
 function NotificationBell() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [count, setCount] = useState(0);
 
   useEffect(() => {
     let active = true;
-    getNotifications().then((items) => { if (active) setCount(items.filter((item) => !item.isRead).length); }).catch(() => {});
-    return () => { active = false; };
-  }, []);
+    const refreshUnreadCount = () => getNotifications()
+      .then((items) => { if (active) setCount(items.filter((item) => !item.isRead).length); })
+      .catch(() => {});
+    void refreshUnreadCount();
+
+    // SSE gives active users immediate alerts. A periodic refresh remains as a
+    // graceful fallback if a proxy closes the stream or the API later scales.
+    const stream = new EventSource(notificationStreamUrl, { withCredentials: true });
+    const onNotification = (event) => {
+      try {
+        const notification = JSON.parse(event.data);
+        if (!active || !notification?.id) return;
+        setCount((current) => current + (notification.isRead ? 0 : 1));
+        showToast(`${notification.title}: ${notification.message}`);
+        window.dispatchEvent(new CustomEvent("fitswap:notification", { detail: notification }));
+      } catch {
+        // Ignore an invalid stream payload and wait for the next event.
+      }
+    };
+    stream.addEventListener("notification", onNotification);
+    const poll = window.setInterval(() => { void refreshUnreadCount(); }, 45000);
+
+    return () => {
+      active = false;
+      window.clearInterval(poll);
+      stream.removeEventListener("notification", onNotification);
+      stream.close();
+    };
+  }, [showToast]);
 
   return (
     <button
@@ -50,7 +81,7 @@ function NotificationBell() {
             justify-center
           "
         >
-          {count}
+          {count > 99 ? "99+" : count}
         </span>
       )}
     </button>
