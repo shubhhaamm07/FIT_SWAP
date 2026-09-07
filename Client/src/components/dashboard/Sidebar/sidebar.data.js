@@ -89,6 +89,11 @@ export const sidebarSections = [
         title: "Account",
         items: [
             {
+                label: "FitSwap Plus",
+                to: "/plus",
+                icon: Sparkles,
+            },
+            {
                 label: "Notifications",
                 to: "/notifications",
                 icon: Bell,

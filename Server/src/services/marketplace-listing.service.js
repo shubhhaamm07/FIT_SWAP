@@ -1,6 +1,7 @@
 const prisma = require('../lib/prisma');
 const { buildFairPriceSuggestion } = require('../domain/pricing/fair-price-suggestion');
 const notificationService = require('./notification.service');
+const { getMemberPlusEntitlement } = require('./platform-billing.service');
 const {
     assertMembershipEligible,
     writeTransferAudit,
@@ -14,6 +15,20 @@ const {
 } = require('../domain/marketplace');
 
 const formatAmount = (amount) => `₹${Math.round(Number(amount || 0)).toLocaleString('en-IN')}`;
+
+const getPlusRecipientIds = async (userIds) => {
+    if (!userIds.length) return [];
+    const payments = await prisma.platformPaymentRequest.findMany({
+        where: {
+            buyerId: { in: userIds },
+            kind: 'MEMBER_SUBSCRIPTION',
+            status: 'COMPLETED',
+            benefitExpiresAt: { gt: new Date() },
+        },
+        select: { buyerId: true },
+    });
+    return [...new Set(payments.map((payment) => payment.buyerId))];
+};
 
 // Marketplace discovery is intentionally local rather than a platform-wide
 // blast: members who opted in and set the same city as the gym are alerted.
@@ -32,10 +47,11 @@ const notifyNearbyMembersOfNewListing = async ({ sellerId, city, gymName, planNa
         select: { id: true },
         take: 200,
     });
-    await Promise.all(recipients.map(({ id }) => notificationService.createNotification(
+    const plusRecipientIds = await getPlusRecipientIds(recipients.map(({ id }) => id));
+    await Promise.all(plusRecipientIds.map((id) => notificationService.createNotification(
         id,
         'New membership listing near you',
-        `${planName} at ${gymName} is now listed for ${formatAmount(askingPrice)}.`
+        `${planName} at ${gymName} is now listed for ${formatAmount(askingPrice)}. You received this early alert with FitSwap Plus.`
     )));
 };
 
@@ -44,7 +60,7 @@ const notifySavedUsersOfPriceDrop = async ({ listingId, sellerId, previousPrice,
         where: { listingId, userId: { not: sellerId } },
         select: { userId: true },
     });
-    const recipientIds = [...new Set(savedBy.map((saved) => saved.userId))];
+    const recipientIds = await getPlusRecipientIds([...new Set(savedBy.map((saved) => saved.userId))]);
     if (!recipientIds.length) return;
 
     const savedAmount = formatAmount(previousPrice - newPrice);
@@ -147,6 +163,16 @@ const createListing = async (
         );
     }
 
+    const plus = await getMemberPlusEntitlement(sellerId);
+    if (!plus.isFitSwapPlus) {
+        const activeListingCount = await prisma.marketplaceListing.count({
+            where: { sellerId, status: LISTING_STATUS.ACTIVE, deletedAt: null },
+        });
+        if (activeListingCount >= 1) {
+            throw new Error('Free accounts can keep one active listing. Upgrade to FitSwap Plus to create multiple active listings.');
+        }
+    }
+
     if (
         normalizedAskingPrice <
         membership.plan.price * 0.30 ||
@@ -201,6 +227,11 @@ const createListing = async (
 };
 
 const getPriceSuggestion = async (sellerId, membershipId) => {
+    const plus = await getMemberPlusEntitlement(sellerId);
+    if (!plus.isFitSwapPlus) {
+        throw new Error('AI fair-price suggestions are a FitSwap Plus feature. Upgrade to unlock a market-based selling range.');
+    }
+
     const membership = await prisma.userMembership.findFirst({
         where: {
             id: membershipId,

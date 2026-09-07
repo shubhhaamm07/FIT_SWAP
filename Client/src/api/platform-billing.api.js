@@ -10,6 +10,9 @@ export const getMyPlatformBilling = () => unwrap(axios.get("/platform-billing/mi
 export const createOwnerSubscriptionPayment = (planCode) =>
   unwrap(axios.post("/platform-billing/owner-subscription", { planCode }));
 
+export const createMemberSubscriptionPayment = (planCode) =>
+  unwrap(axios.post("/platform-billing/member-subscription", { planCode }));
+
 export const createListingBoostPayment = (listingId) =>
   unwrap(axios.post(`/platform-billing/listings/${listingId}/boost`));
 

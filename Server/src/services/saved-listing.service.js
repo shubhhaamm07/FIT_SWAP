@@ -1,4 +1,7 @@
 const prisma = require('../lib/prisma');
+const { getMemberPlusEntitlement } = require('./platform-billing.service');
+
+const FREE_SAVED_LISTING_LIMIT = 5;
 
 const listingInclude = {
     membership: {
@@ -40,11 +43,21 @@ const saveListing = async (userId, listingId) => {
 
     if (!listing) throw new Error('Listing is not available to save');
 
-    return prisma.savedListing.upsert({
+    const existing = await prisma.savedListing.findUnique({
         where: { userId_listingId: { userId, listingId } },
-        update: {},
-        create: { userId, listingId }
+        select: { id: true },
     });
+    if (existing) return existing;
+
+    const plus = await getMemberPlusEntitlement(userId);
+    if (!plus.isFitSwapPlus) {
+        const savedCount = await prisma.savedListing.count({ where: { userId } });
+        if (savedCount >= FREE_SAVED_LISTING_LIMIT) {
+            throw new Error(`Free accounts can save up to ${FREE_SAVED_LISTING_LIMIT} listings. Upgrade to FitSwap Plus for unlimited saves and price-drop alerts.`);
+        }
+    }
+
+    return prisma.savedListing.create({ data: { userId, listingId } });
 };
 
 const removeSavedListing = async (userId, listingId) => {

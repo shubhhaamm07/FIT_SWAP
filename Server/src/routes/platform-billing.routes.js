@@ -7,6 +7,7 @@ const controller = require('../controllers/platform-billing.controller');
 const router = express.Router();
 
 router.get('/platform-billing/mine', protect, controller.getMyBillingSummary);
+router.post('/platform-billing/member-subscription', protect, authorize('USER'), controller.createMemberSubscription);
 router.post('/platform-billing/owner-subscription', protect, authorize('GYM_OWNER'), controller.createOwnerSubscription);
 router.post('/platform-billing/listings/:listingId/boost', protect, controller.createListingBoost);
 router.post('/platform-billing/:requestId/mark-paid', protect, controller.markPaymentPaid);

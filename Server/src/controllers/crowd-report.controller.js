@@ -2,7 +2,7 @@ const crowdReportService = require('../services/crowd-report.service');
 
 const getCrowd = async (req, res) => {
     try {
-        const data = await crowdReportService.getGymCrowd(req.params.gymId);
+        const data = await crowdReportService.getGymCrowd(req.params.gymId, req.user);
         return res.status(200).json({ success: true, data });
     } catch (error) {
         return res.status(400).json({ success: false, message: error.message || 'Unable to load crowd level' });

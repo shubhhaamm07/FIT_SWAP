@@ -1,4 +1,5 @@
 const prisma = require('../lib/prisma');
+const { getMemberPlusEntitlement } = require('./platform-billing.service');
 
 const REPORT_DURATION_MS = 90 * 60 * 1000;
 const HISTORY_WINDOW_DAYS = 30;
@@ -65,20 +66,24 @@ const crowdHistory = (reports) => {
     };
 };
 
-const getGymCrowd = async (gymId) => {
+const getGymCrowd = async (gymId, viewer = {}) => {
     const now = new Date();
     const historySince = new Date(now.getTime() - HISTORY_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+    const plus = viewer?.role === 'USER'
+        ? await getMemberPlusEntitlement(viewer.id, now)
+        : { isFitSwapPlus: true };
+    const hasFullInsights = viewer?.role !== 'USER' || plus.isFitSwapPlus;
     const [reports, history] = await Promise.all([
         prisma.gymCrowdReport.findMany({
             where: { gymId, expiresAt: { gt: now } },
             select: { level: true, reportedAt: true, expiresAt: true }
         }),
-        prisma.gymCrowdReportHistory.findMany({
+        hasFullInsights ? prisma.gymCrowdReportHistory.findMany({
             where: { gymId, reportedAt: { gte: historySince } },
             orderBy: { reportedAt: 'desc' },
             take: 1500,
             select: { level: true, reportedAt: true }
-        })
+        }) : Promise.resolve([])
     ]);
     const counts = reports.reduce((result, report) => ({ ...result, [report.level]: result[report.level] + 1 }), { LOW: 0, MEDIUM: 0, HIGH: 0 });
     const weighted = counts.LOW + (counts.MEDIUM * 2) + (counts.HIGH * 3);
@@ -88,7 +93,8 @@ const getGymCrowd = async (gymId) => {
         reportCount: reports.length,
         counts: { low: counts.LOW, medium: counts.MEDIUM, high: counts.HIGH },
         freshestReportAt: reports.length ? reports.reduce((latest, report) => latest > report.reportedAt ? latest : report.reportedAt, reports[0].reportedAt) : null,
-        history: crowdHistory(history)
+        hasFullInsights,
+        history: hasFullInsights ? crowdHistory(history) : null,
     };
 };
 
@@ -126,7 +132,7 @@ const reportGymCrowd = async (gymId, userId, input) => {
             await tx.gymCrowdReportHistory.create({ data: { gymId, userId, level, reportedAt: now } });
         }
     });
-    return getGymCrowd(gymId);
+    return getGymCrowd(gymId, { id: userId, role: 'USER' });
 };
 
 module.exports = { getGymCrowd, reportGymCrowd };

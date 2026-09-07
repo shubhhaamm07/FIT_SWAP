@@ -9,6 +9,18 @@ const UPI_ID_PATTERN = /^[a-zA-Z0-9._-]{2,100}@[a-zA-Z0-9._-]{2,100}$/;
 const UTR_PATTERN = /^[A-Za-z0-9-]{6,40}$/;
 
 const offers = {
+    PLUS_MONTHLY: {
+        kind: 'MEMBER_SUBSCRIPTION',
+        label: 'FitSwap Plus Monthly',
+        amount: 19900,
+        benefitDays: 30,
+    },
+    PLUS_YEARLY: {
+        kind: 'MEMBER_SUBSCRIPTION',
+        label: 'FitSwap Plus Yearly',
+        amount: 199900,
+        benefitDays: 365,
+    },
     OWNER_MONTHLY: {
         kind: 'OWNER_SUBSCRIPTION',
         label: 'FitSwap Business Monthly',
@@ -101,6 +113,10 @@ const createRequest = async ({ buyerId, planCode, listingId = null }) => {
         throw billingError('FitSwap Business plans are available to gym-owner accounts only.', 403);
     }
 
+    if (offer.kind === 'MEMBER_SUBSCRIPTION' && buyer.role !== 'USER') {
+        throw billingError('FitSwap Plus is available to member accounts only.', 403);
+    }
+
     if (offer.kind === 'LISTING_BOOST') {
         const listing = await prisma.marketplaceListing.findFirst({
             where: { id: listingId, sellerId: buyerId, status: 'ACTIVE', deletedAt: null },
@@ -141,6 +157,9 @@ const createRequest = async ({ buyerId, planCode, listingId = null }) => {
 };
 
 const createOwnerSubscriptionRequest = (buyerId, planCode) =>
+    createRequest({ buyerId, planCode });
+
+const createMemberSubscriptionRequest = (buyerId, planCode) =>
     createRequest({ buyerId, planCode });
 
 const createListingBoostRequest = (buyerId, listingId) =>
@@ -254,6 +273,8 @@ const completePlatformPayment = async (adminId, requestId) => {
         'FitSwap payment confirmed',
         payment.kind === 'LISTING_BOOST'
             ? 'Your listing boost is active. It will receive priority placement while the boost is active.'
+            : payment.kind === 'MEMBER_SUBSCRIPTION'
+                ? `FitSwap Plus is active until ${completed.benefitExpiresAt.toLocaleDateString('en-IN')}. Your Plus features are now unlocked.`
             : `Your FitSwap Business plan is active until ${completed.benefitExpiresAt.toLocaleDateString('en-IN')}.`
     );
     return serializePayment(completed);
@@ -299,10 +320,38 @@ const getMyBillingSummary = async (userId) => {
         take: 30,
     });
     const activeSubscription = payments.find((payment) => payment.kind === 'OWNER_SUBSCRIPTION' && payment.status === 'COMPLETED' && payment.benefitExpiresAt > now);
+    const activeMemberSubscription = payments.find((payment) => payment.kind === 'MEMBER_SUBSCRIPTION' && payment.status === 'COMPLETED' && payment.benefitExpiresAt > now);
     return {
         offers: Object.entries(offers).map(([code, offer]) => ({ code, ...offer })),
         activeSubscription: activeSubscription ? serializePayment(activeSubscription) : null,
+        activeMemberSubscription: activeMemberSubscription ? serializePayment(activeMemberSubscription) : null,
+        entitlements: {
+            isFitSwapPlus: Boolean(activeMemberSubscription),
+            plusExpiresAt: activeMemberSubscription?.benefitExpiresAt || null,
+        },
         payments: payments.map(serializePayment),
+    };
+};
+
+// Entitlements are calculated from administrator-confirmed payments only.
+// This helper is deliberately shared by marketplace and crowd services so
+// changing the client UI cannot grant access to paid features.
+const getMemberPlusEntitlement = async (userId, now = new Date()) => {
+    const payment = await prisma.platformPaymentRequest.findFirst({
+        where: {
+            buyerId: userId,
+            kind: 'MEMBER_SUBSCRIPTION',
+            status: 'COMPLETED',
+            benefitExpiresAt: { gt: now },
+        },
+        select: { id: true, planCode: true, benefitExpiresAt: true },
+        orderBy: { benefitExpiresAt: 'desc' },
+    });
+
+    return {
+        isFitSwapPlus: Boolean(payment),
+        plusExpiresAt: payment?.benefitExpiresAt || null,
+        planCode: payment?.planCode || null,
     };
 };
 
@@ -313,6 +362,7 @@ const getPlatformPaymentsForAdmin = async () => {
 
 module.exports = {
     createOwnerSubscriptionRequest,
+    createMemberSubscriptionRequest,
     createListingBoostRequest,
     markPlatformPaymentPaid,
     completePlatformPayment,
@@ -321,4 +371,5 @@ module.exports = {
     getMyBillingSummary,
     getPlatformPaymentsForAdmin,
     expireOutstandingPlatformPayments,
+    getMemberPlusEntitlement,
 };

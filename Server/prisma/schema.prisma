@@ -847,6 +847,7 @@ enum UpiPaymentKind {
 
 enum PlatformPaymentKind {
   OWNER_SUBSCRIPTION
+  MEMBER_SUBSCRIPTION
   LISTING_BOOST
 }
 

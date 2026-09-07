@@ -10,6 +10,9 @@ const send = (res, status, promise, fallbackMessage) => promise
 const createOwnerSubscription = (req, res) =>
     send(res, 201, platformBillingService.createOwnerSubscriptionRequest(req.user.id, req.body.planCode), 'Unable to create the FitSwap Business payment request.');
 
+const createMemberSubscription = (req, res) =>
+    send(res, 201, platformBillingService.createMemberSubscriptionRequest(req.user.id, req.body.planCode), 'Unable to create the FitSwap Plus payment request.');
+
 const createListingBoost = (req, res) =>
     send(res, 201, platformBillingService.createListingBoostRequest(req.user.id, req.params.listingId), 'Unable to create the listing-boost payment request.');
 
@@ -33,6 +36,7 @@ const rejectPlatformPayment = (req, res) =>
 
 module.exports = {
     createOwnerSubscription,
+    createMemberSubscription,
     createListingBoost,
     markPaymentPaid,
     cancelPayment,

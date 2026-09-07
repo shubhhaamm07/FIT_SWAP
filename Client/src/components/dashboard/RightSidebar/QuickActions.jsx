@@ -2,7 +2,7 @@ import {
   CalendarCheck2,
   Dumbbell,
   Salad,
-  ShieldCheck,
+  // ShieldCheck,
   Store,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";

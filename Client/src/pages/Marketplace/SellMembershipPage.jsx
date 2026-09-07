@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
   BadgeCheck,
   CircleDollarSign,
@@ -316,7 +316,10 @@ const SellMembershipPage = () => {
                         </button>
                       </div>
                     ) : suggestionError ? (
-                      <p className="mt-4 text-xs text-zinc-400">{suggestionError}</p>
+                      <div className="mt-4 rounded-lg border border-violet-400/20 bg-black/15 p-3">
+                        <p className="text-xs leading-5 text-zinc-300">{suggestionError}</p>
+                        {suggestionError.includes("FitSwap Plus") && <Link to="/plus" className="mt-2 inline-flex text-xs font-bold text-violet-300 hover:text-violet-200">View FitSwap Plus plans →</Link>}
+                      </div>
                     ) : null}
                     {suggestion?.reasons?.length > 0 && (
                       <ul className="mt-3 space-y-1.5 text-xs leading-5 text-zinc-400">
