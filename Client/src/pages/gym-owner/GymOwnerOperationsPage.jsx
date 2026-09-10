@@ -34,6 +34,7 @@ import { approveCashTransferByGymOwner, getGymCashApprovalRequests, rejectCashTr
 import UpiPaymentCheckout from "../../components/payments/UpiPaymentCheckout";
 import FraudAlertList from "../../components/monitoring/FraudAlertList";
 import TransferAuditLogList from "../../components/monitoring/TransferAuditLogList";
+import { useVisibilityPolling } from "../../hooks/useVisibilityPolling";
 
 const currency = (value) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(Number(value || 0));
 const date = (value) => {
@@ -563,11 +564,11 @@ function BillingContent({ billing, updatingPaymentId, onStartPlan, onMarkPaid, o
   const pendingPaymentId = pendingPayment?.id;
   const pendingPaymentStatus = pendingPayment?.status;
 
-  useEffect(() => {
-    if (!pendingPaymentId || ["COMPLETED", "REJECTED", "CANCELLED", "EXPIRED"].includes(pendingPaymentStatus)) return undefined;
-    const timer = window.setInterval(() => { void onRefresh(); }, 20000);
-    return () => window.clearInterval(timer);
-  }, [pendingPaymentId, pendingPaymentStatus, onRefresh]);
+  useVisibilityPolling(async () => onRefresh(), {
+    enabled: Boolean(pendingPaymentId && !["COMPLETED", "REJECTED", "CANCELLED", "EXPIRED"].includes(pendingPaymentStatus)),
+    interval: 20_000,
+    maxInterval: 120_000,
+  });
 
   return <div className="space-y-6">
     <section className="overflow-hidden rounded-2xl border border-violet-400/20 bg-[radial-gradient(circle_at_90%_18%,rgba(168,85,247,.20),transparent_28%),#11121a] p-5 sm:p-6"><div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.16em] text-violet-300">Optional FitSwap Business plan</p><h2 className="mt-2 text-2xl font-bold text-white">Grow on FitSwap without sharing your member payments.</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">Business plans are paid to FitSwap&apos;s own UPI, separately from direct gym and marketplace payments. Membership money always stays between the buyer and the gym or seller.</p></div><WalletCards className="shrink-0 text-violet-300" size={30} /></div>{activeSubscription ? <div className="mt-5 rounded-xl border border-emerald-400/20 bg-emerald-500/[0.07] p-4"><p className="text-sm font-semibold text-emerald-100">Business plan active</p><p className="mt-1 text-sm text-emerald-100/70">{activeSubscription.planCode.replaceAll("_", " ")} · active until {date(activeSubscription.benefitExpiresAt)}</p></div> : <div className="mt-5 rounded-xl border border-amber-400/15 bg-amber-500/[0.05] p-4 text-sm leading-6 text-amber-100/75">You can keep using FitSwap without a paid plan. Business plans are optional and are for future promotional tools, priority support, and owner-facing visibility features.</div>}</section>

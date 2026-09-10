@@ -8,27 +8,39 @@ const startStaleTransferRequestJob = () => {
                 'Running Stale Transfer Request Job...'
             );
 
-            const cutoffDate = new Date();
+            const now = new Date();
+            const staleRequests = await prisma.transferRequest.findMany({
+                where: {
+                    status: { in: ['PENDING', 'AWAITING_GYM_APPROVAL'] },
+                    expiresAt: { lte: now },
+                },
+                select: { id: true, listingId: true, status: true },
+            });
 
-            cutoffDate.setDate(
-                cutoffDate.getDate() - 30
-            );
-
-            const result =
-                await prisma.transferRequest.updateMany({
-                    where: {
-                        status: 'PENDING',
-                        createdAt: {
-                            lt: cutoffDate
-                        }
-                    },
+            const result = await prisma.$transaction(async (tx) => {
+                if (!staleRequests.length) return { count: 0 };
+                await tx.transferRequest.updateMany({
+                    where: { id: { in: staleRequests.map(({ id }) => id) } },
                     data: {
-                        status: 'REJECTED'
-                    }
+                        status: 'REJECTED',
+                        closedAt: now,
+                        closeReason: 'The cash handover approval window expired.',
+                    },
                 });
+                const reservedListingIds = staleRequests
+                    .filter(({ status }) => status === 'AWAITING_GYM_APPROVAL')
+                    .map(({ listingId }) => listingId);
+                if (reservedListingIds.length) {
+                    await tx.marketplaceListing.updateMany({
+                        where: { id: { in: reservedListingIds }, status: 'RESERVED', isLocked: true, lockType: 'CASH_HANDOVER' },
+                        data: { status: 'ACTIVE', isLocked: false, lockType: null, lockedAt: null },
+                    });
+                }
+                return { count: staleRequests.length };
+            });
 
             console.log(
-                `${result.count} stale requests rejected`
+                `${result.count} stale cash handover request(s) closed`
             );
         } catch (error) {
             console.error(

@@ -1,30 +1,33 @@
-import axios from "./axios";
+import axios, { createIdempotencyConfig } from "./axios";
 
 export const getMyTransferRequests =
-    async () => {
+    async (config = {}) => {
         const { data } = await axios.get(
-            "/transfer-requests/my"
+            "/transfer-requests/my",
+            config
         );
 
         return data.data;
     };
 
 export const getIncomingTransferRequests =
-    async () => {
+    async (config = {}) => {
         const { data } = await axios.get(
-            "/transfer-requests/incoming"
+            "/transfer-requests/incoming",
+            config
         );
 
         return data.data;
     };
 
 export const createTransferRequest =
-    async (listingId) => {
+    async (listingId, idempotencyKey) => {
         const { data } = await axios.post(
             "/transfer-requests",
             {
                 listingId,
-            }
+            },
+            createIdempotencyConfig("cash-transfer", idempotencyKey),
         );
 
         return data.data;

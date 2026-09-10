@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Activity, BarChart3, Clock3, Info, LoaderCircle, Users } from "lucide-react";
 import { getGymCrowdLevel, reportGymCrowdLevel } from "../../api/gym.api";
+import { isRequestCancelled } from "../../hooks/useVisibilityPolling";
 
 const options = [
   { value: "LOW", label: "Low", description: "Plenty of space", active: "border-emerald-400/45 bg-emerald-500/15 text-emerald-100", colour: "bg-emerald-400", text: "text-emerald-200" },
@@ -18,19 +19,19 @@ function CrowdLevelCard({ gymId }) {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    let active = true;
+    const controller = new AbortController();
     const load = async () => {
       try {
-        const data = await getGymCrowdLevel(gymId);
-        if (active) setCrowd(data);
-      } catch {
-        if (active) setMessage("Crowd insights are temporarily unavailable.");
+        const data = await getGymCrowdLevel(gymId, { signal: controller.signal });
+        if (!controller.signal.aborted) setCrowd(data);
+      } catch (error) {
+        if (!controller.signal.aborted && !isRequestCancelled(error)) setMessage("Crowd insights are temporarily unavailable.");
       } finally {
-        if (active) setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
-    load();
-    return () => { active = false; };
+    void load();
+    return () => controller.abort();
   }, [gymId]);
 
   const send = async (level) => {

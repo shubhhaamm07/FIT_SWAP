@@ -5,7 +5,8 @@ import {
 } from "react";
 
 import Toast from "../components/ui/Toast";
-import { ToastContext } from "./toast-context";
+
+import { ToastContext } from "./contexts";
 
 export function ToastProvider({ children }) {
   const [toast, setToast] = useState({

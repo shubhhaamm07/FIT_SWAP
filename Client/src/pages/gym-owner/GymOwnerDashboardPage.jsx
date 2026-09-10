@@ -15,6 +15,7 @@ import {
 
 import DashboardLayout from "../../layouts/DashboardLayout";
 import { getGymOwnerDashboard } from "../../api/gym-owner.api";
+import { isRequestCancelled } from "../../hooks/useVisibilityPolling";
 
 const formatCurrency = (value) =>
   new Intl.NumberFormat("en-IN", {
@@ -59,24 +60,26 @@ function GymOwnerDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const loadDashboard = async () => {
+  const loadDashboard = async ({ signal } = {}) => {
     setLoading(true);
     setError("");
     try {
-      setDashboard(await getGymOwnerDashboard());
+      const data = await getGymOwnerDashboard({ signal });
+      if (!signal?.aborted) setDashboard(data);
     } catch (requestError) {
-      setError(requestError.response?.data?.message || "We could not load your owner dashboard.");
+      if (!isRequestCancelled(requestError)) setError(requestError.response?.data?.message || "We could not load your owner dashboard.");
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   };
 
   useEffect(() => {
+    const controller = new AbortController();
     const loadTimer = window.setTimeout(() => {
-      void loadDashboard();
+      void loadDashboard({ signal: controller.signal });
     }, 0);
 
-    return () => window.clearTimeout(loadTimer);
+    return () => { window.clearTimeout(loadTimer); controller.abort(); };
   }, []);
 
   if (loading) {
@@ -87,7 +90,7 @@ function GymOwnerDashboardPage() {
     return (
       <DashboardLayout>
         <div className="mx-auto flex min-h-[58vh] max-w-lg flex-col items-center justify-center text-center">
-          <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-6"><p className="font-semibold text-white">Owner dashboard unavailable</p><p className="mt-2 text-sm text-zinc-400">{error}</p><button type="button" onClick={loadDashboard} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-500"><RefreshCw size={16} /> Try again</button></div>
+          <div className="rounded-2xl border border-red-500/20 bg-red-500/10 p-6"><p className="font-semibold text-white">Owner dashboard unavailable</p><p className="mt-2 text-sm text-zinc-400">{error}</p><button type="button" onClick={() => void loadDashboard()} className="mt-5 inline-flex items-center gap-2 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-violet-500"><RefreshCw size={16} /> Try again</button></div>
         </div>
       </DashboardLayout>
     );

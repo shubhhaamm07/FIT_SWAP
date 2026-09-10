@@ -1,8 +1,9 @@
 const workoutService = require('../services/workout.service');
 const mealLogService = require('../services/meal-log.service');
+const wellnessInsightsService = require('../services/wellness-insights.service');
 
 const send = (res, status, data, message) => res.status(status).json({ success: true, ...(message ? { message } : {}), data });
-const fail = (res, error) => res.status(400).json({ success: false, message: error.message || 'Unable to update wellness data' });
+const fail = (res, error) => res.status(error.statusCode || 400).json({ success: false, message: error.message || 'Unable to update wellness data' });
 
 const listWorkouts = async (req, res) => {
     try { return send(res, 200, await workoutService.listWorkoutData(req.user.id)); }
@@ -42,7 +43,13 @@ const removeMeal = async (req, res) => {
     catch (error) { return fail(res, error); }
 };
 
+const getInsights = async (req, res) => {
+    try { return send(res, 200, await wellnessInsightsService.getWellnessInsights(req.user.id)); }
+    catch (error) { return fail(res, error); }
+};
+
 module.exports = {
     listWorkouts, createWorkout, updateWorkout, archiveWorkout, completeWorkout,
-    listMeals, createMeal, updateMeal, removeMeal
+    listMeals, createMeal, updateMeal, removeMeal,
+    getInsights
 };

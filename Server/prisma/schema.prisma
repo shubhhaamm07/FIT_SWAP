@@ -26,9 +26,7 @@ model User {
   emailVerifiedAt               DateTime?
   // Used to invalidate JWTs issued before a password reset or change.
   passwordChangedAt             DateTime?
-  avatarUrl                     String?
   avatarKey                     String?
-  coverUrl                      String?
   coverKey                      String?
   emailNotifications            Boolean   @default(true)
   marketplaceNotifications      Boolean   @default(true)
@@ -63,9 +61,9 @@ model User {
   passwordChanges           PasswordChangeAudit[]
   crowdReports              GymCrowdReport[]
   crowdReportHistory        GymCrowdReportHistory[]
-  supportTickets            SupportTicket[]           @relation("SupportTicketCreator")
-  assignedSupportTickets    SupportTicket[]           @relation("SupportTicketAssignee")
-  supportMessages           SupportMessage[]          @relation("SupportMessageSender")
+  supportTickets            SupportTicket[]            @relation("SupportTicketCreator")
+  assignedSupportTickets    SupportTicket[]            @relation("SupportTicketAssignee")
+  supportMessages           SupportMessage[]           @relation("SupportMessageSender")
 }
 
 model Gym {
@@ -127,19 +125,19 @@ enum GymVerificationStatus {
 }
 
 model MembershipPlan {
-  id                  String  @id @default(cuid())
+  id                  String   @id @default(cuid())
   name                String
   description         String?
   durationInDays      Int
-  price               Float
-  transferable        Boolean @default(true)
-  freezeAllowed       Boolean @default(false)
-  transferFee         Float?
-  minimumTransferDays Int     @default(30)
+  price               Decimal  @db.Decimal(12, 2)
+  transferable        Boolean  @default(true)
+  freezeAllowed       Boolean  @default(false)
+  transferFee         Decimal? @db.Decimal(12, 2)
+  minimumTransferDays Int      @default(30)
   maximumTransfers    Int?
-  requiresGymApproval Boolean @default(true)
-  allowOnlinePayment  Boolean @default(true)
-  allowCashTransfer   Boolean @default(false)
+  requiresGymApproval Boolean  @default(true)
+  allowOnlinePayment  Boolean  @default(true)
+  allowCashTransfer   Boolean  @default(false)
 
   gymId String
   gym   Gym    @relation(fields: [gymId], references: [id])
@@ -165,15 +163,16 @@ model UserMembership {
   endDate   DateTime
 
   // Keeps historical sales reporting correct if a plan price changes later.
-  purchasePrice Float?
-  transferCount Int    @default(0)
+  purchasePrice Decimal? @db.Decimal(12, 2)
+  transferCount Int      @default(0)
 
   status MembershipStatus @default(ACTIVE)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  listing         MarketplaceListing?
+  listings        MarketplaceListing[]
+  transferHistory MembershipTransfer[]
   expiryReminders MembershipExpiryReminder[]
 
   @@index([status, endDate])
@@ -182,15 +181,21 @@ model UserMembership {
 model MarketplaceListing {
   id String @id @default(cuid())
 
-  membershipId String         @unique
+  membershipId String
   membership   UserMembership @relation(fields: [membershipId], references: [id])
 
   sellerId String
   seller   User   @relation(fields: [sellerId], references: [id])
 
-  askingPrice Float
+  askingPrice Decimal @db.Decimal(12, 2)
 
   status ListingStatus @default(ACTIVE)
+
+  // A reservation prevents competing payment or manual-handover workflows
+  // from changing a listing while one buyer is being processed.
+  isLocked Boolean   @default(false)
+  lockType String?
+  lockedAt DateTime?
 
   deletedAt DateTime?
 
@@ -202,7 +207,10 @@ model MarketplaceListing {
   payments                Payment[]
   upiPaymentRequests      UpiPaymentRequest[]
   platformPaymentRequests PlatformPaymentRequest[]
+  completedTransfer       MembershipTransfer?
   boostedUntil            DateTime?
+
+  @@index([membershipId, status])
 }
 
 model SavedListing {
@@ -229,10 +237,38 @@ model TransferRequest {
 
   status TransferRequestStatus @default(PENDING)
 
+  expiresAt   DateTime
+  closedAt    DateTime?
+  closeReason String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([listingId, buyerId])
+  @@index([listingId, buyerId])
+  @@index([status, expiresAt])
+}
+
+// Immutable business record for a completed handover. It complements the
+// event-level TransferAuditLog with one authoritative settlement snapshot.
+model MembershipTransfer {
+  id                String             @id @default(cuid())
+  membershipId      String
+  membership        UserMembership     @relation(fields: [membershipId], references: [id])
+  listingId         String             @unique
+  listing           MarketplaceListing @relation(fields: [listingId], references: [id])
+  sellerId          String
+  buyerId           String
+  amountPaise       Int
+  paymentMethod     String
+  paymentReference  String?
+  sellerConfirmedAt DateTime?
+  gymApprovedAt     DateTime?
+  completedAt       DateTime           @default(now())
+  createdAt         DateTime           @default(now())
+
+  @@index([membershipId, completedAt])
+  @@index([sellerId, completedAt])
+  @@index([buyerId, completedAt])
 }
 
 model Payment {
@@ -338,6 +374,9 @@ model PlatformPaymentRequest {
   platformPayeeName String
   benefitDays       Int
   benefitExpiresAt  DateTime?
+  // Set only for non-paid benefits that can be redeemed once per calendar
+  // month. The compound unique key leaves normal paid requests unaffected.
+  benefitMonth      DateTime?
 
   utr               String?   @unique
   buyerMarkedPaidAt DateTime?
@@ -351,6 +390,7 @@ model PlatformPaymentRequest {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([buyerId, planCode, benefitMonth])
   @@index([buyerId, status])
   @@index([listingId, status])
   @@index([status])
@@ -375,17 +415,17 @@ model Notification {
 // decision. Related business records are stored as references instead of
 // foreign keys because a ticket can concern any FitSwap workflow.
 model SupportTicket {
-  id              String               @id @default(cuid())
-  ticketNumber    String               @unique
+  id              String                @id @default(cuid())
+  ticketNumber    String                @unique
   creatorId       String
-  creator         User                 @relation("SupportTicketCreator", fields: [creatorId], references: [id])
+  creator         User                  @relation("SupportTicketCreator", fields: [creatorId], references: [id])
   assignedToId    String?
-  assignedTo      User?                @relation("SupportTicketAssignee", fields: [assignedToId], references: [id])
+  assignedTo      User?                 @relation("SupportTicketAssignee", fields: [assignedToId], references: [id])
   category        SupportTicketCategory
   subject         String
   priority        SupportTicketPriority @default(NORMAL)
   status          SupportTicketStatus   @default(OPEN)
-  relatedType     SupportRelatedType     @default(NONE)
+  relatedType     SupportRelatedType    @default(NONE)
   relatedEntityId String?
   relatedLabel    String?
   lastMessageAt   DateTime              @default(now())
@@ -506,20 +546,44 @@ model AdminAuditLog {
 // This is deliberately separate from admin-only audit logs because a seller,
 // buyer, or gym owner may trigger an event in the transfer workflow.
 model TransferAuditLog {
-  id           String   @id @default(cuid())
-  membershipId String
-  listingId    String?
-  actorId      String?
-  actorRole    String?
-  action       String
-  summary      String
-  metadata     Json?
-  createdAt    DateTime @default(now())
+  id               String   @id @default(cuid())
+  membershipId     String
+  listingId        String?
+  actorId          String?
+  actorRole        String?
+  action           String
+  summary          String
+  metadata         Json?
+  previousHash     String?
+  entryHash        String?  @unique
+  integrityNonce   String?
+  integrityVersion Int      @default(1)
+  createdAt        DateTime @default(now())
 
+  @@unique([membershipId, previousHash])
   @@index([membershipId, createdAt])
   @@index([listingId, createdAt])
   @@index([actorId, createdAt])
   @@index([action])
+}
+
+// Repeating the same write with the same user, scope, and key returns the
+// original result instead of creating a second payment, transfer, or booking.
+model IdempotencyRecord {
+  id             String    @id @default(cuid())
+  userId         String
+  scope          String
+  key            String
+  requestHash    String
+  responseStatus Int?
+  responseBody   Json?
+  completedAt    DateTime?
+  expiresAt      DateTime
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([userId, scope, key])
+  @@index([expiresAt])
 }
 
 model AuthToken {
@@ -603,17 +667,17 @@ model GymImage {
 // separately, so the plan remains useful while the completion history stays
 // queryable for adherence calculations.
 model WorkoutSchedule {
-  id              String   @id @default(cuid())
+  id              String              @id @default(cuid())
   userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   weekday         Int
   title           String
   focus           String?
   durationMinutes Int?
   notes           String?
-  isActive        Boolean  @default(true)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  isActive        Boolean             @default(true)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
   completions     WorkoutCompletion[]
 
   @@index([userId, weekday, isActive])
@@ -718,9 +782,9 @@ model GymCrowdReport {
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
+  @@unique([gymId, userId])
   @@index([gymId, expiresAt])
   @@index([userId, reportedAt])
-  @@unique([gymId, userId])
 }
 
 // Live reports expire quickly. This append-only history is intentionally

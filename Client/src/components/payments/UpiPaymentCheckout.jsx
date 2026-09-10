@@ -25,8 +25,28 @@ function UpiPaymentCheckout({ request, busy = false, onMarkPaid, onCancel, compa
 
   useEffect(() => {
     if (!isAwaitingPayment) return undefined;
-    const interval = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(interval);
+    let interval = null;
+    const updateClock = () => setNow(Date.now());
+    const startClock = () => {
+      if (document.visibilityState === "hidden" || interval) return;
+      updateClock();
+      interval = window.setInterval(updateClock, 1000);
+    };
+    const stopClock = () => {
+      if (!interval) return;
+      window.clearInterval(interval);
+      interval = null;
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") stopClock();
+      else startClock();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    startClock();
+    return () => {
+      stopClock();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, [isAwaitingPayment, request.expiresAt]);
 
   const countdown = useMemo(() => `${String(Math.floor(secondsLeft / 60)).padStart(2, "0")}:${String(secondsLeft % 60).padStart(2, "0")}`, [secondsLeft]);

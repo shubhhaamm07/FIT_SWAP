@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Bell, BellRing, CheckCheck, CircleAlert, CreditCard, LoaderCircle, Tag } from "lucide-react";
 import DashboardLayout from "../../layouts/DashboardLayout";
 import { getNotifications, markAllNotificationsRead, markNotificationRead } from "../../api/notification.api";
+import { isRequestCancelled } from "../../hooks/useVisibilityPolling";
 
 function NotificationsPage() {
   const [notifications, setNotifications] = useState([]);
@@ -10,13 +11,25 @@ function NotificationsPage() {
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
 
-  const loadNotifications = useCallback(async () => {
-    try { setLoading(true); setNotifications(await getNotifications()); setMessage(""); }
-    catch (error) { setMessage(error.response?.data?.message || "Unable to load notifications."); }
-    finally { setLoading(false); }
+  const loadNotifications = useCallback(async ({ signal } = {}) => {
+    try {
+      setLoading(true);
+      const data = await getNotifications({ signal });
+      if (signal?.aborted) return;
+      setNotifications(data);
+      setMessage("");
+    }
+    catch (error) {
+      if (!isRequestCancelled(error)) setMessage(error.response?.data?.message || "Unable to load notifications.");
+    }
+    finally { if (!signal?.aborted) setLoading(false); }
   }, []);
 
-  useEffect(() => { const timer = window.setTimeout(() => { void loadNotifications(); }, 0); return () => window.clearTimeout(timer); }, [loadNotifications]);
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => { void loadNotifications({ signal: controller.signal }); }, 0);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [loadNotifications]);
   const unread = useMemo(() => notifications.filter((item) => !item.isRead).length, [notifications]);
   const visible = filter === "unread" ? notifications.filter((item) => !item.isRead) : notifications;
 

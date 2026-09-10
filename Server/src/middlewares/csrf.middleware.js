@@ -3,7 +3,10 @@ const isSafeMethod = (method) => ["GET", "HEAD", "OPTIONS"].includes(method);
 const csrfProtection = (allowedOrigins) => (req, res, next) => {
     // Bearer-token clients are not vulnerable to cookie-based CSRF. Check the
     // Origin only when a browser session cookie will authenticate the request.
-    if (isSafeMethod(req.method) || !req.cookies?.fitswap_session) {
+    const hasSessionCookie = Boolean(
+        req.cookies?.['__Host-fitswap_session'] || req.cookies?.fitswap_session
+    );
+    if (isSafeMethod(req.method) || !hasSessionCookie) {
         return next();
     }
 

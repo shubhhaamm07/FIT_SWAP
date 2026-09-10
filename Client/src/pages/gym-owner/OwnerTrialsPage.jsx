@@ -23,6 +23,7 @@ import {
   getOwnerTrialSlots,
   updateOwnerTrialBookingStatus,
 } from "../../api/trial-booking.api";
+import { isRequestCancelled } from "../../hooks/useVisibilityPolling";
 
 const ACTIVE_STATUSES = ["PENDING", "CONFIRMED"];
 const BOOKING_STATUSES = ["ALL", "PENDING", "CONFIRMED", "COMPLETED", "NO_SHOW", "CANCELLED"];
@@ -80,14 +81,15 @@ function OwnerTrialsPage() {
   const [busyId, setBusyId] = useState("");
   const [notice, setNotice] = useState(null);
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async ({ signal } = {}) => {
     setLoading(true);
     try {
       const [gymData, slotData, bookingData] = await Promise.all([
-        getMyGyms(),
-        getOwnerTrialSlots(),
-        getOwnerTrialBookings(),
+        getMyGyms({ signal }),
+        getOwnerTrialSlots({}, { signal }),
+        getOwnerTrialBookings({}, { signal }),
       ]);
+      if (signal?.aborted) return;
       const nextGyms = asArray(gymData);
       setGyms(nextGyms);
       setSlots(asArray(slotData));
@@ -100,15 +102,17 @@ function OwnerTrialsPage() {
           : firstApprovedGym?.id || "",
       }));
     } catch (error) {
+      if (isRequestCancelled(error)) return;
       setNotice({ type: "error", text: error.response?.data?.message || "Unable to load trial management." });
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => { void loadData(); }, 0);
-    return () => window.clearTimeout(timer);
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => { void loadData({ signal: controller.signal }); }, 0);
+    return () => { window.clearTimeout(timer); controller.abort(); };
   }, [loadData]);
 
   const visibleSlots = useMemo(() => slots.filter(

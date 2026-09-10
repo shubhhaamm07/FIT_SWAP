@@ -1,7 +1,7 @@
 import api from "./axios";
 
-export const getWorkoutPlan = async () => {
-  const { data } = await api.get("/wellness/workouts");
+export const getWorkoutPlan = async (config = {}) => {
+  const { data } = await api.get("/wellness/workouts", config);
   return data.data;
 };
 
@@ -25,8 +25,13 @@ export const setWorkoutCompletion = async (scheduleId, payload) => {
   return data.data;
 };
 
-export const getMealLogs = async (query = {}) => {
-  const { data } = await api.get("/wellness/meals", { params: query });
+export const getMealLogs = async (query = {}, config = {}) => {
+  const { data } = await api.get("/wellness/meals", { ...config, params: query });
+  return data.data;
+};
+
+export const getWellnessInsights = async (config = {}) => {
+  const { data } = await api.get("/wellness/insights", config);
   return data.data;
 };
 

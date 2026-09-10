@@ -15,6 +15,10 @@ const getDashboardCharts = async (userId) => {
     });
 
     const listings = await prisma.marketplaceListing.findMany({
+        where: {
+            sellerId: userId,
+            deletedAt: null,
+        },
         select: {
             createdAt: true,
             status: true,

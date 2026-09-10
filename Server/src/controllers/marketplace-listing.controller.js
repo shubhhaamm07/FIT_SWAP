@@ -56,13 +56,14 @@ const getAllListings = async (
 ) => {
     try {
 
-        const listings =
-            await marketplaceListingService.getAllListings();
+        const result =
+            await marketplaceListingService.getAllListings(req.query);
 
         return res.status(200).json({
             success: true,
-            count: listings.length,
-            data: listings
+            count: result.items.length,
+            data: result.items,
+            pagination: result.pagination,
         });
 
     } catch (error) {

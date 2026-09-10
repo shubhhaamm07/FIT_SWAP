@@ -1,7 +1,7 @@
 import api from "./axios";
 
-export const getSecurityOverview = async () => {
-  const { data } = await api.get("/security/overview");
+export const getSecurityOverview = async (config = {}) => {
+  const { data } = await api.get("/security/overview", config);
   return data.data;
 };
 

@@ -1,10 +1,20 @@
 const prisma = require('../lib/prisma');
 const notificationService = require('./notification.service');
 const { verificationDocumentSelect } = require('./gym-verification-fields');
+const { buildPaginationMeta, getPagination } = require('../utils/pagination');
 
 const REQUIRED_GYM_FIELDS = ['name', 'address', 'city', 'state', 'pincode', 'phone'];
 const REAPPROVAL_FIELDS = ['name', 'address', 'city', 'state', 'pincode', 'latitude', 'longitude'];
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const serializePublicGym = (record) => {
+    if (!record) return record;
+    const { ownerId: _ownerId, images, ...gym } = record;
+    return {
+        ...gym,
+        images: (images || []).map(({ imageKey: _imageKey, ...image }) => image),
+    };
+};
 
 const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
 
@@ -187,11 +197,27 @@ const getMyGyms = async (ownerId) => {
 
     return gyms;
 };
-const getAllGyms = async () => {
-    const gyms = await prisma.gym.findMany({
-        where: {
-            status: 'APPROVED'
-        },
+const getAllGyms = async (query = {}) => {
+    const { page, limit, skip } = getPagination(query, { defaultLimit: 24, maxLimit: 60 });
+    const search = String(query.search || '').trim().slice(0, 100);
+    const city = String(query.city || '').trim().slice(0, 100);
+    const state = String(query.state || '').trim().slice(0, 100);
+    const where = { status: 'APPROVED' };
+    if (city) where.city = { contains: city, mode: 'insensitive' };
+    if (state) where.state = { contains: state, mode: 'insensitive' };
+    if (search) {
+        where.OR = [
+            { name: { contains: search, mode: 'insensitive' } },
+            { city: { contains: search, mode: 'insensitive' } },
+            { state: { contains: search, mode: 'insensitive' } },
+        ];
+    }
+    const [total, gyms] = await Promise.all([
+        prisma.gym.count({ where }),
+        prisma.gym.findMany({
+        where,
+        skip,
+        take: limit,
         include: {
             images: {
                 orderBy: [
@@ -206,9 +232,13 @@ const getAllGyms = async () => {
         orderBy: {
             createdAt: 'desc'
         }
-    });
+    }),
+    ]);
 
-    return gyms;
+    return {
+        items: gyms.map(serializePublicGym),
+        pagination: buildPaginationMeta({ page, limit, total }),
+    };
 };
 const updateGymStatus = async (gymId, status, actorId = null) => {
     const result = await prisma.$transaction(async (tx) => {
@@ -305,7 +335,7 @@ const updateGymByOwner = async (gymId, ownerId, gymData) => {
     return result.gym;
 };
 const getGymById = async (gymId) => {
-    return prisma.gym.findFirst({
+    const gym = await prisma.gym.findFirst({
         where: {
             id: gymId,
             status: 'APPROVED'
@@ -322,6 +352,7 @@ const getGymById = async (gymId) => {
             }
         }
     });
+    return serializePublicGym(gym);
 };
 module.exports = {
     createGym, getMyGyms, getAllGyms, updateGymStatus, updateGymByOwner, getGymById,

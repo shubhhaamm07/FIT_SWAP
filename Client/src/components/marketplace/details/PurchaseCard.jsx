@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, ArrowRight, CheckCircle2, CircleAlert, Heart, ShieldCheck } from "lucide-react";
 import { removeSavedListing, saveListing } from "../../../api/marketplace.api";
@@ -11,6 +11,7 @@ import {
 import UpiPaymentCheckout from "../../payments/UpiPaymentCheckout";
 import formatPrice from "../utils/formatPrice";
 import { createTransferRequest } from "../../../api/transfer.api";
+import { isRequestCancelled, useVisibilityPolling } from "../../../hooks/useVisibilityPolling";
 
 const terminalStatuses = ["COMPLETED", "REJECTED", "CANCELLED", "EXPIRED"];
 
@@ -27,28 +28,30 @@ const PurchaseCard = ({ listing, onPurchased, isPurchased = false }) => {
   const requiresGymApproval = listing.requiresGymApproval !== false;
   const onlinePaymentAllowed = listing.allowOnlinePayment !== false;
 
-  useEffect(() => {
-    if (!upiRequestId || terminalStatuses.includes(upiRequestStatus)) return undefined;
-
-    const timer = window.setInterval(async () => {
+  const refreshUpiRequest = useCallback(async ({ signal } = {}) => {
+    if (!upiRequestId || terminalStatuses.includes(upiRequestStatus)) return;
       try {
-        const requests = await getMyUpiPaymentRequests();
+        const requests = await getMyUpiPaymentRequests({ signal });
         const updated = requests.outgoing?.find((request) => request.id === upiRequestId);
         if (!updated) return;
 
+        if (signal?.aborted) return;
         setUpiRequest(updated);
         if (updated.status === "COMPLETED") {
           setPurchased(true);
           setMessage(requiresGymApproval ? "The gym approved the transfer. This membership is now in your account." : "The seller confirmed the payment. This membership is now in your account.");
           onPurchased?.();
         }
-      } catch {
-        // Keep the checkout usable if a short polling request fails.
+      } catch (error) {
+        if (!isRequestCancelled(error)) throw error;
       }
-    }, 15000);
+  }, [onPurchased, requiresGymApproval, upiRequestId, upiRequestStatus]);
 
-    return () => window.clearInterval(timer);
-  }, [upiRequestId, upiRequestStatus, onPurchased, requiresGymApproval]);
+  useVisibilityPolling(refreshUpiRequest, {
+    enabled: Boolean(upiRequestId && !terminalStatuses.includes(upiRequestStatus)),
+    interval: 15_000,
+    maxInterval: 120_000,
+  });
 
   const handleCreateUpiRequest = async () => {
     if (submitting) return;

@@ -1,36 +1,41 @@
 import { useEffect, useState } from "react";
-import Navbar from "../components/common/Navbar";
-import HeroSection from "../components/landing/HeroSection";
-import WhyFitSwapSection from "../components/landing/WhyFitSwapSection";
-import HowItWorksSection from "../components/landing/HowItWorksSection";
-import MarketplacePreview from "../components/landing/MarketplacePreview";
-import CTASection from "../components/landing/CTASection";
-import Footer from "../components/landing/Footer";
-import ResearchInnovationSection from "../components/landing/ResearchInnovationSection";
-import FadeInSection from "../components/common/FadeInSection";
-import { getAllGyms } from "../api/gym.api";
-import { getMarketplaceListings } from "../api/marketplace.api";
+import Navbar from "../../components/common/Navbar";
+import HeroSection from "../../components/landing/HeroSection";
+import WhyFitSwapSection from "../../components/landing/WhyFitSwapSection";
+import HowItWorksSection from "../../components/landing/HowItWorksSection";
+import MarketplacePreview from "../../components/landing/MarketplacePreview";
+import CTASection from "../../components/landing/CTASection";
+import Footer from "../../components/landing/Footer";
+import ResearchInnovationSection from "../../components/landing/ResearchInnovationSection";
+import FadeInSection from "../../components/common/FadeInSection";
+import { getAllGyms } from "../../api/gym.api";
+import { getMarketplaceListings } from "../../api/marketplace.api";
+import { isRequestCancelled } from "../../hooks/useVisibilityPolling";
 
 function LandingPage() {
   const [listings, setListings] = useState([]);
   const [gymCount, setGymCount] = useState(0);
 
   useEffect(() => {
+    const controller = new AbortController();
     const loadPublicData = async () => {
       try {
         const [gyms, marketplaceListings] = await Promise.all([
-          getAllGyms(),
-          getMarketplaceListings(),
+          getAllGyms({ limit: 24 }, { signal: controller.signal }),
+          getMarketplaceListings({ signal: controller.signal }),
         ]);
+        if (controller.signal.aborted) return;
         setGymCount(gyms.length);
         setListings(marketplaceListings);
-      } catch {
+      } catch (error) {
+        if (isRequestCancelled(error)) return;
         setGymCount(0);
         setListings([]);
       }
     };
 
-    void loadPublicData();
+    const timer = window.setTimeout(() => { void loadPublicData(); }, 0);
+    return () => { window.clearTimeout(timer); controller.abort(); };
   }, []);
 
   return (

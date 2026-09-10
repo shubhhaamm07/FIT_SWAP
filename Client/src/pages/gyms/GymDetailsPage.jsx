@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, BadgeCheck, CalendarCheck2, Check, CheckCircle2, CircleAlert, Clock3, Dumbbell, LoaderCircle, MapPin, Phone, Sparkles, X } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import DashboardLayout from "../../layouts/DashboardLayout";
@@ -8,6 +8,7 @@ import { cancelUpiPaymentRequest, createGymUpiPaymentRequest, getMyUpiPaymentReq
 import UpiPaymentCheckout from "../../components/payments/UpiPaymentCheckout";
 import CrowdLevelCard from "../../components/gyms/CrowdLevelCard";
 import formatPrice from "../../components/marketplace/utils/formatPrice";
+import { isRequestCancelled, useVisibilityPolling } from "../../hooks/useVisibilityPolling";
 
 const fallbackImage = "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200";
 
@@ -25,12 +26,14 @@ function GymDetailsPage() {
   const upiRequestStatus = upiRequest?.status;
 
   useEffect(() => {
-    const timer = window.setTimeout(async () => {
+    const controller = new AbortController();
+    const loadGym = async () => {
       try {
         const [gymData, membershipsResponse] = await Promise.all([
-          getGymById(gymId),
-          getMyMemberships().catch(() => ({ data: [] })),
+          getGymById(gymId, { signal: controller.signal }),
+          getMyMemberships({ signal: controller.signal }).catch(() => ({ data: [] })),
         ]);
+        if (controller.signal.aborted) return;
         setGym(gymData);
         setPurchasedPlanIds(
           (membershipsResponse.data || [])
@@ -38,19 +41,20 @@ function GymDetailsPage() {
             .map((membership) => membership.planId)
         );
       }
-      catch (error) { setMessage(error.response?.data?.message || "Unable to load this gym."); }
-      finally { setLoading(false); }
-    }, 0);
-    return () => window.clearTimeout(timer);
+      catch (error) { if (!isRequestCancelled(error)) setMessage(error.response?.data?.message || "Unable to load this gym."); }
+      finally { if (!controller.signal.aborted) setLoading(false); }
+    };
+    void loadGym();
+    return () => controller.abort();
   }, [gymId]);
 
-  useEffect(() => {
-    if (!upiRequestId || ["COMPLETED", "REJECTED", "CANCELLED", "EXPIRED"].includes(upiRequestStatus)) return undefined;
-    const timer = window.setInterval(async () => {
+  const refreshUpiRequest = useCallback(async ({ signal } = {}) => {
+    if (!upiRequestId || ["COMPLETED", "REJECTED", "CANCELLED", "EXPIRED"].includes(upiRequestStatus)) return;
       try {
-        const data = await getMyUpiPaymentRequests();
+        const data = await getMyUpiPaymentRequests({ signal });
         const updated = data.outgoing?.find((request) => request.id === upiRequestId);
         if (!updated) return;
+        if (signal?.aborted) return;
         setUpiRequest(updated);
         if (updated.status === "COMPLETED" && selectedPlan) {
           setPurchasedPlanIds((current) => current.includes(selectedPlan.id) ? current : [...current, selectedPlan.id]);
@@ -58,12 +62,16 @@ function GymDetailsPage() {
           setSelectedPlan(null);
           setUpiRequest(null);
         }
-      } catch {
-        // A temporary polling failure must not interrupt the buyer's payment flow.
+      } catch (error) {
+        if (!isRequestCancelled(error)) throw error;
       }
-    }, 15000);
-    return () => window.clearInterval(timer);
-  }, [upiRequestId, upiRequestStatus, selectedPlan]);
+  }, [selectedPlan, upiRequestId, upiRequestStatus]);
+
+  useVisibilityPolling(refreshUpiRequest, {
+    enabled: Boolean(upiRequestId && !["COMPLETED", "REJECTED", "CANCELLED", "EXPIRED"].includes(upiRequestStatus)),
+    interval: 15_000,
+    maxInterval: 120_000,
+  });
 
   const startUpiCheckout = async () => {
     if (!selectedPlan || buying) return;

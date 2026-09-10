@@ -1,13 +1,16 @@
 import Axios from "axios";
 
-const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
-// In local development, use Vite's same-origin proxy. This lets the browser
-// store and return the secure HTTP-only session cookie consistently.
-const apiBaseUrl = configuredApiUrl || "/api";
+// Vite proxies this path locally and Netlify proxies it after deployment.
+// Keeping every request same-origin avoids cross-site cookie failures.
+export const apiBaseUrl = "/api";
 
-if (import.meta.env.PROD && !configuredApiUrl) {
-    console.error("VITE_API_URL is missing. Add the Render API URL in the Netlify environment settings.");
-}
+const fallbackRequestId = () => `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+
+export const createIdempotencyConfig = (scope, key) => ({
+    headers: {
+        "Idempotency-Key": key || `${scope}:${globalThis.crypto?.randomUUID?.() || fallbackRequestId()}`,
+    },
+});
 
 const axios = Axios.create({
     baseURL: apiBaseUrl,
@@ -20,14 +23,9 @@ const axios = Axios.create({
 axios.interceptors.response.use(
     (response) => response,
     (error) => {
-        // Some authenticated actions can receive a 401 from a third-party
-        // provider (for example, Razorpay credentials on the API server).
-        // Those errors must be displayed in context instead of logging the
-        // member out of FitSwap.
-        if (error.response?.status === 401 && !error.config?.skipAuthLogout) {
-            window.location.href = "/login";
-        }
-
+        // A 401 can mean a failed ownership check, a payment-provider issue,
+        // or an expired session. Individual screens show their own errors;
+        // AuthProvider and ProtectedRoute decide when sign-in is required.
         return Promise.reject(error);
     }
 );

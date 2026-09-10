@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../../layouts/DashboardLayout";
 import { getAllGyms } from "../../api/gym.api";
 import formatPrice from "../../components/marketplace/utils/formatPrice";
+import { isRequestCancelled } from "../../hooks/useVisibilityPolling";
 
 const fallbackImage = "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1000";
 
@@ -14,7 +15,21 @@ function GymsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => { const timer = window.setTimeout(async () => { try { setLoading(true); setGyms(await getAllGyms()); } catch (requestError) { setError(requestError.response?.data?.message || "Unable to load gyms."); } finally { setLoading(false); } }, 0); return () => window.clearTimeout(timer); }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      try {
+        setLoading(true);
+        const data = await getAllGyms({ limit: 24 }, { signal: controller.signal });
+        if (!controller.signal.aborted) setGyms(data);
+      } catch (requestError) {
+        if (!isRequestCancelled(requestError)) setError(requestError.response?.data?.message || "Unable to load gyms.");
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    }, 0);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, []);
   const visibleGyms = useMemo(() => gyms.filter((gym) => [gym.name, gym.city, gym.state].filter(Boolean).join(" ").toLowerCase().includes(search.toLowerCase().trim())), [gyms, search]);
 
   return <DashboardLayout><main className="mx-auto w-full max-w-6xl pb-8"><section className="overflow-hidden rounded-[28px] border border-white/[0.08] bg-[radial-gradient(circle_at_78%_20%,rgba(59,130,246,.24),transparent_30%),radial-gradient(circle_at_15%_30%,rgba(124,58,237,.2),transparent_28%),#11121a] p-6 sm:p-8"><div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between"><div><p className="text-sm font-semibold text-violet-300">Official memberships</p><h1 className="mt-2 text-3xl font-bold tracking-tight text-white">Find your next gym.</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">Browse approved FitSwap partner gyms and buy a fresh membership directly from the gym.</p></div><div className="rounded-2xl border border-white/[0.09] bg-black/15 px-4 py-3"><p className="text-xs text-zinc-500">Partner gyms</p><p className="mt-1 text-2xl font-bold text-white">{gyms.length}</p></div></div><div className="mt-7 flex max-w-3xl flex-col gap-3 sm:flex-row"><div className="relative min-w-0 flex-1"><Search size={19} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by gym name, city, or state" className="w-full rounded-2xl border border-white/[0.1] bg-black/20 py-3.5 pl-11 pr-4 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-violet-400/60" /></div><button type="button" onClick={() => navigate("/gyms/nearby")} className="inline-flex items-center justify-center gap-2 rounded-2xl border border-cyan-400/25 bg-cyan-500/[0.08] px-4 py-3.5 text-sm font-semibold text-cyan-100 hover:bg-cyan-500/15"><MapPinned size={18} /> Nearby map</button></div></section>{error && <div className="mt-5 flex items-center gap-2 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3 text-sm text-red-300"><CircleAlert size={16} />{error}</div>}<div className="mt-7 flex items-center justify-between"><div><h2 className="text-xl font-bold text-white">Explore gyms</h2><p className="mt-1 text-sm text-zinc-500">{visibleGyms.length} approved gym{visibleGyms.length === 1 ? "" : "s"} found</p></div><span className="hidden items-center gap-2 text-xs text-zinc-500 sm:flex"><SlidersHorizontal size={14} /> Verified partners only</span></div>{loading ? <div className="grid gap-5 pt-5 sm:grid-cols-2 xl:grid-cols-3">{[1, 2, 3].map((item) => <div key={item} className="h-80 animate-pulse rounded-2xl border border-white/[0.06] bg-white/[0.03]" />)}</div> : visibleGyms.length ? <div className="grid gap-5 pt-5 sm:grid-cols-2 xl:grid-cols-3">{visibleGyms.map((gym) => <GymCard key={gym.id} gym={gym} onOpen={() => navigate(`/gyms/${gym.id}`)} />)}</div> : <EmptyGyms search={search} />}</main></DashboardLayout>;

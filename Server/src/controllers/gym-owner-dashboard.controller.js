@@ -45,8 +45,8 @@ const getSales = async (req, res) => {
 
 const getTransferAuditLogs = async (req, res) => {
     try {
-        const data = await transferMonitoringService.getTransferAuditLogs({ ...req.query, ownerId: req.user.id });
-        return res.status(200).json({ success: true, count: data.length, data });
+        const result = await transferMonitoringService.getTransferAuditLogs({ ...req.query, ownerId: req.user.id });
+        return res.status(200).json({ success: true, count: result.items.length, data: result.items, pagination: result.pagination });
     } catch (error) {
         return res.status(500).json({ success: false, message: error.message || 'Unable to load transfer audit logs' });
     }

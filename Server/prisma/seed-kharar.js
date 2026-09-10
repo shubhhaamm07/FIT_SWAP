@@ -3,8 +3,12 @@ require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
 
+if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PRODUCTION_SEED !== 'true') {
+    throw new Error('Production seeding is disabled. Set ALLOW_PRODUCTION_SEED=true only for an intentional disposable environment.');
+}
+
 const prisma = new PrismaClient();
-const TEST_PASSWORD = process.env.SEED_TEST_PASSWORD || '1234';
+const TEST_PASSWORD = process.env.SEED_TEST_PASSWORD || 'FitSwap-Local-Only-2026!';
 
 // Public business information gathered from each gym's official website.
 // Prices, accounts, marketplace activity, and notifications below are demo data.
@@ -261,10 +265,10 @@ async function main() {
             ]
         });
         await prisma.transferRequest.create({
-            data: { listingId: activeListings[0].id, buyerId: memberRecords[5].id, status: 'PENDING' }
+            data: { listingId: activeListings[0].id, buyerId: memberRecords[5].id, status: 'PENDING', expiresAt: dateOffset(7) }
         });
         await prisma.transferRequest.create({
-            data: { listingId: activeListings[1].id, buyerId: memberRecords[6].id, status: 'APPROVED' }
+            data: { listingId: activeListings[1].id, buyerId: memberRecords[6].id, status: 'APPROVED', expiresAt: dateOffset(0) }
         });
     }
 
@@ -299,9 +303,8 @@ async function main() {
     });
 
     console.log('\nFitSwap has been reset and seeded with Kharar demo data.');
-    console.log(`Admin: shubham.rana@fitswap.test / ${TEST_PASSWORD}`);
-    console.log(`Members: member01@fitswap.test through member20@fitswap.test / ${TEST_PASSWORD}`);
-    ownerRecords.forEach((owner) => console.log(`Gym management: ${owner.email} / ${TEST_PASSWORD}`));
+    console.log('Demo credentials use the local SEED_TEST_PASSWORD value and are not printed.');
+    console.log(`Created ${memberRecords.length} member and ${ownerRecords.length} gym-owner demo accounts.`);
 }
 
 main()

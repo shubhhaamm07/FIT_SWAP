@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, ChevronDown, ClipboardCheck, Dumbbell, LoaderCircle, Plus, Salad, Trash2, Utensils, X } from "lucide-react";
+import { Link } from "react-router-dom";
+import { BarChart3, Check, ChevronDown, ClipboardCheck, Dumbbell, Flame, LoaderCircle, LockKeyhole, Plus, Salad, Sparkles, Trash2, TrendingUp, Utensils } from "lucide-react";
 import DashboardLayout from "../../layouts/DashboardLayout";
-import { archiveWorkout, createMealLog, createWorkout, getMealLogs, getWorkoutPlan, setWorkoutCompletion, updateMealLog } from "../../api/wellness.api";
+import { archiveWorkout, createMealLog, createWorkout, getMealLogs, getWellnessInsights, getWorkoutPlan, setWorkoutCompletion, updateMealLog } from "../../api/wellness.api";
 import { useToast } from "../../hooks/useToast";
+import { isRequestCancelled } from "../../hooks/useVisibilityPolling";
 
 const weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const mealTypes = ["BREAKFAST", "LUNCH", "DINNER", "SNACK", "OTHER"];
@@ -21,6 +23,7 @@ function WellnessPage() {
   const { showToast } = useToast();
   const [workoutData, setWorkoutData] = useState({ schedules: [], summary: {} });
   const [mealData, setMealData] = useState({ meals: [], summary: {} });
+  const [insights, setInsights] = useState({ status: "loading", data: null });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [showWorkoutForm, setShowWorkoutForm] = useState(false);
@@ -28,20 +31,37 @@ function WellnessPage() {
   const [workoutForm, setWorkoutForm] = useState({ weekday: String(weekdayNumber()), title: "", focus: "", durationMinutes: "45", notes: "" });
   const [mealForm, setMealForm] = useState({ mealDate: localDayKey(), mealType: "OTHER", label: "", description: "", estimatedCalories: "" });
 
-  const load = useCallback(async (quiet = false) => {
+  const load = useCallback(async (quiet = false, { signal } = {}) => {
     try {
       if (!quiet) setLoading(true);
-      const [workouts, meals] = await Promise.all([getWorkoutPlan(), getMealLogs()]);
+      const [workouts, meals, insightResult] = await Promise.all([
+        getWorkoutPlan({ signal }),
+        getMealLogs({}, { signal }),
+        getWellnessInsights({ signal }).then((data) => ({ data })).catch((error) => ({ error })),
+      ]);
+      if (signal?.aborted) return;
       setWorkoutData(workouts);
       setMealData(meals);
+      if (insightResult.data) {
+        setInsights({ status: "ready", data: insightResult.data });
+      } else if (insightResult.error?.response?.status === 403) {
+        setInsights({ status: "locked", data: null });
+      } else if (!isRequestCancelled(insightResult.error)) {
+        setInsights({ status: "unavailable", data: null });
+      }
     } catch (error) {
+      if (isRequestCancelled(error)) return;
       showToast(error.response?.data?.message || "Unable to load your wellness data.", "error");
     } finally {
-      if (!quiet) setLoading(false);
+      if (!quiet && !signal?.aborted) setLoading(false);
     }
   }, [showToast]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => { void load(false, { signal: controller.signal }); }, 0);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [load]);
 
   const today = localDayKey();
   const todayWorkoutCount = useMemo(
@@ -130,6 +150,8 @@ function WellnessPage() {
           <Metric icon={Utensils} label="Meal adherence" value={`${mealData.summary?.adherencePercent || 0}%`} detail={`${mealData.summary?.followed || 0} of ${mealData.summary?.total || 0} saved meals followed`} tone="amber" />
         </section>
 
+        <PremiumInsights insights={insights} />
+
         <section className="mt-7 grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(340px,.75fr)]">
           <article className="rounded-3xl border border-white/[0.08] bg-[#11121a] p-5 sm:p-6">
             <div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="text-lg font-bold text-white">Weekly workout schedule</h2><p className="mt-1 text-sm text-zinc-500">A weekly template you can reuse and complete each day.</p></div><button type="button" onClick={() => setShowWorkoutForm((value) => !value)} className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-3.5 py-2.5 text-sm font-bold text-white transition hover:bg-violet-500"><Plus size={16} /> Add workout</button></div>
@@ -164,6 +186,22 @@ function Metric({ icon: Icon, label, value, detail, tone }) {
   const tones = { violet: "text-violet-300 bg-violet-500/10", emerald: "text-emerald-300 bg-emerald-500/10", amber: "text-amber-300 bg-amber-500/10" };
   return <article className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5"><span className={`grid h-10 w-10 place-items-center rounded-xl ${tones[tone]}`}><Icon size={19} /></span><p className="mt-4 text-xs font-bold uppercase tracking-[0.12em] text-zinc-500">{label}</p><p className="mt-1 text-3xl font-black tracking-tight text-white">{value}</p><p className="mt-1 text-xs text-zinc-500">{detail}</p></article>;
 }
+
+function PremiumInsights({ insights }) {
+  if (insights.status === "unavailable") return null;
+  if (insights.status !== "ready") {
+    const isLoading = insights.status === "loading";
+    return <section className="mt-7 overflow-hidden rounded-3xl border border-violet-400/20 bg-gradient-to-br from-violet-500/[0.12] via-[#11121a] to-[#11121a] p-5 sm:p-6"><div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between"><div><div className="inline-flex items-center gap-2 rounded-full border border-violet-400/20 bg-violet-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.13em] text-violet-200"><Sparkles size={13} /> FitSwap Plus</div><h2 className="mt-3 text-xl font-black text-white">See your progress patterns, not just today&apos;s log.</h2><p className="mt-2 max-w-2xl text-sm leading-6 text-zinc-400">Unlock a private 30-day view of completed sessions, workout streaks, meal adherence, and estimated meal calories.</p></div>{isLoading ? <span className="inline-flex items-center gap-2 text-sm text-zinc-400"><LoaderCircle size={16} className="animate-spin" /> Loading insights…</span> : <Link to="/plus" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-violet-500"><LockKeyhole size={16} /> Unlock Plus insights</Link>}</div></section>;
+  }
+
+  const { summary = {}, days = [] } = insights.data;
+  const values = days.map((day) => (day.workoutsCompleted * 2) + day.mealsFollowed);
+  const maxValue = Math.max(1, ...values);
+  const labels = days.filter((_, index) => index % 5 === 0 || index === days.length - 1);
+  return <section className="mt-7 overflow-hidden rounded-3xl border border-violet-400/20 bg-gradient-to-br from-violet-500/[0.10] via-[#11121a] to-[#11121a] p-5 sm:p-6"><div className="flex flex-wrap items-start justify-between gap-4"><div><div className="inline-flex items-center gap-2 rounded-full border border-violet-400/20 bg-violet-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.13em] text-violet-200"><Sparkles size={13} /> FitSwap Plus insights</div><h2 className="mt-3 text-xl font-black text-white">Your 30-day wellness rhythm</h2><p className="mt-1 text-sm text-zinc-400">A private summary based only on the workouts and meals you log.</p></div><Link to="/plus" className="text-sm font-bold text-violet-200 hover:text-white">Manage Plus</Link></div><div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(270px,.6fr)]"><div className="rounded-2xl border border-white/[0.08] bg-black/20 p-4"><div className="flex items-center justify-between gap-3"><div><p className="text-sm font-bold text-white">Consistency pulse</p><p className="mt-1 text-xs text-zinc-500">Each column combines sessions and meals followed.</p></div><BarChart3 size={20} className="text-violet-300" /></div><div className="mt-5 flex h-28 items-end gap-[3px]" aria-label="30-day wellness activity graph">{days.map((day, index) => { const value = values[index]; const workoutHeight = value ? Math.max(6, (day.workoutsCompleted * 2 / maxValue) * 100) : 0; const mealHeight = value ? Math.max(0, (day.mealsFollowed / maxValue) * 100) : 0; return <div key={day.date} className="group relative flex h-full min-w-0 flex-1 flex-col justify-end gap-0.5"><span className="rounded-t bg-violet-400/90 transition group-hover:bg-violet-300" style={{ height: `${workoutHeight}%` }} /><span className="rounded-b bg-emerald-400/85 transition group-hover:bg-emerald-300" style={{ height: `${mealHeight}%` }} /><span className="pointer-events-none absolute bottom-full left-1/2 z-10 mb-2 hidden w-40 -translate-x-1/2 rounded-lg border border-white/[0.1] bg-[#1a1b26] px-2.5 py-2 text-center text-[11px] text-zinc-300 shadow-xl group-hover:block">{new Date(`${day.date}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}: {day.workoutsCompleted} sessions · {day.mealsFollowed} meals followed</span></div>; })}</div><div className="mt-2 flex justify-between text-[10px] text-zinc-600">{labels.map((day) => <span key={day.date}>{new Date(`${day.date}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>)}</div><div className="mt-4 flex flex-wrap gap-4 text-xs text-zinc-400"><span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-sm bg-violet-400" /> Completed workouts</span><span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-sm bg-emerald-400" /> Meals followed</span></div></div><div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1"><InsightStat icon={Flame} label="Current streak" value={`${summary.currentWorkoutStreak || 0} days`} detail={`Best: ${summary.bestWorkoutStreak || 0} days`} tone="amber" /><InsightStat icon={TrendingUp} label="Workout completions" value={String(summary.totalWorkoutCompletions || 0)} detail={`${summary.totalWorkoutMinutes || 0} tracked minutes`} tone="violet" /><InsightStat icon={Utensils} label="Meal adherence" value={`${summary.mealAdherencePercent || 0}%`} detail={`${summary.mealsFollowed || 0} followed of ${summary.mealsLogged || 0}`} tone="emerald" /></div></div></section>;
+}
+
+function InsightStat({ icon: Icon, label, value, detail, tone }) { const styles = { amber: "text-amber-300 bg-amber-400/10", violet: "text-violet-300 bg-violet-400/10", emerald: "text-emerald-300 bg-emerald-400/10" }; return <article className="rounded-2xl border border-white/[0.08] bg-black/20 p-4"><span className={`grid h-8 w-8 place-items-center rounded-lg ${styles[tone]}`}><Icon size={16} /></span><p className="mt-3 text-[11px] font-bold uppercase tracking-[0.11em] text-zinc-500">{label}</p><p className="mt-1 text-2xl font-black text-white">{value}</p><p className="mt-1 text-xs text-zinc-500">{detail}</p></article>; }
 
 function WorkoutForm({ form, setForm, busy, onClose, onSubmit }) {
   return <form onSubmit={onSubmit} className="mt-5 rounded-2xl border border-violet-400/20 bg-violet-500/[0.05] p-4"><div className="grid gap-3 sm:grid-cols-2"><Field label="Workout name" required value={form.title} onChange={(value) => setForm({ ...form, title: value })} placeholder="Upper body strength" /><Select label="Day" value={form.weekday} onChange={(value) => setForm({ ...form, weekday: value })} options={weekdays.map((name, index) => [String(index + 1), name])} /><Field label="Focus (optional)" value={form.focus} onChange={(value) => setForm({ ...form, focus: value })} placeholder="Back, shoulders, core" /><Field label="Minutes" type="number" min="5" max="300" value={form.durationMinutes} onChange={(value) => setForm({ ...form, durationMinutes: value })} /><label className="sm:col-span-2 text-xs font-semibold text-zinc-400">Notes<textarea value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} maxLength="500" rows="2" placeholder="Optional plan notes" className="mt-1.5 w-full resize-none rounded-xl border border-white/[0.1] bg-black/20 px-3 py-2.5 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-violet-400/60" /></label></div><div className="mt-4 flex justify-end gap-2"><button type="button" onClick={onClose} className="rounded-xl px-3 py-2 text-sm font-semibold text-zinc-400 hover:text-white">Cancel</button><button disabled={busy} className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-60">{busy && <LoaderCircle size={15} className="animate-spin" />}Save workout</button></div></form>;

@@ -2,6 +2,7 @@ const crypto = require('crypto');
 
 const prisma = require('../lib/prisma');
 const notificationService = require('./notification.service');
+const { toPaise } = require('../utils/money');
 const {
     assertMembershipEligible,
     getTransferPolicy,
@@ -12,6 +13,7 @@ const REQUEST_TTL_MS = 30 * 60 * 1000;
 const GYM_APPROVAL_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const OPEN_STATUSES = ['AWAITING_PAYMENT', 'BUYER_MARKED_PAID'];
 const EXPIRABLE_STATUSES = [...OPEN_STATUSES, 'AWAITING_GYM_APPROVAL'];
+const LISTING_LOCK_STATUSES = [...EXPIRABLE_STATUSES, 'DISPUTED'];
 const UPI_ID_PATTERN = /^[a-zA-Z0-9._-]{2,100}@[a-zA-Z0-9._-]{2,100}$/;
 const UTR_PATTERN = /^[A-Za-z0-9-]{6,40}$/;
 
@@ -25,17 +27,32 @@ const makePaymentReference = () =>
     `FSUPI-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
 
 const expireOutstandingRequests = async () => {
-    await prisma.upiPaymentRequest.updateMany({
-        where: {
-            status: { in: EXPIRABLE_STATUSES },
-            expiresAt: { lte: new Date() },
-        },
-        data: { status: 'EXPIRED' },
+    const now = new Date();
+    return prisma.$transaction(async (tx) => {
+        const expiring = await tx.upiPaymentRequest.findMany({
+            where: { status: { in: EXPIRABLE_STATUSES }, expiresAt: { lte: now } },
+            select: { id: true, kind: true, listingId: true },
+        });
+        if (!expiring.length) return 0;
+        await tx.upiPaymentRequest.updateMany({
+            where: { id: { in: expiring.map(({ id }) => id) } },
+            data: { status: 'EXPIRED' },
+        });
+        const listingIds = expiring
+            .filter(({ kind, listingId }) => kind === 'MARKETPLACE_TRANSFER' && listingId)
+            .map(({ listingId }) => listingId);
+        if (listingIds.length) {
+            await tx.marketplaceListing.updateMany({
+                where: { id: { in: listingIds }, status: 'RESERVED', isLocked: true, lockType: 'UPI_PAYMENT' },
+                data: { status: 'ACTIVE', isLocked: false, lockType: null, lockedAt: null },
+            });
+        }
+        return expiring.length;
     });
 };
 
 const amountInPaise = (amount) => {
-    const paise = Math.round(Number(amount) * 100);
+    const paise = toPaise(amount);
     if (!Number.isSafeInteger(paise) || paise < 100) {
         throw upiError('The payment amount must be at least ₹1.00.');
     }
@@ -179,7 +196,7 @@ const createMarketplaceRequest = async (buyerId, listingId) => {
     const existingForListing = await prisma.upiPaymentRequest.findFirst({
         where: {
             listingId,
-            status: { in: ['AWAITING_PAYMENT', 'BUYER_MARKED_PAID', 'AWAITING_GYM_APPROVAL'] },
+            status: { in: LISTING_LOCK_STATUSES },
         },
         include: requestInclude,
         orderBy: { createdAt: 'desc' },
@@ -194,36 +211,61 @@ const createMarketplaceRequest = async (buyerId, listingId) => {
 
     requireRecipientUpi(listing.seller);
 
-    const request = await prisma.$transaction(async (tx) => {
-        const created = await tx.upiPaymentRequest.create({
-            data: {
-                kind: 'MARKETPLACE_TRANSFER',
-                buyerId,
-                recipientId: listing.sellerId,
+    let request;
+    try {
+        request = await prisma.$transaction(async (tx) => {
+            const reservation = await tx.marketplaceListing.updateMany({
+                where: { id: listing.id, sellerId: listing.sellerId, status: 'ACTIVE', deletedAt: null, isLocked: false },
+                data: { status: 'RESERVED', isLocked: true, lockType: 'UPI_PAYMENT', lockedAt: new Date() },
+            });
+            if (reservation.count !== 1) {
+                throw upiError('Another payment handover is already in progress for this listing.', 409);
+            }
+            const created = await tx.upiPaymentRequest.create({
+                data: {
+                    kind: 'MARKETPLACE_TRANSFER',
+                    buyerId,
+                    recipientId: listing.sellerId,
+                    listingId: listing.id,
+                    gymId: listing.membership.plan.gymId,
+                    planId: listing.membership.planId,
+                    // The pilot sends one transparent payment directly to the seller.
+                    // Platform/gym fees are intentionally not collected in this manual UPI flow.
+                    amount: amountInPaise(listing.askingPrice),
+                    paymentRef: makePaymentReference(),
+                    recipientUpiId: listing.seller.upiId,
+                    payeeName: listing.seller.upiPayeeName,
+                    expiresAt: new Date(Date.now() + REQUEST_TTL_MS),
+                },
+                include: requestInclude,
+            });
+            await writeTransferAudit(tx, {
+                membershipId: listing.membershipId,
                 listingId: listing.id,
-                gymId: listing.membership.plan.gymId,
-                planId: listing.membership.planId,
-                // The pilot sends one transparent payment directly to the seller.
-                // Platform/gym fees are intentionally not collected in this manual UPI flow.
-                amount: amountInPaise(listing.askingPrice),
-                paymentRef: makePaymentReference(),
-                recipientUpiId: listing.seller.upiId,
-                payeeName: listing.seller.upiPayeeName,
-                expiresAt: new Date(Date.now() + REQUEST_TTL_MS),
-            },
+                actorId: buyerId,
+                actorRole: 'USER',
+                action: 'ONLINE_TRANSFER_REQUEST_CREATED',
+                summary: 'Buyer started an online membership-transfer payment request.',
+                metadata: { paymentRef: created.paymentRef, policy: getTransferPolicy(listing.membership.plan) },
+            });
+            return created;
+        });
+    } catch (error) {
+        if (error.code !== 'P2002') throw error;
+
+        // The partial database index is the final concurrency guard. A second
+        // API instance may pass the earlier read, but it cannot reserve the
+        // same listing while another payment handover is open.
+        const concurrent = await prisma.upiPaymentRequest.findFirst({
+            where: { listingId, status: { in: LISTING_LOCK_STATUSES } },
             include: requestInclude,
+            orderBy: { createdAt: 'desc' },
         });
-        await writeTransferAudit(tx, {
-            membershipId: listing.membershipId,
-            listingId: listing.id,
-            actorId: buyerId,
-            actorRole: 'USER',
-            action: 'ONLINE_TRANSFER_REQUEST_CREATED',
-            summary: 'Buyer started an online membership-transfer payment request.',
-            metadata: { paymentRef: created.paymentRef, policy: getTransferPolicy(listing.membership.plan) },
-        });
-        return created;
-    });
+        if (concurrent?.buyerId === buyerId && concurrent.status === 'AWAITING_PAYMENT') {
+            return serializeForBuyer(concurrent);
+        }
+        throw upiError('Another payment handover is already in progress for this listing.', 409);
+    }
 
     return serializeForBuyer(request);
 };
@@ -298,7 +340,7 @@ const completeMarketplaceTransfer = async ({ request, actorId, actorRole, gymApp
             where: {
                 id: request.listingId,
                 sellerId: request.recipientId,
-                status: 'ACTIVE',
+                status: { in: ['ACTIVE', 'RESERVED'] },
                 deletedAt: null,
             },
             include: {
@@ -330,8 +372,8 @@ const completeMarketplaceTransfer = async ({ request, actorId, actorRole, gymApp
         }
 
         const soldListing = await tx.marketplaceListing.updateMany({
-            where: { id: listing.id, status: 'ACTIVE', sellerId: request.recipientId },
-            data: { status: 'SOLD' },
+            where: { id: listing.id, status: { in: ['ACTIVE', 'RESERVED'] }, sellerId: request.recipientId },
+            data: { status: 'SOLD', isLocked: false, lockType: null, lockedAt: null },
         });
         if (soldListing.count !== 1) {
             throw upiError('This listing was already updated.', 409);
@@ -347,14 +389,34 @@ const completeMarketplaceTransfer = async ({ request, actorId, actorRole, gymApp
             },
         });
 
-        await tx.transferRequest.upsert({
-            where: { listingId_buyerId: { listingId: listing.id, buyerId: request.buyerId } },
-            update: { status: 'APPROVED' },
-            create: { listingId: listing.id, buyerId: request.buyerId, status: 'APPROVED' },
+        const openCashRequest = await tx.transferRequest.findFirst({
+            where: { listingId: listing.id, buyerId: request.buyerId, status: { in: ['PENDING', 'AWAITING_GYM_APPROVAL'] } },
+            orderBy: { createdAt: 'desc' },
         });
+        if (openCashRequest) {
+            await tx.transferRequest.update({ where: { id: openCashRequest.id }, data: { status: 'APPROVED', closedAt: new Date() } });
+        } else {
+            await tx.transferRequest.create({
+                data: { listingId: listing.id, buyerId: request.buyerId, status: 'APPROVED', expiresAt: new Date() },
+            });
+        }
         await tx.transferRequest.updateMany({
             where: { listingId: listing.id, buyerId: { not: request.buyerId }, status: 'PENDING' },
             data: { status: 'REJECTED' },
+        });
+
+        await tx.membershipTransfer.create({
+            data: {
+                membershipId: listing.membershipId,
+                listingId: listing.id,
+                sellerId: listing.sellerId,
+                buyerId: request.buyerId,
+                amountPaise: request.amount,
+                paymentMethod: 'UPI',
+                paymentReference: request.paymentRef,
+                sellerConfirmedAt: new Date(),
+                gymApprovedAt: gymApproved ? new Date() : null,
+            },
         });
 
         await writeTransferAudit(tx, {
@@ -528,12 +590,16 @@ const rejectPayment = async (actorId, requestId, reason) => {
     }
 
     const rejectionReason = String(reason || '').trim().slice(0, 280) || 'Payment or transfer could not be confirmed.';
-    await prisma.$transaction(async (tx) => {
+        await prisma.$transaction(async (tx) => {
         await tx.upiPaymentRequest.update({
             where: { id: request.id },
             data: { status: 'REJECTED', rejectedAt: new Date(), rejectionReason },
         });
         if (request.kind === 'MARKETPLACE_TRANSFER' && request.listing) {
+            await tx.marketplaceListing.updateMany({
+                where: { id: request.listingId, status: 'RESERVED', isLocked: true, lockType: 'UPI_PAYMENT' },
+                data: { status: 'ACTIVE', isLocked: false, lockType: null, lockedAt: null },
+            });
             await writeTransferAudit(tx, {
                 membershipId: request.listing.membershipId,
                 listingId: request.listingId,
@@ -550,9 +616,20 @@ const rejectPayment = async (actorId, requestId, reason) => {
 };
 
 const cancelPaymentRequest = async (buyerId, requestId) => {
-    const update = await prisma.upiPaymentRequest.updateMany({
-        where: { id: requestId, buyerId, status: 'AWAITING_PAYMENT' },
-        data: { status: 'CANCELLED', cancelledAt: new Date() },
+    const update = await prisma.$transaction(async (tx) => {
+        const updated = await tx.upiPaymentRequest.updateMany({
+            where: { id: requestId, buyerId, status: 'AWAITING_PAYMENT' },
+            data: { status: 'CANCELLED', cancelledAt: new Date() },
+        });
+        if (updated.count !== 1) return updated;
+        const request = await tx.upiPaymentRequest.findUnique({ where: { id: requestId }, select: { kind: true, listingId: true } });
+        if (request?.kind === 'MARKETPLACE_TRANSFER' && request.listingId) {
+            await tx.marketplaceListing.updateMany({
+                where: { id: request.listingId, status: 'RESERVED', isLocked: true, lockType: 'UPI_PAYMENT' },
+                data: { status: 'ACTIVE', isLocked: false, lockType: null, lockedAt: null },
+            });
+        }
+        return updated;
     });
     if (update.count !== 1) {
         throw upiError('Only a payment request that has not been marked paid can be cancelled.', 409);
@@ -588,4 +665,5 @@ module.exports = {
     cancelPaymentRequest,
     getMyUpiRequests,
     getGymApprovalRequests,
+    expireOutstandingRequests,
 };

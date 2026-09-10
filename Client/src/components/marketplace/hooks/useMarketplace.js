@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getMarketplaceListings } from "../../../api/marketplace.api";
+import { getMarketplaceListingPage } from "../../../api/marketplace.api";
+import { isRequestCancelled } from "../../../hooks/useVisibilityPolling";
 
 const defaultFilters = {
     search: "",
@@ -32,33 +33,49 @@ const useMarketplace = () => {
     const [filters, setFilters] = useState(defaultFilters);
     const [currentPage, setCurrentPage] = useState(1);
     const [allListings, setAllListings] = useState([]);
+    const [pagination, setPagination] = useState({ page: 1, limit: ITEMS_PER_PAGE, total: 0, totalPages: 1 });
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [userLocation, setUserLocation] = useState(null);
     const [locationStatus, setLocationStatus] = useState({ state: "idle", message: "" });
 
-    const refreshListings = useCallback(async () => {
+    const requestQuery = useMemo(() => ({
+        page: currentPage,
+        limit: ITEMS_PER_PAGE,
+        search: filters.search.trim() || undefined,
+        gym: filters.gym !== "all" ? filters.gym : undefined,
+        state: filters.state.trim() || undefined,
+        city: filters.city.trim() || undefined,
+        minPrice: filters.minPrice || undefined,
+        maxPrice: filters.maxPrice || undefined,
+        duration: filters.duration !== "all" ? filters.duration : undefined,
+        featuredOnly: filters.featuredOnly || undefined,
+        sortBy: filters.sortBy === "nearest" ? "newest" : filters.sortBy,
+    }), [currentPage, filters]);
+
+    const refreshListings = useCallback(async ({ signal } = {}) => {
         try {
             setLoading(true);
-            const data = await getMarketplaceListings();
-            setAllListings(data);
+            const data = await getMarketplaceListingPage(requestQuery, { signal });
+            if (signal?.aborted) return;
+            setAllListings(data.items);
+            setPagination(data.pagination);
             setError("");
         } catch (err) {
+            if (isRequestCancelled(err)) return;
             setError(
                 err.response?.data?.message ||
                 "Unable to load marketplace listings. Please try again.",
             );
         } finally {
-            setLoading(false);
+            if (!signal?.aborted) setLoading(false);
         }
-    }, []);
+    }, [requestQuery]);
 
     useEffect(() => {
-        const loadListings = async () => {
-            await refreshListings();
-        };
-
-        void loadListings();
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => { void refreshListings({ signal: controller.signal }); }, 0);
+        return () => { window.clearTimeout(timer); controller.abort(); };
     }, [refreshListings]);
 
     const updateFilter = (key, value) => {
@@ -137,39 +154,6 @@ const useMarketplace = () => {
             };
         });
 
-        // Search
-        if (filters.search.trim()) {
-            const keyword = filters.search.toLowerCase();
-
-            data = data.filter(
-                (listing) =>
-                    listing.gym.toLowerCase().includes(keyword) ||
-                    listing.membership.toLowerCase().includes(keyword) ||
-                    listing.location.toLowerCase().includes(keyword)
-            );
-        }
-
-        // Gym
-        if (filters.gym !== "all") {
-            data = data.filter(
-                (listing) => listing.gym === filters.gym
-            );
-        }
-
-        // State and city/district values come from current marketplace data,
-        // so the UI never needs a hardcoded list of Indian locations.
-        if (filters.state.trim()) {
-            const state = filters.state.trim().toLowerCase();
-            data = data.filter((listing) => listing.state.toLowerCase().includes(state));
-        }
-
-        if (filters.city.trim()) {
-            const city = filters.city.trim().toLowerCase();
-            data = data.filter(
-                (listing) => listing.city.toLowerCase().includes(city)
-            );
-        }
-
         if (userLocation && filters.distance !== "all") {
             const maximumDistance = Number(filters.distance);
             data = data.filter((listing) => (
@@ -177,82 +161,18 @@ const useMarketplace = () => {
             ));
         }
 
-        // Min Price
-        if (filters.minPrice !== "") {
-            data = data.filter(
-                (listing) =>
-                    listing.price >= Number(filters.minPrice)
-            );
-        }
-
-        // Max Price
-        if (filters.maxPrice !== "") {
-            data = data.filter(
-                (listing) =>
-                    listing.price <= Number(filters.maxPrice)
-            );
-        }
-
-        // Remaining Days
-        if (filters.duration !== "all") {
-            data = data.filter(
-                (listing) =>
-                    listing.remainingDays >= Number(filters.duration)
-            );
-        }
-
-        // Verified
-        if (filters.verifiedOnly) {
-            data = data.filter(
-                (listing) => listing.verified
-            );
-        }
-
-        // Featured
-        if (filters.featuredOnly) {
-            data = data.filter(
-                (listing) => listing.featured
-            );
-        }
-
-        switch (filters.sortBy) {
-            case "nearest":
-                data.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
-                break;
-            case "price-low":
-                data.sort((a, b) => a.price - b.price);
-                break;
-
-            case "price-high":
-                data.sort((a, b) => b.price - a.price);
-                break;
-
-            case "remaining-days":
-                data.sort(
-                    (a, b) =>
-                        b.remainingDays - a.remainingDays
-                );
-                break;
-
-            default:
-                break;
-        }
+        if (filters.sortBy === "nearest") data.sort((a, b) => (a.distanceKm ?? Infinity) - (b.distanceKm ?? Infinity));
 
         return data;
     }, [allListings, filters, userLocation]);
 
-    const totalPages = Math.ceil(
-        listings.length / ITEMS_PER_PAGE
-    );
-
-    const paginatedListings = listings.slice(
-        (currentPage - 1) * ITEMS_PER_PAGE,
-        currentPage * ITEMS_PER_PAGE
-    );
+    const usingLocalDistanceFilter = Boolean(userLocation && filters.distance !== "all");
+    const totalPages = usingLocalDistanceFilter ? 1 : pagination.totalPages;
+    const paginatedListings = usingLocalDistanceFilter ? listings : listings;
 
     return {
         listings: paginatedListings,
-        totalListings: listings.length,
+        totalListings: usingLocalDistanceFilter ? listings.length : pagination.total,
         currentPage,
         totalPages,
         setCurrentPage,

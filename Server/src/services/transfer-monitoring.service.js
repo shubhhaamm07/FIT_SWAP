@@ -1,4 +1,5 @@
 const prisma = require('../lib/prisma');
+const { buildPaginationMeta, getPagination } = require('../utils/pagination');
 
 const MAX_RESULTS = 200;
 const MAX_SCAN = 500;
@@ -69,16 +70,24 @@ const enrichAuditLogs = async (logs) => {
     return logs.map((log) => ({ ...log, actor: log.actorId ? actorById.get(log.actorId) || null : null }));
 };
 
-const getTransferAuditLogs = async ({ action, search, ownerId } = {}) => {
+const getTransferAuditLogs = async ({ action, search, ownerId, ...query } = {}) => {
     const scope = ownerId ? await getOwnerScope(ownerId) : null;
     const where = buildAuditWhere({ action, search, scope });
-    if (where === null) return [];
-    const logs = await prisma.transferAuditLog.findMany({
+    const { page, limit, skip } = getPagination(query, { defaultLimit: 50, maxLimit: 100 });
+    if (where === null) return { items: [], pagination: buildPaginationMeta({ page, limit, total: 0 }) };
+    const [total, logs] = await Promise.all([
+        prisma.transferAuditLog.count({ where }),
+        prisma.transferAuditLog.findMany({
         where,
-        take: MAX_RESULTS,
+        skip,
+        take: limit,
         orderBy: { createdAt: 'desc' },
-    });
-    return enrichAuditLogs(logs);
+    }),
+    ]);
+    return {
+        items: await enrichAuditLogs(logs),
+        pagination: buildPaginationMeta({ page, limit, total }),
+    };
 };
 
 const makeAlert = (alert) => ({

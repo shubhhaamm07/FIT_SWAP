@@ -1,17 +1,12 @@
 const cron = require('node-cron');
+const { expireOutstandingRequests } = require('../services/upi-payment.service');
 const prisma = require('../lib/prisma');
 
 const startExpiredUpiPaymentRequestJob = () => {
     cron.schedule('* * * * *', async () => {
         try {
-            const [membershipPayments, platformPayments] = await Promise.all([
-                prisma.upiPaymentRequest.updateMany({
-                where: {
-                    status: { in: ['AWAITING_PAYMENT', 'BUYER_MARKED_PAID', 'AWAITING_GYM_APPROVAL'] },
-                    expiresAt: { lte: new Date() },
-                },
-                data: { status: 'EXPIRED' },
-                }),
+            const [membershipPaymentCount, platformPayments] = await Promise.all([
+                expireOutstandingRequests(),
                 prisma.platformPaymentRequest.updateMany({
                     where: {
                         status: { in: ['AWAITING_PAYMENT', 'BUYER_MARKED_PAID'] },
@@ -21,7 +16,7 @@ const startExpiredUpiPaymentRequestJob = () => {
                 }),
             ]);
 
-            const expiredCount = membershipPayments.count + platformPayments.count;
+            const expiredCount = membershipPaymentCount + platformPayments.count;
             if (expiredCount) {
                 console.log(`${expiredCount} expired UPI payment request(s) closed`);
             }

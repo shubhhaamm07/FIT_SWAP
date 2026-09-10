@@ -1,0 +1,123 @@
+import {
+    LayoutDashboard,
+    Building2,
+    CreditCard,
+    Store,
+    ArrowRightLeft,
+    Bell,
+    CalendarCheck2,
+    MapPinned,
+    UserRound,
+    Settings,
+    Sparkles,
+    CircleHelp,
+    Dumbbell,
+    ShieldCheck,
+} from "lucide-react";
+
+export const sidebarSections = [
+    {
+        title: "Dashboard",
+        items: [
+            {
+                label: "Dashboard",
+                to: "/dashboard",
+                icon: LayoutDashboard,
+            },
+        ],
+    },
+
+    {
+        title: "Gyms",
+        items: [
+            { label: "Gyms", to: "/gyms", icon: Building2 },
+            { label: "Nearby Map", to: "/gyms/nearby", icon: MapPinned },
+            { label: "Book a Trial", to: "/trials", icon: CalendarCheck2 },
+        ],
+    },
+
+    {
+        title: "Memberships",
+        items: [
+            {
+                label: "Memberships",
+                to: "/memberships",
+                icon: CreditCard,
+            },
+        ],
+    },
+
+    {
+        title: "Marketplace",
+        items: [
+            {
+                label: "Marketplace",
+                to: "/marketplace",
+                icon: Store,
+            },
+        ],
+    },
+
+    {
+        title: "Transfers",
+        items: [
+            {
+                label: "Transfer Requests",
+                to: "/transfers",
+                icon: ArrowRightLeft,
+            },
+        ],
+    },
+
+    {
+        title: "Wellness",
+        items: [
+            {
+                label: "AI Diet Planner",
+                to: "/diet-planner",
+                icon: Sparkles,
+            },
+            {
+                label: "Workout & Meal Log",
+                to: "/wellness",
+                icon: Dumbbell,
+            },
+        ],
+    },
+
+    {
+        title: "Account",
+        items: [
+            {
+                label: "FitSwap Plus",
+                to: "/plus",
+                icon: Sparkles,
+            },
+            {
+                label: "Notifications",
+                to: "/notifications",
+                icon: Bell,
+            },
+            {
+                label: "Profile",
+                to: "/profile",
+                icon: UserRound,
+            },
+            {
+                label: "Settings",
+                to: "/settings",
+                icon: Settings,
+            },
+            {
+                label: "Security Centre",
+                to: "/security",
+                icon: ShieldCheck,
+            },
+            {
+                label: "Help & Support",
+                to: "/support",
+                icon: CircleHelp,
+            },
+        ],
+    },
+];

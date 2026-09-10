@@ -4,6 +4,7 @@ const { fileTypeFromBuffer } = require('file-type');
 
 const prisma = require('../lib/prisma');
 const s3 = require('../config/aws');
+const { getMemberPlusEntitlement } = require('./platform-billing.service');
 
 const MAX_SUBJECT_LENGTH = 140;
 const MAX_MESSAGE_LENGTH = 5000;
@@ -87,6 +88,20 @@ const normalizeText = (value, { field, min = 1, max }) => {
 
 const displayName = (person) =>
     [person?.firstName, person?.lastName].filter(Boolean).join(' ') || 'FitSwap member';
+
+// Members cannot self-label an issue as urgent. A confirmed Plus plan places
+// ordinary member tickets in the high-priority queue; an administrator still
+// decides whether a genuinely sensitive issue should become urgent.
+const resolveCreatorPriority = async ({ actor, requestedPriority, database }) => {
+    if (actor.role !== 'USER' || !database.platformPaymentRequest) {
+        return { priority: requestedPriority, isPriorityMember: false };
+    }
+    const entitlement = await getMemberPlusEntitlement(actor.id, new Date(), database);
+    return {
+        priority: entitlement.isFitSwapPlus ? 'HIGH' : 'NORMAL',
+        isPriorityMember: entitlement.isFitSwapPlus,
+    };
+};
 
 const makeTicketNumber = () => `FS-SUP-${randomUUID().slice(0, 8).toUpperCase()}`;
 
@@ -279,9 +294,10 @@ async function createTicket({ actor, input, database = prisma }) {
     const subject = normalizeText(input.subject, { field: 'Subject', min: 3, max: MAX_SUBJECT_LENGTH });
     const description = normalizeText(input.description, { field: 'Description', min: 10, max: MAX_MESSAGE_LENGTH });
     const category = String(input.category || '').toUpperCase();
-    const priority = String(input.priority || 'NORMAL').toUpperCase();
+    const requestedPriority = String(input.priority || 'NORMAL').toUpperCase();
     if (!CATEGORIES.has(category)) fail(400, 'Choose a valid support category.');
-    if (!PRIORITIES.has(priority)) fail(400, 'Choose a valid priority.');
+    if (!PRIORITIES.has(requestedPriority)) fail(400, 'Choose a valid priority.');
+    const { priority, isPriorityMember } = await resolveCreatorPriority({ actor, requestedPriority, database });
     const related = await resolveRelatedEntity({
         relatedType: String(input.relatedType || 'NONE').toUpperCase(),
         relatedEntityId: input.relatedEntityId,
@@ -308,7 +324,7 @@ async function createTicket({ actor, input, database = prisma }) {
                 actorRole: actor.role,
                 action: 'CREATED',
                 toStatus: 'OPEN',
-                detail: 'Ticket created'
+                detail: isPriorityMember ? 'Ticket created with FitSwap Plus priority' : 'Ticket created'
             }
         });
         const admins = await tx.user.findMany({ where: { role: 'ADMIN', isActive: true }, select: { id: true } });
@@ -316,7 +332,7 @@ async function createTicket({ actor, input, database = prisma }) {
             await tx.notification.createMany({
                 data: admins.map((admin) => ({
                     userId: admin.id,
-                    title: 'New support ticket',
+                    title: isPriorityMember ? 'FitSwap Plus priority ticket' : 'New support ticket',
                     message: `${ticketNumber}: ${subject}`
                 }))
             });
@@ -358,7 +374,8 @@ async function listTickets({ actor, filters = {}, database = prisma }) {
         orderBy: [{ lastMessageAt: 'desc' }, { createdAt: 'desc' }],
         take: Math.min(Math.max(Number(filters.limit) || 100, 1), 100)
     });
-    return tickets.map((ticket) => ({
+    const priorityOrder = { URGENT: 0, HIGH: 1, NORMAL: 2, LOW: 3 };
+    return tickets.sort((left, right) => (priorityOrder[left.priority] ?? 9) - (priorityOrder[right.priority] ?? 9)).map((ticket) => ({
         ...ticket,
         latestMessage: ticket.messages[0] || null,
         messages: undefined

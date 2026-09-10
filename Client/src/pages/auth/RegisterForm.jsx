@@ -7,6 +7,7 @@ import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
 import RoleCard from "./RoleCard";
 import { registerUser } from "../../api/auth.api";
+import { passwordPolicyMessage } from "../../utils/passwordPolicy";
 
 function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -64,8 +65,9 @@ function RegisterForm() {
 
     if (!formData.password) {
       newErrors.password = "Password is required.";
-    } else if (formData.password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters.";
+    } else {
+      newErrors.password = passwordPolicyMessage(formData.password, formData);
+      if (!newErrors.password) delete newErrors.password;
     }
 
     if (!formData.confirmPassword) {
@@ -189,7 +191,9 @@ function RegisterForm() {
         value={formData.password}
         onChange={handleChange}
         type={showPassword ? "text" : "password"}
-        placeholder="Create password"
+        placeholder="12+ characters with mixed character types"
+        minLength={12}
+        maxLength={128}
         icon={<Lock size={18} />}
         rightIcon={showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
         onRightIconClick={() => setShowPassword(!showPassword)}

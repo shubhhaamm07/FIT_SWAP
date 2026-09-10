@@ -7,7 +7,9 @@ const protect = async (req, res, next) => {
         const bearerToken = authHeader?.startsWith('Bearer ')
             ? authHeader.slice(7).trim()
             : '';
-        const token = bearerToken || req.cookies?.fitswap_session;
+        const token = bearerToken
+            || req.cookies?.['__Host-fitswap_session']
+            || req.cookies?.fitswap_session;
 
         if (!token) {
             return res.status(401).json({
@@ -55,9 +57,16 @@ const protect = async (req, res, next) => {
             });
         }
 
-        // New tokens carry a session id, which enables per-device sign-out.
-        // Legacy tokens without this claim remain valid until their normal
-        // expiry so existing users are not abruptly logged out on deployment.
+        // Server-side sessions make logout, password changes, and account
+        // suspension effective immediately instead of waiting for JWT expiry.
+        if (!decoded.sessionId && process.env.ALLOW_LEGACY_JWT !== 'true') {
+            return res.status(401).json({
+                success: false,
+                message: 'Your session must be renewed. Please sign in again.'
+            });
+        }
+
+        let authenticatedAt = decoded.iat ? new Date(decoded.iat * 1000) : null;
         if (decoded.sessionId) {
             const session = await prisma.userSession.findFirst({
                 where: {
@@ -66,7 +75,7 @@ const protect = async (req, res, next) => {
                     revokedAt: null,
                     expiresAt: { gt: new Date() }
                 },
-                select: { id: true, lastSeenAt: true }
+                select: { id: true, lastSeenAt: true, createdAt: true }
             });
             if (!session) {
                 return res.status(401).json({
@@ -74,6 +83,7 @@ const protect = async (req, res, next) => {
                     message: 'This device session is no longer active. Please sign in again.'
                 });
             }
+            authenticatedAt = session.createdAt;
 
             // Avoid a database write on every API call while keeping the
             // active-device list reasonably current.
@@ -86,7 +96,13 @@ const protect = async (req, res, next) => {
         }
 
         // Use the current database role, not the role embedded in an old token.
-        req.user = { id: user.id, userId: user.id, role: user.role, sessionId: decoded.sessionId || null };
+        req.user = {
+            id: user.id,
+            userId: user.id,
+            role: user.role,
+            sessionId: decoded.sessionId || null,
+            authenticatedAt,
+        };
 
         next();
     } catch (error) {
@@ -97,6 +113,19 @@ const protect = async (req, res, next) => {
     }
 };
 
+const requireRecentAuthentication = (maximumAgeMinutes = 30) => (req, res, next) => {
+    const authenticatedAt = req.user?.authenticatedAt && new Date(req.user.authenticatedAt);
+    if (!authenticatedAt || Date.now() - authenticatedAt.getTime() > maximumAgeMinutes * 60 * 1000) {
+        return res.status(403).json({
+            success: false,
+            code: 'REAUTHENTICATION_REQUIRED',
+            message: 'For your security, sign in again before performing this sensitive action.',
+        });
+    }
+    return next();
+};
+
 module.exports = {
-    protect
+    protect,
+    requireRecentAuthentication,
 };

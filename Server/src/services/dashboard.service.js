@@ -1,4 +1,5 @@
 const prisma = require("../lib/prisma");
+const { serializePublicListing } = require('../serializers/public-marketplace');
 
 const getDashboard = async (userId) => {
     const [
@@ -43,7 +44,8 @@ const getDashboard = async (userId) => {
                         id: true,
                         firstName: true,
                         lastName: true,
-                        avatarUrl: true
+                        username: true,
+                        isProfilePublic: true,
                     }
                 },
             },
@@ -102,7 +104,7 @@ const getDashboard = async (userId) => {
         memberships: {
             total: memberships.length,
             active: memberships.filter(
-                (membership) => membership.status === "ACTIVE"
+                (membership) => membership.status === "ACTIVE" && new Date(membership.endDate) > new Date()
             ).length,
         },
 
@@ -166,10 +168,12 @@ const getDashboard = async (userId) => {
             new Date(b.createdAt) - new Date(a.createdAt)
     );
 
+    const privacySafeListings = listings.map(serializePublicListing);
+
     return {
         stats,
         memberships,
-        listings,
+        listings: privacySafeListings,
         notifications,
         transferRequests,
         gyms,

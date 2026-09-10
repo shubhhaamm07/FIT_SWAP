@@ -14,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 
 import { getAllGyms } from "../../api/gym.api";
 import DashboardLayout from "../../layouts/DashboardLayout";
+import { isRequestCancelled } from "../../hooks/useVisibilityPolling";
 
 const DEFAULT_RADIUS = "25";
 
@@ -73,18 +74,20 @@ function NearbyGymsPage() {
   const [selectedGymId, setSelectedGymId] = useState("");
 
   useEffect(() => {
+    const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       try {
         setLoading(true);
-        setGyms(await getAllGyms());
+        const data = await getAllGyms({ limit: 60 }, { signal: controller.signal });
+        if (!controller.signal.aborted) setGyms(data);
       } catch (requestError) {
-        setError(requestError.response?.data?.message || "Unable to load nearby gyms.");
+        if (!isRequestCancelled(requestError)) setError(requestError.response?.data?.message || "Unable to load nearby gyms.");
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     }, 0);
 
-    return () => window.clearTimeout(timer);
+    return () => { window.clearTimeout(timer); controller.abort(); };
   }, []);
 
   const cities = useMemo(

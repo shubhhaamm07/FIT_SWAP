@@ -41,6 +41,8 @@ const plusFeatures = [
   "30-day crowd graphs and quiet-time recommendations",
   "Unlimited saved listings with price-drop alerts",
   "Early alerts for listings matching your city",
+  "One complimentary 7-day priority listing boost every calendar month",
+  "High-priority support queue and private 30-day wellness insights",
   "Your active Plus status and expiry in one place",
 ];
 
@@ -103,6 +105,13 @@ function FitSwapPlusPage() {
       setMessage("");
       const request = await createMemberSubscriptionPayment(planCode);
       setPaymentRequest(request);
+      setBilling((current) => ({
+        ...current,
+        payments: [
+          request,
+          ...(current?.payments || []).filter((payment) => payment.id !== request.id),
+        ],
+      }));
       setMessage("Your FitSwap Plus UPI QR is ready. Pay the exact amount, then submit the UTR.");
     } catch (error) {
       setMessage(
@@ -190,7 +199,7 @@ function FitSwapPlusPage() {
           <>
             {activePlan && (
               <section className="flex flex-col gap-4 rounded-2xl border border-emerald-400/25 bg-emerald-500/[0.07] p-5 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-200"><ShieldCheck size={20} /></span><div><p className="font-bold text-emerald-50">FitSwap Plus is active</p><p className="mt-1 text-sm text-emerald-100/70">Your paid features stay available until {displayDate(activePlan.benefitExpiresAt)}.</p></div></div>
+                <div className="flex items-start gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-emerald-500/15 text-emerald-200"><ShieldCheck size={20} /></span><div><p className="font-bold text-emerald-50">FitSwap Plus is active</p><p className="mt-1 text-sm text-emerald-100/70">Your paid features stay available until {displayDate(activePlan.benefitExpiresAt)}.</p><p className="mt-2 text-xs font-semibold text-emerald-200">{billing?.entitlements?.freeMonthlyBoostAvailable ? "Your complimentary 7-day priority listing boost is ready in My Listings." : "Your complimentary priority boost has been used this calendar month."}</p></div></div>
                 <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-emerald-400/15 px-3 py-1.5 text-xs font-bold text-emerald-200"><Check size={14} /> Active</span>
               </section>
             )}

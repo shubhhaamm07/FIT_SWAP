@@ -16,5 +16,6 @@ router.get('/wellness/meals', controller.listMeals);
 router.post('/wellness/meals', controller.createMeal);
 router.patch('/wellness/meals/:mealLogId', controller.updateMeal);
 router.delete('/wellness/meals/:mealLogId', controller.removeMeal);
+router.get('/wellness/insights', controller.getInsights);
 
 module.exports = router;

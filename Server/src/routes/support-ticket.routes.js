@@ -2,7 +2,7 @@ const express = require('express');
 const multer = require('multer');
 const { protect } = require('../middlewares/auth.middleware');
 const { authorize } = require('../middlewares/role.middleware');
-const { uploadLimiter } = require('../middlewares/rateLimiter.middleware');
+const { uploadLimiter, supportMessageLimiter } = require('../middlewares/rateLimiter.middleware');
 const supportTicketController = require('../controllers/support-ticket.controller');
 const supportTicketService = require('../services/support-ticket.service');
 const { MAX_ATTACHMENTS, MAX_ATTACHMENT_BYTES } = supportTicketService;
@@ -49,10 +49,10 @@ const verifyTicketAccess = async (req, res, next) => {
 
 router.use(protect);
 router.get('/support/tickets', supportTicketController.listTickets);
-router.post('/support/tickets', supportTicketController.createTicket);
+router.post('/support/tickets', supportMessageLimiter, supportTicketController.createTicket);
 router.get('/support/tickets/:ticketId', supportTicketController.getTicket);
 router.get('/support/tickets/:ticketId/attachments/:attachmentId', supportTicketController.downloadAttachment);
-router.post('/support/tickets/:ticketId/messages', uploadLimiter, verifyTicketAccess, uploadAttachments, supportTicketController.addMessage);
+router.post('/support/tickets/:ticketId/messages', supportMessageLimiter, uploadLimiter, verifyTicketAccess, uploadAttachments, supportTicketController.addMessage);
 router.patch('/support/tickets/:ticketId', authorize('ADMIN'), supportTicketController.updateTicket);
 router.post('/support/tickets/:ticketId/reopen', supportTicketController.reopenTicket);
 

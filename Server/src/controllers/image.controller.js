@@ -147,7 +147,9 @@ const getProfileImage = async (req, res) => {
 
         res.set({
             'Content-Type': image.ContentType || 'image/jpeg',
-            'Cache-Control': 'private, max-age=3600',
+            'Cache-Control': 'private, no-store',
+            'Content-Disposition': 'inline',
+            'X-Content-Type-Options': 'nosniff',
         });
         image.Body.pipe(res);
     } catch (error) {

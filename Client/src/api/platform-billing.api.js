@@ -1,4 +1,4 @@
-import axios from "./axios";
+import axios, { createIdempotencyConfig } from "./axios";
 
 const unwrap = async (request) => {
   const { data } = await request;
@@ -7,17 +7,20 @@ const unwrap = async (request) => {
 
 export const getMyPlatformBilling = () => unwrap(axios.get("/platform-billing/mine"));
 
-export const createOwnerSubscriptionPayment = (planCode) =>
-  unwrap(axios.post("/platform-billing/owner-subscription", { planCode }));
+export const createOwnerSubscriptionPayment = (planCode, idempotencyKey) =>
+  unwrap(axios.post("/platform-billing/owner-subscription", { planCode }, createIdempotencyConfig("owner-plan", idempotencyKey)));
 
-export const createMemberSubscriptionPayment = (planCode) =>
-  unwrap(axios.post("/platform-billing/member-subscription", { planCode }));
+export const createMemberSubscriptionPayment = (planCode, idempotencyKey) =>
+  unwrap(axios.post("/platform-billing/member-subscription", { planCode }, createIdempotencyConfig("member-plan", idempotencyKey)));
 
-export const createListingBoostPayment = (listingId) =>
-  unwrap(axios.post(`/platform-billing/listings/${listingId}/boost`));
+export const createListingBoostPayment = (listingId, idempotencyKey) =>
+  unwrap(axios.post(`/platform-billing/listings/${listingId}/boost`, undefined, createIdempotencyConfig("listing-boost", idempotencyKey)));
 
-export const markPlatformPaymentPaid = (requestId, utr) =>
-  unwrap(axios.post(`/platform-billing/${requestId}/mark-paid`, { utr }));
+export const redeemMemberListingBoost = (listingId, idempotencyKey) =>
+  unwrap(axios.post(`/platform-billing/listings/${listingId}/plus-boost`, undefined, createIdempotencyConfig("plus-monthly-boost", idempotencyKey)));
+
+export const markPlatformPaymentPaid = (requestId, utr, idempotencyKey) =>
+  unwrap(axios.post(`/platform-billing/${requestId}/mark-paid`, { utr }, createIdempotencyConfig("platform-paid", idempotencyKey)));
 
 export const cancelPlatformPayment = (requestId) =>
   unwrap(axios.post(`/platform-billing/${requestId}/cancel`));

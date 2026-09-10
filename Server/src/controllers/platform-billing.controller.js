@@ -16,6 +16,9 @@ const createMemberSubscription = (req, res) =>
 const createListingBoost = (req, res) =>
     send(res, 201, platformBillingService.createListingBoostRequest(req.user.id, req.params.listingId), 'Unable to create the listing-boost payment request.');
 
+const redeemMemberBoost = (req, res) =>
+    send(res, 201, platformBillingService.redeemMemberBoost(req.user.id, req.params.listingId), 'Unable to activate the FitSwap Plus listing boost.');
+
 const markPaymentPaid = (req, res) =>
     send(res, 200, platformBillingService.markPlatformPaymentPaid(req.user.id, req.params.requestId, req.body.utr), 'Unable to record the payment reference.');
 
@@ -38,6 +41,7 @@ module.exports = {
     createOwnerSubscription,
     createMemberSubscription,
     createListingBoost,
+    redeemMemberBoost,
     markPaymentPaid,
     cancelPayment,
     getMyBillingSummary,

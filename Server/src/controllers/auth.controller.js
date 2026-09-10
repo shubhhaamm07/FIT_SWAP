@@ -10,15 +10,25 @@ const sessionCookieOptions = () => ({
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     maxAge: 24 * 60 * 60 * 1000,
     path: '/',
+    priority: 'high',
 });
 
-const setSessionCookie = (res, token) => res.cookie('fitswap_session', token, sessionCookieOptions());
-const clearSessionCookie = (res) => res.clearCookie('fitswap_session', {
+const sessionCookieName = () => process.env.NODE_ENV === 'production'
+    ? '__Host-fitswap_session'
+    : 'fitswap_session';
+const setSessionCookie = (res, token) => res.cookie(sessionCookieName(), token, sessionCookieOptions());
+const clearSessionCookie = (res) => {
+    const options = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
     path: '/',
-});
+    };
+    res.clearCookie(sessionCookieName(), options);
+    // Clear the pre-hardening cookie during the deployment transition.
+    res.clearCookie('fitswap_session', options);
+    return res;
+};
 
 const authResponseUser = (user) => ({
     id: user.id,
@@ -66,6 +76,7 @@ const register = async (req, res) => {
 const login = async (req, res) => {
     let user;
     try {
+        await securityService.assertLoginAllowed(req.body?.email, req);
         user = await authService.loginUser(req.body);
         const session = await securityService.createSession({ user, req, authMethod: 'PASSWORD' });
         const token = generateToken(user, session.id);
@@ -76,7 +87,10 @@ const login = async (req, res) => {
             user: authResponseUser(user)
         });
     } catch (error) {
-        if (!user) securityService.recordFailedLogin(req.body?.email, req, 'PASSWORD').catch(() => undefined);
+        if (!user && error.code !== 'LOGIN_TEMPORARILY_BLOCKED') {
+            await securityService.recordFailedLogin(req.body?.email, req, 'PASSWORD').catch(() => undefined);
+            await new Promise((resolve) => setTimeout(resolve, 200 + Math.floor(Math.random() * 150)));
+        }
         return res.status(error.statusCode || (user ? 500 : 401)).json({
             success: false,
             message: user ? 'Unable to create a secure session. Please try again.' : error.message,

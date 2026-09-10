@@ -5,6 +5,7 @@ import { approveTransferRequest, cancelTransferRequest, getIncomingTransferReque
 import { cancelUpiPaymentRequest, confirmUpiPaymentReceived, getMyUpiPaymentRequests, markUpiPaymentPaid, rejectUpiPayment } from "../../api/upi-payment.api";
 import UpiPaymentCheckout from "../../components/payments/UpiPaymentCheckout";
 import formatPrice from "../../components/marketplace/utils/formatPrice";
+import { isRequestCancelled, useVisibilityPolling } from "../../hooks/useVisibilityPolling";
 
 const paymentTerminalStatuses = ["COMPLETED", "REJECTED", "CANCELLED", "EXPIRED"];
 
@@ -17,30 +18,30 @@ const TransferRequestsPage = () => {
   const [message, setMessage] = useState("");
   const [updatingId, setUpdatingId] = useState("");
 
-  const loadRequests = useCallback(async () => {
+  const loadRequests = useCallback(async ({ signal } = {}) => {
     try {
       setLoading(true);
-      const [legacyIncoming, legacyOutgoing, upi] = await Promise.all([getIncomingTransferRequests(), getMyTransferRequests(), getMyUpiPaymentRequests()]);
+      const [legacyIncoming, legacyOutgoing, upi] = await Promise.all([getIncomingTransferRequests({ signal }), getMyTransferRequests({ signal }), getMyUpiPaymentRequests({ signal })]);
+      if (signal?.aborted) return;
       setIncoming(Array.isArray(legacyIncoming) ? legacyIncoming : []);
       setOutgoing(Array.isArray(legacyOutgoing) ? legacyOutgoing : []);
       setUpiPayments({ incoming: Array.isArray(upi?.incoming) ? upi.incoming : [], outgoing: Array.isArray(upi?.outgoing) ? upi.outgoing : [] });
     } catch (error) {
+      if (isRequestCancelled(error)) return;
       setMessage(error.response?.data?.message || "Unable to load transfer requests.");
+      if (signal) throw error;
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => { void loadRequests(); }, 0);
-    return () => window.clearTimeout(timer);
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => { void loadRequests({ signal: controller.signal }).catch(() => undefined); }, 0);
+    return () => { window.clearTimeout(timer); controller.abort(); };
   }, [loadRequests]);
-  useEffect(() => {
-    const hasLiveRequest = [...upiPayments.incoming, ...upiPayments.outgoing].some((request) => !paymentTerminalStatuses.includes(request.status));
-    if (!hasLiveRequest) return undefined;
-    const timer = window.setInterval(() => { void loadRequests(); }, 20000);
-    return () => window.clearInterval(timer);
-  }, [upiPayments, loadRequests]);
+  const hasLiveRequest = [...upiPayments.incoming, ...upiPayments.outgoing].some((request) => !paymentTerminalStatuses.includes(request.status));
+  useVisibilityPolling(loadRequests, { enabled: hasLiveRequest, interval: 20_000, maxInterval: 120_000 });
   useEffect(() => {
     const refreshForTransferUpdate = (event) => {
       const text = `${event.detail?.title || ""} ${event.detail?.message || ""}`.toLowerCase();

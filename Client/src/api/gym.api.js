@@ -36,22 +36,23 @@ export const downloadGymVerification = async (gymId, document) => {
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 };
 
-export const getAllGyms = async () => {
-    const { data } = await axios.get("/gyms");
+export const getAllGyms = async (query = {}, config = {}) => {
+    const { data } = await axios.get("/gyms", { ...config, params: query });
 
     return data.data;
 };
 
-export const getMyGyms = async () => {
+export const getMyGyms = async (config = {}) => {
     const { data } = await axios.get(
-        "/gyms/my-gyms"
+        "/gyms/my-gyms",
+        config
     );
 
     return data.data;
 };
 
-export const getGymById = async (gymId) => {
-    const { data } = await axios.get(`/gyms/${gymId}`);
+export const getGymById = async (gymId, config = {}) => {
+    const { data } = await axios.get(`/gyms/${gymId}`, config);
     return data.data;
 };
 
@@ -70,8 +71,8 @@ export const updateMyGym = async (gymId, gymData) => {
     return data.data;
 };
 
-export const getGymCrowdLevel = async (gymId) => {
-    const { data } = await axios.get(`/gyms/${gymId}/crowd`);
+export const getGymCrowdLevel = async (gymId, config = {}) => {
+    const { data } = await axios.get(`/gyms/${gymId}/crowd`, config);
     return data.data;
 };
 

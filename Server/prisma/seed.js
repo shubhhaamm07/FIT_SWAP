@@ -3,8 +3,12 @@ require('dotenv').config();
 const bcrypt = require('bcryptjs');
 const { PrismaClient } = require('@prisma/client');
 
+if (process.env.NODE_ENV === 'production' && process.env.ALLOW_PRODUCTION_SEED !== 'true') {
+    throw new Error('Production seeding is disabled. Set ALLOW_PRODUCTION_SEED=true only for an intentional disposable environment.');
+}
+
 const prisma = new PrismaClient();
-const PASSWORD = '1234';
+const PASSWORD = process.env.SEED_TEST_PASSWORD || 'FitSwap-Local-Only-2026!';
 const gymNames = ['Cult Fit Koramangala', "Gold's Gym HSR", 'Anytime Fitness Indiranagar', 'Fitness First Whitefield', 'Rampfit Marathahalli'];
 const cities = ['Bangalore', 'Bangalore', 'Bangalore', 'Bangalore', 'Bangalore'];
 const images = [
@@ -178,23 +182,25 @@ async function main() {
         }
 
         if (index === 0) {
-            const existingListing = await prisma.marketplaceListing.findUnique({ where: { membershipId: membership.id } });
-            if (existingListing) {
-                await prisma.transferRequest.deleteMany({ where: { listingId: existingListing.id } });
-                await prisma.marketplaceListing.delete({ where: { id: existingListing.id } });
+            const existingListings = await prisma.marketplaceListing.findMany({ where: { membershipId: membership.id } });
+            if (existingListings.length) {
+                await prisma.transferRequest.deleteMany({ where: { listingId: { in: existingListings.map(({ id }) => id) } } });
+                await prisma.marketplaceListing.deleteMany({ where: { id: { in: existingListings.map(({ id }) => id) } } });
             }
             continue;
         }
 
-        const askingPrice = Math.round(plan.price * (0.55 + ((index % 4) * 0.1)));
+        const askingPrice = Math.round(Number(plan.price) * (0.55 + ((index % 4) * 0.1)));
         const statuses = ['ACTIVE', 'ACTIVE', 'ACTIVE', 'ACTIVE', 'PAUSED', 'RESERVED', 'SOLD'];
         const status = statuses[index % statuses.length];
-        const listing = await prisma.marketplaceListing.upsert({
-            where: { membershipId: membership.id },
-            update: { sellerId: members[index].id, askingPrice, status, deletedAt: null },
-            create: { membershipId: membership.id, sellerId: members[index].id, askingPrice, status }
+        const listing = await prisma.marketplaceListing.findFirst({
+            where: { membershipId: membership.id, status: { in: ['ACTIVE', 'PAUSED', 'RESERVED'] }, deletedAt: null },
+            orderBy: { createdAt: 'desc' },
         });
-        listings.push(listing);
+        const savedListing = listing
+            ? await prisma.marketplaceListing.update({ where: { id: listing.id }, data: { sellerId: members[index].id, askingPrice, status, deletedAt: null } })
+            : await prisma.marketplaceListing.create({ data: { membershipId: membership.id, sellerId: members[index].id, askingPrice, status } });
+        listings.push(savedListing);
     }
 
     const firstActive = listings.find((listing) => listing.status === 'ACTIVE');
@@ -205,18 +211,15 @@ async function main() {
 
     const transferListing = listings.find((listing) => listing.status === 'ACTIVE' && listing.sellerId !== members[0].id);
     if (transferListing) {
-        await prisma.transferRequest.upsert({
-            where: {
-                listingId_buyerId: {
-                    listingId: transferListing.id,
-                    buyerId: members[0].id
-                }
-            },
-            update: {},
-            create: {
+        const existingRequest = await prisma.transferRequest.findFirst({
+            where: { listingId: transferListing.id, buyerId: members[0].id, status: 'PENDING' },
+        });
+        if (!existingRequest) await prisma.transferRequest.create({
+            data: {
                 listingId: transferListing.id,
-                buyerId: members[0].id
-            }
+                buyerId: members[0].id,
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+            },
         });
     }
 
@@ -226,8 +229,8 @@ async function main() {
     }
 
     console.log(`Seeded ${members.length} members, ${owners.length} gym owners, ${gymData.length} gyms, and ${listings.length} listings.`);
-    console.log('Admin login: shubham.rana@fitswap.test / 1234');
-    owners.forEach((owner) => console.log(`Gym owner login: ${owner.email} / 1234`));
+    console.log('Demo login password is the local SEED_TEST_PASSWORD value.');
+    console.log(`Created ${owners.length} gym-owner demo accounts without printing their credentials.`);
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; }).finally(() => prisma.$disconnect());

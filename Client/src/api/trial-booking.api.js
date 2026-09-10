@@ -1,6 +1,6 @@
-import axios from "./axios";
+import axios, { createIdempotencyConfig } from "./axios";
 
-export const getAvailableTrialSlots = async (filters = {}) => {
+export const getAvailableTrialSlots = async (filters = {}, config = {}) => {
   const params = { ...filters };
   if (params.date) {
     const dayStart = new Date(`${params.date}T00:00:00`);
@@ -13,17 +13,17 @@ export const getAvailableTrialSlots = async (filters = {}) => {
     delete params.date;
   }
 
-  const { data } = await axios.get("/trial-slots", { params });
+  const { data } = await axios.get("/trial-slots", { ...config, params });
   return data.data;
 };
 
-export const bookTrialSlot = async (slotId) => {
-  const { data } = await axios.post("/trial-bookings", { slotId });
+export const bookTrialSlot = async (slotId, idempotencyKey) => {
+  const { data } = await axios.post("/trial-bookings", { slotId }, createIdempotencyConfig("trial-booking", idempotencyKey));
   return data.data;
 };
 
-export const getMyTrialBookings = async () => {
-  const { data } = await axios.get("/trial-bookings/my");
+export const getMyTrialBookings = async (config = {}) => {
+  const { data } = await axios.get("/trial-bookings/my", config);
   return data.data;
 };
 
@@ -37,8 +37,8 @@ export const createOwnerTrialSlot = async (slot) => {
   return data.data;
 };
 
-export const getOwnerTrialSlots = async (filters = {}) => {
-  const { data } = await axios.get("/gym-owner/trial-slots", { params: filters });
+export const getOwnerTrialSlots = async (filters = {}, config = {}) => {
+  const { data } = await axios.get("/gym-owner/trial-slots", { ...config, params: filters });
   return data.data;
 };
 
@@ -52,8 +52,8 @@ export const deactivateOwnerTrialSlot = async (slotId, reason) => {
   return data.data;
 };
 
-export const getOwnerTrialBookings = async (filters = {}) => {
-  const { data } = await axios.get("/gym-owner/trial-bookings", { params: filters });
+export const getOwnerTrialBookings = async (filters = {}, config = {}) => {
+  const { data } = await axios.get("/gym-owner/trial-bookings", { ...config, params: filters });
   return data.data;
 };
 

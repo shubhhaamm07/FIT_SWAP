@@ -7,15 +7,17 @@ const getMyNotifications = async (
     res
 ) => {
     try {
-        const notifications =
+        const result =
             await notificationService.getMyNotifications(
-                req.user.id
+                req.user.id,
+                req.query,
             );
 
         return res.status(200).json({
             success: true,
-            count: notifications.length,
-            data: notifications
+            count: result.items.length,
+            data: result.items,
+            pagination: result.pagination,
         });
     } catch (error) {
         return res.status(500).json({

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, CheckCircle2, Clock3, KeyRound, Laptop, LoaderCircle, LogOut, RefreshCw, ShieldCheck, Smartphone } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock3, KeyRound, Laptop, LoaderCircle, LogOut, RefreshCw, Smartphone } from "lucide-react";
 import DashboardLayout from "../../layouts/DashboardLayout";
 import { getSecurityOverview, revokeOtherSecuritySessions, revokeSecuritySession } from "../../api/security.api";
 import { useToast } from "../../hooks/useToast";
+import { isRequestCancelled } from "../../hooks/useVisibilityPolling";
 
 const displayDateTime = (value) => value ? new Date(value).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "Not available";
 const methodLabel = (value) => value === "GOOGLE" ? "Google" : "Password";
@@ -13,16 +14,22 @@ function SecurityCentrePage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
 
-  const load = useCallback(async (quiet = false) => {
+  const load = useCallback(async (quiet = false, { signal } = {}) => {
     try {
       if (!quiet) setLoading(true);
-      setSecurity(await getSecurityOverview());
+      const nextSecurity = await getSecurityOverview({ signal });
+      if (!signal?.aborted) setSecurity(nextSecurity);
     } catch (error) {
+      if (isRequestCancelled(error)) return;
       showToast(error.response?.data?.message || "Unable to load account-security data.", "error");
-    } finally { if (!quiet) setLoading(false); }
+    } finally { if (!quiet && !signal?.aborted) setLoading(false); }
   }, [showToast]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => { void load(false, { signal: controller.signal }); }, 0);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [load]);
 
   const signOutDevice = async (sessionId) => {
     try {

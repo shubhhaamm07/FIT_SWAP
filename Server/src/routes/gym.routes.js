@@ -7,8 +7,10 @@ const {
 
 
 const {
-    protect
+    protect,
+    requireRecentAuthentication,
 } = require('../middlewares/auth.middleware');
+const { adminMutationLimiter } = require('../middlewares/rateLimiter.middleware');
 const gymController = require('../controllers/gym.controller');
 
 router.get('/', gymController.getAllGyms);
@@ -37,6 +39,8 @@ router.patch(
     '/:id/status',
     protect,
     authorize('ADMIN'),
+    requireRecentAuthentication(),
+    adminMutationLimiter,
     gymController.updateGymStatus
 );
 

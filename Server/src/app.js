@@ -1,7 +1,10 @@
 const express = require('express');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const crypto = require('crypto');
+const helmet = require('helmet');
 const morgan = require('morgan');
+const prisma = require('./lib/prisma');
 const adminRoutes = require('./routes/admin.routes');
 
 const authRoutes = require('./routes/auth.routes');
@@ -32,7 +35,6 @@ const chartRoutes = require(
 const imageRoutes = require("./routes/image.routes");
 const savedListingRoutes = require('./routes/saved-listing.routes');
 const gymOwnerDashboardRoutes = require('./routes/gym-owner-dashboard.routes');
-const paymentRoutes = require('./routes/payment.routes');
 const upiPaymentRoutes = require('./routes/upi-payment.routes');
 const platformBillingRoutes = require('./routes/platform-billing.routes');
 const dietPlannerRoutes = require('./routes/diet-planner.routes');
@@ -64,6 +66,22 @@ const configuredOrigins = String(
 
 const allowedOrigins = new Set(configuredOrigins);
 
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+    const suppliedRequestId = String(req.get('x-request-id') || '').trim();
+    req.requestId = /^[A-Za-z0-9._:-]{8,100}$/.test(suppliedRequestId)
+        ? suppliedRequestId
+        : crypto.randomUUID();
+    res.setHeader('X-Request-Id', req.requestId);
+    next();
+});
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+    hsts: process.env.NODE_ENV === 'production'
+        ? { maxAge: 31_536_000, includeSubDomains: true, preload: true }
+        : false,
+}));
+
 app.use(
     cors({
         origin(origin, callback) {
@@ -79,21 +97,50 @@ app.use(
         },
         credentials: true,
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization"],
+        allowedHeaders: ["Content-Type", "Authorization", "Idempotency-Key", "X-Request-Id"],
     })
 );
 
-app.use(express.json());
+app.use(express.json({ limit: process.env.JSON_BODY_LIMIT || '64kb' }));
 app.use(cookieParser());
 app.use(csrfProtection(allowedOrigins));
-app.use(morgan('dev'));
+app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev', {
+    skip: (req) => process.env.NODE_ENV === 'production' && req.path === '/api/health',
+}));
 app.use('/api', apiLimiter);
 
-app.get('/api/health', (req, res) => {
-    return res.status(200).json({
-        success: true,
-        message: 'FitSwap API Running'
-    });
+// Controllers cannot accidentally expose database, S3, or provider details in
+// a 5xx response. The request id lets support find the corresponding server log.
+app.use((req, res, next) => {
+    const sendJson = res.json.bind(res);
+    res.json = (body) => {
+        const message = String(body?.message || body?.error || '');
+        const containsInternalDetails = /Prisma|Invalid `.*\.(?:create|update|find|delete)|node_modules|ECONN|ENOTFOUND|AWS_|S3Client|database column|database table/i.test(message);
+        if (res.statusCode >= 500 || containsInternalDetails) {
+            return sendJson({
+                success: false,
+                message: res.statusCode >= 500
+                    ? 'An unexpected server error occurred.'
+                    : 'The request could not be processed.',
+                requestId: req.requestId,
+            });
+        }
+        return sendJson(body);
+    };
+    next();
+});
+
+app.get('/api/health', async (req, res) => {
+    try {
+        await prisma.$queryRaw`SELECT 1`;
+        return res.status(200).json({
+            success: true,
+            status: 'ready',
+        });
+    } catch (error) {
+        console.error('Health check failed', { requestId: req.requestId, name: error.name });
+        return res.status(503).json({ success: false });
+    }
 });
 
 app.get('/', (req, res) => {
@@ -118,7 +165,6 @@ app.use("/api", chartRoutes);
 app.use("/api", imageRoutes);
 app.use('/api', savedListingRoutes);
 app.use('/api', gymOwnerDashboardRoutes);
-app.use('/api', paymentRoutes);
 app.use('/api', upiPaymentRoutes);
 app.use('/api', platformBillingRoutes);
 app.use('/api', dietPlannerRoutes);
@@ -139,11 +185,12 @@ app.use((error, req, res, next) => {
     if (res.headersSent) return next(error);
 
     const status = Number(error.status) || 500;
-    if (status >= 500) console.error(error);
+    if (status >= 500) console.error(error, { requestId: req.requestId });
 
     return res.status(status).json({
         success: false,
-        message: status >= 500 ? 'An unexpected server error occurred.' : error.message
+        message: status >= 500 ? 'An unexpected server error occurred.' : error.message,
+        ...(status >= 500 ? { requestId: req.requestId } : {}),
     });
 });
 module.exports = app;

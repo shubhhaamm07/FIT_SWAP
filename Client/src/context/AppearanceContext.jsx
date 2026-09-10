@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { MotionConfig } from "framer-motion";
 
-import { AppearanceContext } from "./appearance-context";
+import { AppearanceContext } from "./contexts";
 import {
   APPEARANCE_STORAGE_KEY,
   DEFAULT_APPEARANCE,
@@ -10,6 +10,7 @@ import {
   getSystemPreferences,
   readStoredAppearance,
 } from "../utils/appearance";
+
 
 export function AppearanceProvider({ children }) {
   const [appearance, setAppearance] = useState(readStoredAppearance);

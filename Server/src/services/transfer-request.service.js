@@ -1,7 +1,6 @@
 const prisma = require('../lib/prisma');
 const {
     assertMembershipEligible,
-    getTransferPolicy,
     writeTransferAudit,
 } = require('./transfer-policy.service');
 
@@ -11,6 +10,7 @@ const notificationService = require(
     './notification.service'
 
 );
+const { toPaise } = require('../utils/money');
 const createTransferRequest = async (
     buyerId,
     listingId
@@ -69,15 +69,14 @@ const createTransferRequest = async (
     });
 
     // Duplicate Request Check
-    const existingRequest =
-        await prisma.transferRequest.findUnique({
-            where: {
-                listingId_buyerId: {
-                    listingId,
-                    buyerId
-                }
-            }
-        });
+    const existingRequest = await prisma.transferRequest.findFirst({
+        where: {
+            listingId,
+            buyerId,
+            status: { in: ['PENDING', 'AWAITING_GYM_APPROVAL'] },
+            expiresAt: { gt: new Date() },
+        },
+    });
 
     if (existingRequest) {
         throw new Error(
@@ -87,7 +86,11 @@ const createTransferRequest = async (
 
     const transferRequest = await prisma.$transaction(async (tx) => {
         const created = await tx.transferRequest.create({
-            data: { listingId, buyerId }
+            data: {
+                listingId,
+                buyerId,
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+            }
         });
         await writeTransferAudit(tx, {
             membershipId: listing.membershipId,
@@ -259,127 +262,45 @@ const approveTransferRequest = async (
         );
     }
 
-    const policy = getTransferPolicy(request.listing.membership.plan);
-
     assertMembershipEligible(request.listing.membership, {
         sellerId,
         allowCurrentListing: true,
         paymentMethod: 'CASH',
     });
 
-    if (policy.requiresGymApproval) {
-        const awaitingApproval = await prisma.$transaction(async (tx) => {
-            const update = await tx.transferRequest.updateMany({
-                where: { id: requestId, status: 'PENDING' },
-                data: { status: 'AWAITING_GYM_APPROVAL' },
-            });
-            if (update.count !== 1) throw new Error('Transfer request has already been processed');
-            await writeTransferAudit(tx, {
-                membershipId: request.listing.membershipId,
-                listingId: request.listingId,
-                actorId: sellerId,
-                actorRole: 'USER',
-                action: 'CASH_SELLER_CONFIRMED',
-                summary: 'Seller confirmed the cash transfer request; gym approval is required.',
-            });
-            return tx.transferRequest.findUnique({ where: { id: requestId } });
+    // Cash has no provider-verifiable payment event. Every cash handover is
+    // therefore held for the gym owner to attest before ownership can move.
+    const awaitingApproval = await prisma.$transaction(async (tx) => {
+        const update = await tx.transferRequest.updateMany({
+            where: { id: requestId, status: 'PENDING', expiresAt: { gt: new Date() } },
+            data: { status: 'AWAITING_GYM_APPROVAL' },
         });
+        if (update.count !== 1) throw new Error('Transfer request has already been processed');
+        const reservation = await tx.marketplaceListing.updateMany({
+            where: { id: request.listingId, sellerId, status: 'ACTIVE', deletedAt: null },
+            data: { status: 'RESERVED', isLocked: true, lockType: 'CASH_HANDOVER', lockedAt: new Date() },
+        });
+        if (reservation.count !== 1) throw new Error('Listing is no longer available for handover');
+        await tx.transferRequest.updateMany({
+            where: { listingId: request.listingId, id: { not: requestId }, status: 'PENDING' },
+            data: { status: 'REJECTED', closedAt: new Date(), closeReason: 'Another buyer was selected for gym approval.' },
+        });
+        await writeTransferAudit(tx, {
+            membershipId: request.listing.membershipId,
+            listingId: request.listingId,
+            actorId: sellerId,
+            actorRole: 'USER',
+            action: 'CASH_SELLER_CONFIRMED',
+            summary: 'Seller confirmed the cash transfer request; gym approval is required.',
+        });
+        return tx.transferRequest.findUnique({ where: { id: requestId } });
+    });
 
-        await Promise.all([
-            notificationService.createTransactionalNotification(request.buyerId, 'Cash transfer awaiting gym approval', 'The seller confirmed your request. The gym owner must approve the membership handover.'),
-            notificationService.createTransactionalNotification(request.listing.membership.plan.gym.ownerId, 'Cash transfer needs gym approval', `Review the cash membership handover for ${request.listing.membership.plan.name}.`),
-        ]);
-        return awaitingApproval;
-    }
-
-    const approvedRequest =
-        await prisma.$transaction(
-            async (tx) => {
-                const requestUpdate =
-                    await tx.transferRequest.updateMany({
-                        where: {
-                            id: requestId,
-                            status: 'PENDING'
-                        },
-                        data: {
-                            status: 'APPROVED'
-                        }
-                    });
-
-                if (requestUpdate.count !== 1) {
-                    throw new Error('Transfer request has already been processed');
-                }
-
-                const membershipUpdate =
-                    await tx.userMembership.updateMany({
-                        where: {
-                            id: request.listing.membershipId,
-                            userId: sellerId,
-                            status: 'ACTIVE'
-                        },
-                        data: {
-                            userId: request.buyerId,
-                            transferCount: { increment: 1 }
-                        }
-                    });
-
-                if (membershipUpdate.count !== 1) {
-                    throw new Error('Membership is no longer available for transfer');
-                }
-
-                const listingUpdate =
-                    await tx.marketplaceListing.updateMany({
-                        where: {
-                            id: request.listingId,
-                            sellerId,
-                            status: 'ACTIVE',
-                            deletedAt: null
-                        },
-                        data: {
-                            status: 'SOLD'
-                        }
-                    });
-
-                if (listingUpdate.count !== 1) {
-                    throw new Error('Listing is no longer available for transfer');
-                }
-
-                await tx.transferRequest.updateMany({
-                    where: {
-                        listingId:
-                            request.listingId,
-                        status: 'PENDING',
-                        id: {
-                            not: requestId
-                        }
-                    },
-                    data: {
-                        status: 'REJECTED'
-                    }
-                });
-
-                await writeTransferAudit(tx, {
-                    membershipId: request.listing.membershipId,
-                    listingId: request.listingId,
-                    actorId: sellerId,
-                    actorRole: 'USER',
-                    action: 'CASH_TRANSFER_COMPLETED',
-                    summary: 'Seller completed a cash transfer permitted by the gym policy.',
-                });
-
-                return tx.transferRequest.findUnique({
-                    where: { id: requestId }
-                });
-            }
-        );
-
-    await notificationService.createTransactionalNotification(
-        request.buyerId,
-        'Transfer Request Approved',
-        'Your transfer request has been approved.'
-    );
-
-    return approvedRequest;
+    await Promise.all([
+        notificationService.createTransactionalNotification(request.buyerId, 'Cash transfer awaiting gym approval', 'The seller confirmed your request. The gym owner must approve the membership handover.'),
+        notificationService.createTransactionalNotification(request.listing.membership.plan.gym.ownerId, 'Cash transfer needs gym approval', `Review the cash membership handover for ${request.listing.membership.plan.name}.`),
+    ]);
+    return awaitingApproval;
 };
 
 const getGymCashApprovalRequests = async (ownerId) => prisma.transferRequest.findMany({
@@ -435,14 +356,26 @@ const approveCashTransferByGymOwner = async (requestId, ownerId) => {
         if (membershipUpdate.count !== 1) throw new Error('Membership is no longer available for transfer');
 
         const listingUpdate = await tx.marketplaceListing.updateMany({
-            where: { id: request.listingId, sellerId: request.listing.sellerId, status: 'ACTIVE', deletedAt: null },
-            data: { status: 'SOLD' },
+            where: { id: request.listingId, sellerId: request.listing.sellerId, status: 'RESERVED', deletedAt: null, isLocked: true, lockType: 'CASH_HANDOVER' },
+            data: { status: 'SOLD', isLocked: false, lockType: null, lockedAt: null },
         });
         if (listingUpdate.count !== 1) throw new Error('Listing is no longer available for transfer');
 
         await tx.transferRequest.updateMany({
             where: { listingId: request.listingId, id: { not: request.id }, status: { in: ['PENDING', 'AWAITING_GYM_APPROVAL'] } },
             data: { status: 'REJECTED' },
+        });
+        await tx.membershipTransfer.create({
+            data: {
+                membershipId: request.listing.membershipId,
+                listingId: request.listingId,
+                sellerId: request.listing.sellerId,
+                buyerId: request.buyerId,
+                amountPaise: toPaise(request.listing.askingPrice),
+                paymentMethod: 'CASH_GYM_ATTESTED',
+                sellerConfirmedAt: request.updatedAt,
+                gymApprovedAt: new Date(),
+            },
         });
         await writeTransferAudit(tx, {
             membershipId: request.listing.membershipId,
@@ -474,9 +407,13 @@ const rejectCashTransferByGymOwner = async (requestId, ownerId) => {
     const rejected = await prisma.$transaction(async (tx) => {
         const update = await tx.transferRequest.updateMany({
             where: { id: request.id, status: 'AWAITING_GYM_APPROVAL' },
-            data: { status: 'REJECTED' },
+            data: { status: 'REJECTED', closedAt: new Date(), closeReason: 'Gym owner did not approve the cash handover.' },
         });
         if (update.count !== 1) throw new Error('Transfer request has already been processed');
+        await tx.marketplaceListing.updateMany({
+            where: { id: request.listingId, status: 'RESERVED', isLocked: true, lockType: 'CASH_HANDOVER' },
+            data: { status: 'ACTIVE', isLocked: false, lockType: null, lockedAt: null },
+        });
         await writeTransferAudit(tx, {
             membershipId: request.listing.membershipId,
             listingId: request.listingId,

@@ -41,12 +41,13 @@ const getMyGyms = async (req, res) => {
 };
 const getAllGyms = async (req, res) => {
     try {
-        const gyms = await gymService.getAllGyms();
+        const result = await gymService.getAllGyms(req.query);
 
         return res.status(200).json({
             success: true,
-            count: gyms.length,
-            data: gyms
+            count: result.items.length,
+            data: result.items,
+            pagination: result.pagination,
         });
     } catch (error) {
         return res.status(500).json({

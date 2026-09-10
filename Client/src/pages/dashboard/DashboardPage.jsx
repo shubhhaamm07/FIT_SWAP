@@ -1,17 +1,17 @@
 import DashboardLayout from "../../layouts/DashboardLayout";
 
-import DashboardHero from "../../components/dashboard/Hero/DashboardHero";
-import DashboardStats from "../../components/dashboard/Stats/DashboardStats";
-// import DashboardCharts from "../../components/dashboard/Charts/DashboardCharts";
+import DashboardHero from "../../components/dashboard/hero/DashboardHero";
+import DashboardStats from "../../components/dashboard/stats/DashboardStats";
+// import DashboardCharts from "../../components/dashboard/charts/DashboardCharts";
 
-// import MembershipSection from "../../components/dashboard/Memberships/MembershipSection";
-// import MarketplaceSection from "../../components/dashboard/Marketplace/MarketplaceSection";
-// import GymSection from "../../components/dashboard/Gyms/GymSection";
+// import MembershipSection from "../../components/dashboard/memberships/MembershipSection";
+// import MarketplaceSection from "../../components/dashboard/marketplace/MarketplaceSection";
+// import GymSection from "../../components/dashboard/gyms/GymSection";
 
-import NotificationPanel from "../../components/dashboard/RightSidebar/NotificationPanel";
-import RecentActivity from "../../components/dashboard/RightSidebar/RecentActivity";
-import QuickActions from "../../components/dashboard/RightSidebar/QuickActions";
-import MemberMomentum from "../../components/dashboard/Insights/MemberMomentum";
+import NotificationPanel from "../../components/dashboard/right-sidebar/NotificationPanel";
+import RecentActivity from "../../components/dashboard/right-sidebar/RecentActivity";
+import QuickActions from "../../components/dashboard/right-sidebar/QuickActions";
+import MemberMomentum from "../../components/dashboard/insights/MemberMomentum";
 
 import { useDashboard } from "../../hooks/useDashboard";
 

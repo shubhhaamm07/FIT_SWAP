@@ -1,7 +1,12 @@
 const prisma = require('../lib/prisma');
+const crypto = require('crypto');
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const TERMINAL_LISTING_STATUSES = new Set(['SOLD', 'CANCELLED', 'EXPIRED']);
+
+if (process.env.NODE_ENV === 'production' && !process.env.AUDIT_HMAC_SECRET) {
+    console.warn('AUDIT_HMAC_SECRET is not configured; transfer audit hashes are not keyed.');
+}
 
 const policyError = (message, statusCode = 400) => {
     const error = new Error(message);
@@ -66,8 +71,10 @@ const normaliseTransferPolicyInput = (input = {}, { partial = false } = {}) => {
 const getDaysRemaining = (endDate, now = new Date()) =>
     Math.max(0, Math.ceil((new Date(endDate).getTime() - now.getTime()) / DAY_MS));
 
-const hasBlockingListing = (listing) =>
-    Boolean(listing && !listing.deletedAt && !TERMINAL_LISTING_STATUSES.has(listing.status));
+const hasBlockingListing = (listings) =>
+    (Array.isArray(listings) ? listings : [listings]).some((listing) =>
+        Boolean(listing && !listing.deletedAt && !TERMINAL_LISTING_STATUSES.has(listing.status))
+    );
 
 const evaluateMembershipEligibility = (membership, { sellerId, allowCurrentListing = false, paymentMethod } = {}) => {
     if (!membership) {
@@ -84,7 +91,7 @@ const evaluateMembershipEligibility = (membership, { sellerId, allowCurrentListi
         transferable: policy.transferable,
         minimumRemainingDays: daysRemaining >= policy.minimumTransferDays,
         transferLimit: policy.maximumTransfers == null || Number(membership.transferCount || 0) < policy.maximumTransfers,
-        noActiveListing: allowCurrentListing || !hasBlockingListing(membership.listing),
+        noActiveListing: allowCurrentListing || !hasBlockingListing(membership.listings),
         paymentMethod: !paymentMethod || (paymentMethod === 'ONLINE' ? policy.allowOnlinePayment : policy.allowCashTransfer),
     };
 
@@ -110,7 +117,7 @@ const assertMembershipEligible = (membership, options) => {
 
 const findMembershipForEligibility = (membershipId) => prisma.userMembership.findUnique({
     where: { id: membershipId },
-    include: { plan: { include: { gym: true } }, listing: true },
+    include: { plan: { include: { gym: true } }, listings: true },
 });
 
 const getEligibilityForSeller = async (sellerId, membershipId) => {
@@ -118,17 +125,51 @@ const getEligibilityForSeller = async (sellerId, membershipId) => {
     return { membershipId, ...evaluateMembershipEligibility(membership, { sellerId }) };
 };
 
-const writeTransferAudit = (tx, entry) => tx.transferAuditLog.create({
-    data: {
+const canonicalJson = (value) => {
+    if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+    if (value && typeof value === 'object') {
+        return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
+    }
+    return JSON.stringify(value);
+};
+
+const writeTransferAudit = async (tx, entry) => {
+    const previous = await tx.transferAuditLog.findFirst({
+        where: { membershipId: entry.membershipId, entryHash: { not: null } },
+        select: { entryHash: true },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    });
+    const createdAt = new Date();
+    const integrityNonce = crypto.randomUUID();
+    const previousHash = previous?.entryHash || 'GENESIS';
+    const payload = {
         membershipId: entry.membershipId,
         listingId: entry.listingId || null,
         actorId: entry.actorId || null,
         actorRole: entry.actorRole || null,
         action: entry.action,
         summary: entry.summary,
-        metadata: entry.metadata || undefined,
-    },
-});
+        metadata: entry.metadata || null,
+        previousHash,
+        integrityNonce,
+        integrityVersion: 1,
+        createdAt: createdAt.toISOString(),
+    };
+    const auditSecret = String(process.env.AUDIT_HMAC_SECRET || '');
+    const hasher = auditSecret
+        ? crypto.createHmac('sha256', auditSecret)
+        : crypto.createHash('sha256');
+    const entryHash = hasher.update(canonicalJson(payload)).digest('hex');
+
+    return tx.transferAuditLog.create({
+        data: {
+            ...payload,
+            metadata: entry.metadata || undefined,
+            createdAt,
+            entryHash,
+        },
+    });
+};
 
 module.exports = {
     assertMembershipEligible,

@@ -6,6 +6,7 @@ import {
     freezeMembership,
     unfreezeMembership,
 } from "../../../api/membership.api";
+import { isRequestCancelled } from "../../../hooks/useVisibilityPolling";
 
 function useMembership() {
     const [memberships, setMemberships] = useState([]);
@@ -20,33 +21,31 @@ function useMembership() {
 
     const [sortBy, setSortBy] = useState("NEWEST");
 
-    const fetchMemberships = useCallback(async () => {
+    const fetchMemberships = useCallback(async ({ signal } = {}) => {
         try {
             setLoading(true);
 
-            const response = await getMyMemberships();
+            const response = await getMyMemberships({ signal });
 
+            if (signal?.aborted) return;
             setMemberships(response.data);
 
             setError("");
         } catch (err) {
+            if (isRequestCancelled(err)) return;
             setError(
                 err.response?.data?.message ||
                 "Failed to load memberships."
             );
         } finally {
-            setLoading(false);
+            if (!signal?.aborted) setLoading(false);
         }
     }, []);
 
     useEffect(() => {
-        // Schedule the initial request after mount so it cannot synchronously
-        // trigger a render from within the effect itself.
-        const timer = setTimeout(() => {
-            void fetchMemberships();
-        }, 0);
-
-        return () => clearTimeout(timer);
+        const controller = new AbortController();
+        const timer = setTimeout(() => { void fetchMemberships({ signal: controller.signal }); }, 0);
+        return () => { clearTimeout(timer); controller.abort(); };
     }, [fetchMemberships]);
 
     const handlePurchaseMembership = async (planId) => {

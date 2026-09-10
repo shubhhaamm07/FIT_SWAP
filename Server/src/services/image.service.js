@@ -14,13 +14,17 @@ const { v4: uuid } = require("uuid");
 const prisma = require("../lib/prisma");
 const s3 = require("../config/aws");
 
+const defaultBucket = () => process.env.AWS_BUCKET_NAME;
+const gymImageBucket = () => process.env.AWS_GYM_IMAGE_BUCKET_NAME || defaultBucket();
+const profileImageBucket = () => process.env.AWS_PROFILE_IMAGE_BUCKET_NAME || defaultBucket();
+
 /**
  * Delete an object from S3
  */
-const deleteS3Object = async (key) => {
+const deleteS3Object = async (key, bucket = defaultBucket()) => {
     await s3.send(
         new DeleteObjectCommand({
-            Bucket: process.env.AWS_BUCKET_NAME,
+            Bucket: bucket,
             Key: key,
         })
     );
@@ -89,16 +93,17 @@ const uploadGymImages = async ({ gymId, userId, files }) => {
 
             await s3.send(
                 new PutObjectCommand({
-                    Bucket: process.env.AWS_BUCKET_NAME,
+                    Bucket: gymImageBucket(),
                     Key: key,
                     Body: file.buffer,
                     ContentType: detectedType.mime,
+                    ServerSideEncryption: 'AES256',
                 })
             );
 
             uploadedObjects.push({
                 key,
-                url: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`,
+                url: `${String(process.env.AWS_GYM_IMAGE_BASE_URL || `https://${gymImageBucket()}.s3.${process.env.AWS_REGION}.amazonaws.com`).replace(/\/$/, '')}/${key}`,
             });
         }
 
@@ -135,7 +140,7 @@ const uploadGymImages = async ({ gymId, userId, files }) => {
         // Roll back uploaded S3 files if anything fails
         await Promise.all(
             uploadedObjects.map((object) =>
-                deleteS3Object(object.key)
+                deleteS3Object(object.key, gymImageBucket())
             )
         );
 
@@ -173,7 +178,7 @@ const deleteGymImage = async ({ gymId, imageId, userId }) => {
     }
 
     // Delete from S3
-    await deleteS3Object(image.imageKey);
+    await deleteS3Object(image.imageKey, gymImageBucket());
 
     // Delete from DB
     await prisma.gymImage.delete({
@@ -354,35 +359,33 @@ const uploadProfileImage = async ({ userId, file, type }) => {
         throw new Error('User not found.');
     }
 
-    const key = `profiles/${userId}/${type}/${uuid()}.${detectedType.ext}`;
-    const url = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+    const key = `profile-media/${userId}/${type}/${uuid()}.${detectedType.ext}`;
     const keyField = type === 'avatar' ? 'avatarKey' : 'coverKey';
-    const urlField = type === 'avatar' ? 'avatarUrl' : 'coverUrl';
     const previousKey = type === 'avatar' ? user.avatarKey : user.coverKey;
 
     try {
         await s3.send(new PutObjectCommand({
-            Bucket: process.env.AWS_BUCKET_NAME,
+            Bucket: profileImageBucket(),
             Key: key,
             Body: file.buffer,
             ContentType: detectedType.mime,
+            ServerSideEncryption: 'AES256',
         }));
 
         const updatedUser = await prisma.user.update({
             where: { id: userId },
             data: {
                 [keyField]: key,
-                [urlField]: url
             },
             select: {
-                avatarUrl: true,
-                coverUrl: true
+                avatarKey: true,
+                coverKey: true
             }
         });
 
         if (previousKey) {
             try {
-                await deleteS3Object(previousKey);
+                await deleteS3Object(previousKey, profileImageBucket());
             } catch (error) {
                 console.error('Unable to remove the previous profile image', error.message);
             }
@@ -391,7 +394,7 @@ const uploadProfileImage = async ({ userId, file, type }) => {
         return updatedUser;
     } catch (error) {
         try {
-            await deleteS3Object(key);
+            await deleteS3Object(key, profileImageBucket());
         } catch (_) {
             // The upload did not complete, so there may be no object to remove.
         }
@@ -418,7 +421,7 @@ const getProfileImage = async ({ userId, type }) => {
     }
 
     return s3.send(new GetObjectCommand({
-        Bucket: process.env.AWS_BUCKET_NAME,
+        Bucket: profileImageBucket(),
         Key: key,
     }));
 };

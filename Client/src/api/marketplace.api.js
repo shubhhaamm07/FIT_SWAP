@@ -1,4 +1,4 @@
-import axios from "./axios";
+import axios, { createIdempotencyConfig } from "./axios";
 
 const fallbackImage =
     "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200";
@@ -53,14 +53,28 @@ export const mapMarketplaceListing = (listing) => {
     };
 };
 
-export const getMarketplaceListings =
-    async () => {
-        const { data } = await axios.get(
-            "/listings"
-        );
-
-        return data.data.map(mapMarketplaceListing);
+export const getMarketplaceListingPage = async (query = {}, config = {}) => {
+    const { data } = await axios.get("/listings", { ...config, params: query });
+    return {
+        items: data.data.map(mapMarketplaceListing),
+        pagination: data.pagination || {
+            page: 1,
+            limit: data.data.length,
+            total: data.data.length,
+            totalPages: 1,
+            hasNextPage: false,
+            hasPreviousPage: false,
+        },
     };
+};
+
+// Kept for compact callers such as the landing-page preview. Marketplace
+// browsing itself uses getMarketplaceListingPage so it never downloads every
+// active listing.
+export const getMarketplaceListings = async (config = {}) => {
+    const result = await getMarketplaceListingPage({ page: 1, limit: 12 }, config);
+    return result.items;
+};
 
 export const getListingById = async (
     listingId
@@ -74,14 +88,16 @@ export const getListingById = async (
 
 export const createListing = async (
     membershipId,
-    askingPrice
+    askingPrice,
+    idempotencyKey,
 ) => {
     const { data } = await axios.post(
         "/listings",
         {
             membershipId,
             askingPrice,
-        }
+        },
+        createIdempotencyConfig("marketplace-listing", idempotencyKey),
     );
 
     return data.data;

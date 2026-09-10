@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 
 import { getNotifications } from "../api/notification.api";
+import { isRequestCancelled, useVisibilityPolling } from "./useVisibilityPolling";
 
 export function useNotifications(interval = 30000) {
     const [notifications, setNotifications] = useState([]);
@@ -9,35 +10,27 @@ export function useNotifications(interval = 30000) {
 
     const [error, setError] = useState("");
 
-    useEffect(() => {
-        let timer;
-
-        const fetchNotifications = async () => {
+    const fetchNotifications = useCallback(async ({ signal } = {}) => {
             try {
-                const data = await getNotifications();
+                const data = await getNotifications({ signal });
 
+                if (signal?.aborted) return;
                 setNotifications(data);
 
                 setError("");
             } catch (err) {
+                if (isRequestCancelled(err)) return;
                 setError(
                     err?.response?.data?.message ||
                     "Failed to load notifications."
                 );
+                throw err;
             } finally {
-                setLoading(false);
+                if (!signal?.aborted) setLoading(false);
             }
-        };
+    }, []);
 
-        fetchNotifications();
-
-        timer = setInterval(
-            fetchNotifications,
-            interval
-        );
-
-        return () => clearInterval(timer);
-    }, [interval]);
+    useVisibilityPolling(fetchNotifications, { interval });
 
     return {
         notifications,

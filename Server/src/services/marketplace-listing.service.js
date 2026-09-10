@@ -2,6 +2,9 @@ const prisma = require('../lib/prisma');
 const { buildFairPriceSuggestion } = require('../domain/pricing/fair-price-suggestion');
 const notificationService = require('./notification.service');
 const { getMemberPlusEntitlement } = require('./platform-billing.service');
+const { serializePublicListing } = require('../serializers/public-marketplace');
+const { buildPaginationMeta, getPagination } = require('../utils/pagination');
+const { toPaise, fromPaise } = require('../utils/money');
 const {
     assertMembershipEligible,
     writeTransferAudit,
@@ -77,9 +80,8 @@ const createListing = async (
     askingPrice
 ) => {
 
-    const normalizedAskingPrice = Number(askingPrice);
-
-    if (!Number.isFinite(normalizedAskingPrice) || normalizedAskingPrice <= 0) {
+    const askingPricePaise = toPaise(askingPrice);
+    if (!askingPricePaise || askingPricePaise <= 0) {
         throw new Error(
             'Invalid asking price'
         );
@@ -100,7 +102,10 @@ const createListing = async (
                     }
                 },
 
-                listing: true
+                listings: {
+                    where: { deletedAt: null, status: { in: ['ACTIVE', 'RESERVED'] } },
+                    select: { id: true }
+                }
 
             }
 
@@ -156,7 +161,7 @@ const createListing = async (
     }
 
     if (
-        membership.listing
+        membership.listings.length > 0
     ) {
         throw new Error(
             'Membership is already listed'
@@ -173,17 +178,12 @@ const createListing = async (
         }
     }
 
-    if (
-        normalizedAskingPrice <
-        membership.plan.price * 0.30 ||
-        normalizedAskingPrice >
-        membership.plan.price
-    ) {
+    const planPricePaise = toPaise(membership.plan.price);
+    const minimumPricePaise = Math.ceil((planPricePaise * 30) / 100);
+    if (askingPricePaise < minimumPricePaise || askingPricePaise > planPricePaise) {
 
         throw new Error(
-            `Asking price must be between ₹${(
-                membership.plan.price * 0.30
-            ).toFixed(0)} and ₹${membership.plan.price}`
+            `Asking price must be between ₹${fromPaise(minimumPricePaise)} and ₹${fromPaise(planPricePaise)}`
         );
 
     }
@@ -193,7 +193,7 @@ const createListing = async (
             data: {
                 membershipId,
                 sellerId,
-                askingPrice: normalizedAskingPrice
+                askingPrice: fromPaise(askingPricePaise)
             }
         });
         await writeTransferAudit(tx, {
@@ -203,7 +203,7 @@ const createListing = async (
             actorRole: 'USER',
             action: 'LISTING_CREATED',
             summary: 'Seller created a marketplace listing after policy eligibility passed.',
-            metadata: { askingPrice: normalizedAskingPrice },
+            metadata: { askingPricePaise },
         });
         return listing;
     });
@@ -216,7 +216,7 @@ const createListing = async (
             city: membership.plan.gym.city,
             gymName: membership.plan.gym.name,
             planName: membership.plan.name,
-            askingPrice: normalizedAskingPrice,
+            askingPrice: fromPaise(askingPricePaise),
         });
     } catch (error) {
         // A notification outage must never roll back a valid marketplace post.
@@ -253,10 +253,9 @@ const getPriceSuggestion = async (sellerId, membershipId) => {
                     }
                 }
             },
-            listing: {
-                select: {
-                    id: true
-                }
+            listings: {
+                where: { deletedAt: null, status: { in: ['ACTIVE', 'RESERVED'] } },
+                select: { id: true }
             }
         }
     });
@@ -267,7 +266,7 @@ const getPriceSuggestion = async (sellerId, membershipId) => {
     if (membership.endDate <= new Date()) throw new Error('Expired memberships cannot be listed.');
     if (!membership.plan.transferable) throw new Error('This membership cannot be transferred.');
     if (membership.plan.gym.status !== 'APPROVED') throw new Error('Gym is not approved.');
-    if (membership.listing) throw new Error('This membership is already listed.');
+    if (membership.listings.length > 0) throw new Error('This membership is already listed.');
 
     const comparableListings = await prisma.marketplaceListing.findMany({
         where: {
@@ -305,17 +304,61 @@ const getPriceSuggestion = async (sellerId, membershipId) => {
     return buildFairPriceSuggestion({ membership, comparableListings });
 };
 
-const getAllListings = async () => {
-    const listings = await prisma.marketplaceListing.findMany({
-
-        where: {
-
-            status:
-                LISTING_STATUS.ACTIVE,
-
-            deletedAt: null
-
+const getAllListings = async (query = {}) => {
+    const { page, limit, skip } = getPagination(query, { defaultLimit: 12, maxLimit: 48 });
+    const now = new Date();
+    const where = {
+        status: LISTING_STATUS.ACTIVE,
+        deletedAt: null,
+        membership: {
+            endDate: { gt: now },
+            plan: { gym: { status: 'APPROVED' } },
         },
+    };
+    const cleanText = (value) => String(value || '').trim().slice(0, 100);
+    const search = cleanText(query.search);
+    const gym = cleanText(query.gym);
+    const state = cleanText(query.state);
+    const city = cleanText(query.city);
+    const minPrice = Number(query.minPrice);
+    const maxPrice = Number(query.maxPrice);
+    const minimumDays = Number(query.duration);
+
+    if (Number.isFinite(minPrice) && minPrice >= 0) where.askingPrice = { gte: minPrice };
+    if (Number.isFinite(maxPrice) && maxPrice >= 0) where.askingPrice = { ...(where.askingPrice || {}), lte: maxPrice };
+    if (Number.isFinite(minimumDays) && minimumDays > 0) {
+        where.membership.endDate = { gte: new Date(now.getTime() + minimumDays * 86_400_000) };
+    }
+    if (query.featuredOnly === 'true' || query.featuredOnly === true) where.boostedUntil = { gt: now };
+
+    const gymWhere = where.membership.plan.gym;
+    if (gym) gymWhere.name = { equals: gym, mode: 'insensitive' };
+    if (state) gymWhere.state = { contains: state, mode: 'insensitive' };
+    if (city) gymWhere.city = { contains: city, mode: 'insensitive' };
+    if (search) {
+        where.OR = [
+            { membership: { plan: { name: { contains: search, mode: 'insensitive' } } } },
+            { membership: { plan: { gym: { name: { contains: search, mode: 'insensitive' } } } } },
+            { membership: { plan: { gym: { city: { contains: search, mode: 'insensitive' } } } } },
+            { membership: { plan: { gym: { state: { contains: search, mode: 'insensitive' } } } } },
+        ];
+    }
+
+    const sortBy = String(query.sortBy || 'newest');
+    const orderBy = sortBy === 'price-low'
+        ? [{ askingPrice: 'asc' }, { createdAt: 'desc' }]
+        : sortBy === 'price-high'
+            ? [{ askingPrice: 'desc' }, { createdAt: 'desc' }]
+            : sortBy === 'remaining-days'
+                ? [{ membership: { endDate: 'asc' } }, { createdAt: 'desc' }]
+                : [{ boostedUntil: 'desc' }, { createdAt: 'desc' }];
+
+    const [total, listings] = await Promise.all([
+        prisma.marketplaceListing.count({ where }),
+        prisma.marketplaceListing.findMany({
+        where,
+        skip,
+        take: limit,
 
         include: {
 
@@ -348,7 +391,9 @@ const getAllListings = async () => {
 
                             id: true,
                             firstName: true,
-                            lastName: true
+                            lastName: true,
+                            username: true,
+                            isProfilePublic: true,
 
                         }
 
@@ -360,23 +405,14 @@ const getAllListings = async () => {
 
         },
 
-        orderBy: {
+        orderBy,
+    }),
+    ]);
 
-            createdAt: 'desc'
-
-        }
-
-    });
-
-    // A confirmed boost affects discovery only; it never changes the asking
-    // price or the normal transfer workflow. Keep currently boosted listings
-    // ahead of regular listings and preserve newest-first ordering within each.
-    const now = Date.now();
-    return listings.sort((first, second) => {
-        const firstBoosted = Number(first.boostedUntil && new Date(first.boostedUntil).getTime() > now);
-        const secondBoosted = Number(second.boostedUntil && new Date(second.boostedUntil).getTime() > now);
-        return secondBoosted - firstBoosted;
-    });
+    return {
+        items: listings.map(serializePublicListing),
+        pagination: buildPaginationMeta({ page, limit, total }),
+    };
 
 };
 
@@ -384,7 +420,7 @@ const getListingById = async (
     listingId
 ) => {
 
-    return prisma.marketplaceListing.findFirst({
+    const listing = await prisma.marketplaceListing.findFirst({
 
         where: {
 
@@ -406,7 +442,9 @@ const getListingById = async (
 
                             id: true,
                             firstName: true,
-                            lastName: true
+                            lastName: true,
+                            username: true,
+                            isProfilePublic: true,
 
                         }
 
@@ -441,7 +479,9 @@ const getListingById = async (
 
                     id: true,
                     firstName: true,
-                    lastName: true
+                    lastName: true,
+                    username: true,
+                    isProfilePublic: true,
 
                 }
 
@@ -450,6 +490,8 @@ const getListingById = async (
         }
 
     });
+
+    return listing ? serializePublicListing(listing) : null;
 
 };
 const getMyListings = async (
@@ -973,12 +1015,9 @@ const updateListingPrice = async (
     askingPrice
 ) => {
 
-    const normalizedAskingPrice = Number(askingPrice);
+    const askingPricePaise = toPaise(askingPrice);
 
-    if (
-        !Number.isFinite(normalizedAskingPrice) ||
-        normalizedAskingPrice <= 0
-    ) {
+    if (!askingPricePaise || askingPricePaise <= 0) {
 
         throw new Error(
             'Invalid asking price.'
@@ -1026,13 +1065,11 @@ const updateListingPrice = async (
 
     }
 
-    const planPrice = listing.membership.plan.price;
-    if (
-        normalizedAskingPrice < planPrice * 0.30 ||
-        normalizedAskingPrice > planPrice
-    ) {
+    const planPricePaise = toPaise(listing.membership.plan.price);
+    const minimumPricePaise = Math.ceil((planPricePaise * 30) / 100);
+    if (askingPricePaise < minimumPricePaise || askingPricePaise > planPricePaise) {
         throw new Error(
-            `Asking price must be between ₹${(planPrice * 0.30).toFixed(0)} and ₹${planPrice}`
+            `Asking price must be between ₹${fromPaise(minimumPricePaise)} and ₹${fromPaise(planPricePaise)}`
         );
     }
 
@@ -1062,7 +1099,7 @@ const updateListingPrice = async (
 
                 data: {
 
-                    askingPrice: normalizedAskingPrice
+                    askingPrice: fromPaise(askingPricePaise)
 
                 }
 
@@ -1072,13 +1109,13 @@ const updateListingPrice = async (
 
     );
 
-    if (normalizedAskingPrice < Number(listing.askingPrice)) {
+    if (askingPricePaise < toPaise(listing.askingPrice)) {
         try {
             await notifySavedUsersOfPriceDrop({
                 listingId: listing.id,
                 sellerId,
                 previousPrice: Number(listing.askingPrice),
-                newPrice: normalizedAskingPrice,
+                newPrice: Number(fromPaise(askingPricePaise)),
                 gymName: listing.membership.plan.gym?.name || 'your saved gym',
                 planName: listing.membership.plan.name,
             });

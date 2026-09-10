@@ -81,12 +81,19 @@ const getMyMemberships = async (
                     }
                 }
             },
-            listing: true
+            listings: {
+                where: { deletedAt: null, status: { in: ['ACTIVE', 'RESERVED'] } },
+                orderBy: { createdAt: 'desc' },
+                take: 1,
+            }
         },
         orderBy: {
             createdAt: 'desc'
         }
-    });
+    }).then((memberships) => memberships.map((membership) => ({
+        ...membership,
+        listing: membership.listings[0] || null,
+    })));
 };
 const getMembershipById = async (
     membershipId
@@ -124,7 +131,10 @@ const freezeMembership = async (
             },
             include: {
                 plan: true,
-                listing: true
+                listings: {
+                    where: { deletedAt: null, status: { in: ['ACTIVE', 'RESERVED'] } },
+                    select: { id: true, status: true },
+                }
             }
         });
 
@@ -158,8 +168,7 @@ const freezeMembership = async (
 
     // Active Marketplace Listing Check
     if (
-        membership.listing &&
-        membership.listing.status === 'ACTIVE'
+        membership.listings.length > 0
     ) {
         throw new Error(
             'Cannot freeze a listed membership'

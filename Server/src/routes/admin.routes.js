@@ -9,12 +9,14 @@ const marketplaceListingController = require(
 );
 
 const {
-    protect
+    protect,
+    requireRecentAuthentication,
 } = require('../middlewares/auth.middleware');
 
 const {
     authorize
 } = require('../middlewares/role.middleware');
+const { adminMutationLimiter } = require('../middlewares/rateLimiter.middleware');
 
 /*
 |--------------------------------------------------------------------------
@@ -38,8 +40,8 @@ router.get('/analytics', protect, authorize('ADMIN'), adminController.getAnalyti
 */
 
 router.get('/users', protect, authorize('ADMIN'), adminController.getUsers);
-router.patch('/users/:userId/role', protect, authorize('ADMIN'), adminController.updateUserRole);
-router.patch('/users/:userId/access', protect, authorize('ADMIN'), adminController.updateUserAccess);
+router.patch('/users/:userId/role', protect, authorize('ADMIN'), requireRecentAuthentication(), adminMutationLimiter, adminController.updateUserRole);
+router.patch('/users/:userId/access', protect, authorize('ADMIN'), requireRecentAuthentication(), adminMutationLimiter, adminController.updateUserAccess);
 router.get('/payments', protect, authorize('ADMIN'), adminController.getPayments);
 router.get('/security-overview', protect, authorize('ADMIN'), adminController.getSecurityOverview);
 
@@ -51,7 +53,7 @@ router.get('/security-overview', protect, authorize('ADMIN'), adminController.ge
 
 router.get('/announcement-recipients', protect, authorize('ADMIN'), adminController.getAnnouncementRecipients);
 router.get('/announcements', protect, authorize('ADMIN'), adminController.getAnnouncements);
-router.post('/announcements', protect, authorize('ADMIN'), adminController.createAnnouncement);
+router.post('/announcements', protect, authorize('ADMIN'), adminMutationLimiter, adminController.createAnnouncement);
 router.get('/audit-logs', protect, authorize('ADMIN'), adminController.getAuditLogs);
 router.get('/transfer-audit-logs', protect, authorize('ADMIN'), adminController.getTransferAuditLogs);
 router.get('/fraud-alerts', protect, authorize('ADMIN'), adminController.getFraudAlerts);
@@ -93,6 +95,8 @@ router.patch(
     '/listings/:listingId/status',
     protect,
     authorize('ADMIN'),
+    requireRecentAuthentication(),
+    adminMutationLimiter,
     marketplaceListingController.updateListingStatusByAdmin
 );
 

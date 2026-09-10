@@ -4,6 +4,12 @@ const { OAuth2Client } = require('google-auth-library');
 const validator = require('validator');
 const prisma = require('../lib/prisma');
 const { sendEmail, assertEmailConfigured } = require('./email.service');
+const { validateNewPassword, passwordHashRounds } = require('../security/password-policy');
+
+// Comparing against a real bcrypt hash for unknown accounts makes invalid
+// email and invalid password attempts take similar time, reducing account
+// discovery through response-timing differences.
+const DUMMY_PASSWORD_HASH = bcrypt.hashSync(crypto.randomBytes(32).toString('hex'), passwordHashRounds());
 
 const profileSelect = {
     id: true,
@@ -17,9 +23,7 @@ const profileSelect = {
     bio: true,
     city: true,
     isProfilePublic: true,
-    avatarUrl: true,
     avatarKey: true,
-    coverUrl: true,
     coverKey: true,
     emailNotifications: true,
     marketplaceNotifications: true,
@@ -234,12 +238,9 @@ const verifyEmail = async (token) => {
 };
 
 const resetPasswordWithToken = async ({ token, newPassword }) => {
-    if (typeof newPassword !== 'string' || newPassword.length < 8) {
-        throw authError('New password must be at least 8 characters long');
-    }
-
     const authToken = await findUsableAuthToken(token, 'PASSWORD_RESET');
-    const password = await bcrypt.hash(newPassword, 10);
+    await validateNewPassword(newPassword, authToken.user);
+    const password = await bcrypt.hash(newPassword, passwordHashRounds());
 
     await prisma.$transaction(async (tx) => {
         const claim = await tx.authToken.updateMany({
@@ -270,7 +271,7 @@ const resetPasswordWithToken = async ({ token, newPassword }) => {
 const withProfileImageAvailability = (user) => {
     if (!user) return user;
 
-    const { avatarKey, coverKey, avatarUrl: _avatarUrl, coverUrl: _coverUrl, ...profile } = user;
+    const { avatarKey, coverKey, ...profile } = user;
 
     return {
         ...profile,
@@ -299,9 +300,7 @@ const registerUser = async ({
         throw new Error('Please provide a valid email address');
     }
 
-    if (typeof password !== 'string' || password.length < 8) {
-        throw new Error('Password must be at least 8 characters long');
-    }
+    await validateNewPassword(password, { firstName, lastName, email: normalizedEmail });
 
     if (normalizedPhone && !/^\d{10}$/.test(normalizedPhone)) {
         throw new Error('Phone number must contain exactly 10 digits');
@@ -327,7 +326,7 @@ const registerUser = async ({
             throw new Error('An account already exists with this phone number. Try signing in or use another number.');
         }
     }
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, passwordHashRounds());
 
     let user;
     try {
@@ -366,21 +365,15 @@ const loginUser = async ({ email, password }) => {
         }
     });
 
-    if (!user) {
-        throw new Error('Invalid credentials');
-    }
+    const isPasswordValid = await bcrypt.compare(
+        String(password || ''),
+        user?.password || DUMMY_PASSWORD_HASH
+    );
+
+    if (!user || !isPasswordValid) throw new Error('Invalid credentials');
 
     if (!user.isActive) {
         throw new Error('This account has been suspended. Please contact FitSwap support.');
-    }
-
-    const isPasswordValid = await bcrypt.compare(
-        password,
-        user.password
-    );
-
-    if (!isPasswordValid) {
-        throw new Error('Invalid credentials');
     }
 
     if (!user.emailVerifiedAt) {
@@ -482,7 +475,7 @@ const loginWithGoogleCredential = async (credential) => {
                 // Password remains mandatory in the current schema. This is a
                 // random, non-user-facing value; Google users can add a
                 // password later through account recovery if that is enabled.
-                password: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 12),
+                password: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), passwordHashRounds()),
                 role: 'USER'
             }
         });
@@ -636,23 +629,21 @@ const updateSettings = async (userId, settings) => {
 };
 
 const changePassword = async (userId, { currentPassword, newPassword }) => {
-    if (typeof newPassword !== 'string' || newPassword.length < 8) {
-        throw new Error('New password must be at least 8 characters long');
-    }
-
     const user = await prisma.user.findUnique({
         where: { id: userId },
-        select: { password: true }
+        select: { password: true, firstName: true, lastName: true, email: true, username: true }
     });
 
     if (!user || !(await bcrypt.compare(currentPassword || '', user.password))) {
         throw new Error('Current password is incorrect');
     }
 
+    await validateNewPassword(newPassword, user);
+
     await prisma.user.update({
         where: { id: userId },
         data: {
-            password: await bcrypt.hash(newPassword, 10),
+            password: await bcrypt.hash(newPassword, passwordHashRounds()),
             passwordChangedAt: new Date()
         }
     });

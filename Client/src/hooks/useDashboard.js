@@ -4,6 +4,7 @@ import {
     getDashboard,
     getDashboardCharts,
 } from "../api/dashboard.api";
+import { isRequestCancelled } from "./useVisibilityPolling";
 
 export function useDashboard() {
     const [dashboard, setDashboard] = useState({
@@ -56,14 +57,17 @@ export function useDashboard() {
     const [error, setError] = useState("");
 
     useEffect(() => {
+        const controller = new AbortController();
         const fetchDashboard = async () => {
             try {
                 setLoading(true);
 
                 const [dashboardData, chartData] = await Promise.all([
-                    getDashboard(),
-                    getDashboardCharts(),
+                    getDashboard({ signal: controller.signal }),
+                    getDashboardCharts({ signal: controller.signal }),
                 ]);
+
+                if (controller.signal.aborted) return;
 
                 setDashboard({
                     ...dashboardData,
@@ -72,6 +76,7 @@ export function useDashboard() {
 
                 setError("");
             } catch (err) {
+                if (isRequestCancelled(err)) return;
                 console.error(err);
 
                 setError(
@@ -79,11 +84,12 @@ export function useDashboard() {
                     "Failed to load dashboard."
                 );
             } finally {
-                setLoading(false);
+                if (!controller.signal.aborted) setLoading(false);
             }
         };
 
-        fetchDashboard();
+        void fetchDashboard();
+        return () => controller.abort();
     }, []);
 
     return {

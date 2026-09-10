@@ -43,6 +43,31 @@ const recordFailedLogin = async (email, req, authMethod = 'PASSWORD') => {
     });
 };
 
+const assertLoginAllowed = async (email, req) => {
+    const normalizedEmail = String(email || '').trim().toLowerCase().slice(0, 254);
+    const { ipAddress } = requestDetails(req);
+    const since = new Date(Date.now() - 15 * 60 * 1000);
+    const [emailFailures, addressFailures] = await Promise.all([
+        normalizedEmail
+            ? prisma.loginAudit.count({
+                where: { email: normalizedEmail, status: 'FAILURE', createdAt: { gte: since } },
+            })
+            : 0,
+        ipAddress
+            ? prisma.loginAudit.count({
+                where: { ipAddress, status: 'FAILURE', createdAt: { gte: since } },
+            })
+            : 0,
+    ]);
+
+    if (emailFailures >= 5 || addressFailures >= 20) {
+        const error = new Error('Too many unsuccessful sign-in attempts. Please wait 15 minutes and try again.');
+        error.statusCode = 429;
+        error.code = 'LOGIN_TEMPORARILY_BLOCKED';
+        throw error;
+    }
+};
+
 const createSession = async ({ user, req, authMethod }) => {
     const details = requestDetails(req);
     const now = new Date();
@@ -150,6 +175,7 @@ const getSecurityOverview = async (userId, currentSessionId) => {
 
 module.exports = {
     createSession,
+    assertLoginAllowed,
     recordFailedLogin,
     revokeSession,
     revokeOtherSessions,

@@ -7,6 +7,8 @@ const REQUEST_TTL_MS = 30 * 60 * 1000;
 const OPEN_STATUSES = ['AWAITING_PAYMENT', 'BUYER_MARKED_PAID'];
 const UPI_ID_PATTERN = /^[a-zA-Z0-9._-]{2,100}@[a-zA-Z0-9._-]{2,100}$/;
 const UTR_PATTERN = /^[A-Za-z0-9-]{6,40}$/;
+const PLUS_MONTHLY_BOOST_CODE = 'PLUS_MONTHLY_BOOST_7D';
+const PLUS_MONTHLY_BOOST_DAYS = 7;
 
 const offers = {
     PLUS_MONTHLY: {
@@ -49,6 +51,9 @@ const billingError = (message, statusCode = 400) => {
 
 const paymentReference = () =>
     `FSFEE-${Date.now().toString(36).toUpperCase()}-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+
+const calendarMonthStart = (date = new Date()) =>
+    new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
 
 const getPlatformRecipient = () => {
     const upiId = String(process.env.PLATFORM_UPI_ID || '').trim();
@@ -119,7 +124,7 @@ const createRequest = async ({ buyerId, planCode, listingId = null }) => {
 
     if (offer.kind === 'LISTING_BOOST') {
         const listing = await prisma.marketplaceListing.findFirst({
-            where: { id: listingId, sellerId: buyerId, status: 'ACTIVE', deletedAt: null },
+            where: { id: listingId, sellerId: buyerId, status: 'ACTIVE', isLocked: false, deletedAt: null },
             select: { id: true, boostedUntil: true },
         });
         if (!listing) throw billingError('Only your active marketplace listing can be boosted.', 404);
@@ -164,6 +169,76 @@ const createMemberSubscriptionRequest = (buyerId, planCode) =>
 
 const createListingBoostRequest = (buyerId, listingId) =>
     createRequest({ buyerId, listingId, planCode: 'LISTING_BOOST_7D' });
+
+// FitSwap Plus includes one complimentary seven-day placement boost per
+// calendar month. The durable benefitMonth unique key makes it impossible to
+// redeem twice, including when two browser requests arrive simultaneously.
+const redeemMemberBoost = async (buyerId, listingId) => {
+    const now = new Date();
+    const benefitMonth = calendarMonthStart(now);
+    const entitlement = await getMemberPlusEntitlement(buyerId, now);
+    if (!entitlement.isFitSwapPlus) {
+        throw billingError('An active FitSwap Plus plan is required to use the monthly complimentary listing boost.', 403);
+    }
+
+    try {
+        const payment = await prisma.$transaction(async (tx) => {
+            const currentEntitlement = await getMemberPlusEntitlement(buyerId, now, tx);
+            if (!currentEntitlement.isFitSwapPlus) {
+                throw billingError('Your FitSwap Plus plan is no longer active.', 403);
+            }
+
+            const listing = await tx.marketplaceListing.findFirst({
+                where: { id: listingId, sellerId: buyerId, status: 'ACTIVE', isLocked: false, deletedAt: null },
+                select: { id: true, boostedUntil: true },
+            });
+            if (!listing) throw billingError('Only your active marketplace listing can use the Plus boost.', 404);
+
+            const boostStartsAt = listing.boostedUntil && listing.boostedUntil > now
+                ? listing.boostedUntil
+                : now;
+            const benefitExpiresAt = new Date(boostStartsAt);
+            benefitExpiresAt.setDate(benefitExpiresAt.getDate() + PLUS_MONTHLY_BOOST_DAYS);
+
+            await tx.marketplaceListing.update({
+                where: { id: listing.id },
+                data: { boostedUntil: benefitExpiresAt },
+            });
+
+            return tx.platformPaymentRequest.create({
+                data: {
+                    kind: 'LISTING_BOOST',
+                    planCode: PLUS_MONTHLY_BOOST_CODE,
+                    buyerId,
+                    listingId: listing.id,
+                    amount: 0,
+                    paymentRef: paymentReference(),
+                    platformUpiId: 'internal-plus-credit',
+                    platformPayeeName: 'FitSwap Plus benefit',
+                    benefitDays: PLUS_MONTHLY_BOOST_DAYS,
+                    benefitMonth,
+                    expiresAt: now,
+                    status: 'COMPLETED',
+                    completedAt: now,
+                    benefitExpiresAt,
+                },
+                include: requestInclude,
+            });
+        });
+
+        await notificationService.createNotification(
+            buyerId,
+            'Your FitSwap Plus boost is active',
+            `Your listing has priority placement until ${payment.benefitExpiresAt.toLocaleDateString('en-IN')}. Your next complimentary boost unlocks next calendar month.`
+        );
+        return serializePayment(payment);
+    } catch (error) {
+        if (error?.code === 'P2002') {
+            throw billingError('You have already used this calendar month’s FitSwap Plus listing boost.', 409);
+        }
+        throw error;
+    }
+};
 
 const markPlatformPaymentPaid = async (buyerId, requestId, utr) => {
     await expireOutstandingPlatformPayments();
@@ -221,13 +296,13 @@ const completePlatformPayment = async (adminId, requestId) => {
     const completed = await prisma.$transaction(async (tx) => {
         const current = await tx.platformPaymentRequest.findFirst({
             where: { id: requestId, status: 'BUYER_MARKED_PAID' },
-            include: { listing: { select: { id: true, boostedUntil: true, sellerId: true, status: true, deletedAt: true } } },
+            include: { listing: { select: { id: true, boostedUntil: true, sellerId: true, status: true, isLocked: true, deletedAt: true } } },
         });
         if (!current) throw billingError('This platform payment was already handled.', 409);
 
         const startsAt = new Date();
         if (current.kind === 'LISTING_BOOST') {
-            if (!current.listing || current.listing.sellerId !== current.buyerId || current.listing.status !== 'ACTIVE' || current.listing.deletedAt) {
+            if (!current.listing || current.listing.sellerId !== current.buyerId || current.listing.status !== 'ACTIVE' || current.listing.isLocked || current.listing.deletedAt) {
                 throw billingError('This listing can no longer be boosted. Reject the payment and arrange a refund if needed.', 409);
             }
             const activeUntil = current.listing.boostedUntil && current.listing.boostedUntil > startsAt
@@ -321,6 +396,18 @@ const getMyBillingSummary = async (userId) => {
     });
     const activeSubscription = payments.find((payment) => payment.kind === 'OWNER_SUBSCRIPTION' && payment.status === 'COMPLETED' && payment.benefitExpiresAt > now);
     const activeMemberSubscription = payments.find((payment) => payment.kind === 'MEMBER_SUBSCRIPTION' && payment.status === 'COMPLETED' && payment.benefitExpiresAt > now);
+    const plusBoostUsedThisMonth = activeMemberSubscription
+        ? await prisma.platformPaymentRequest.findFirst({
+            where: {
+                buyerId: userId,
+                kind: 'LISTING_BOOST',
+                planCode: PLUS_MONTHLY_BOOST_CODE,
+                benefitMonth: calendarMonthStart(now),
+                status: 'COMPLETED',
+            },
+            select: { id: true },
+        })
+        : null;
     return {
         offers: Object.entries(offers).map(([code, offer]) => ({ code, ...offer })),
         activeSubscription: activeSubscription ? serializePayment(activeSubscription) : null,
@@ -328,6 +415,7 @@ const getMyBillingSummary = async (userId) => {
         entitlements: {
             isFitSwapPlus: Boolean(activeMemberSubscription),
             plusExpiresAt: activeMemberSubscription?.benefitExpiresAt || null,
+            freeMonthlyBoostAvailable: Boolean(activeMemberSubscription) && !plusBoostUsedThisMonth,
         },
         payments: payments.map(serializePayment),
     };
@@ -336,8 +424,8 @@ const getMyBillingSummary = async (userId) => {
 // Entitlements are calculated from administrator-confirmed payments only.
 // This helper is deliberately shared by marketplace and crowd services so
 // changing the client UI cannot grant access to paid features.
-const getMemberPlusEntitlement = async (userId, now = new Date()) => {
-    const payment = await prisma.platformPaymentRequest.findFirst({
+const getMemberPlusEntitlement = async (userId, now = new Date(), database = prisma) => {
+    const payment = await database.platformPaymentRequest.findFirst({
         where: {
             buyerId: userId,
             kind: 'MEMBER_SUBSCRIPTION',
@@ -364,6 +452,7 @@ module.exports = {
     createOwnerSubscriptionRequest,
     createMemberSubscriptionRequest,
     createListingBoostRequest,
+    redeemMemberBoost,
     markPlatformPaymentPaid,
     completePlatformPayment,
     rejectPlatformPayment,

@@ -1,6 +1,6 @@
 import { useContext } from "react";
 
-import { AppearanceContext } from "../context/appearance-context";
+import { AppearanceContext } from "../context/contexts";
 
 export function useAppearance() {
   const context = useContext(AppearanceContext);
@@ -11,4 +11,3 @@ export function useAppearance() {
 
   return context;
 }
-

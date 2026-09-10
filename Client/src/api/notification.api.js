@@ -1,9 +1,10 @@
 import axios from "./axios";
 
 export const getNotifications =
-    async () => {
+    async (config = {}) => {
         const { data } = await axios.get(
-            "/notifications"
+            "/notifications",
+            config
         );
 
         return data.data;

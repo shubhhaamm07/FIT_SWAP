@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Menu, X } from "lucide-react";
 
-import Sidebar from "../components/dashboard/Sidebar/Sidebar";
-import Topbar from "../components/dashboard/Topbar/Topbar";
+import Sidebar from "../components/dashboard/sidebar/Sidebar";
+import Topbar from "../components/dashboard/topbar/Topbar";
 
 function DashboardLayout({ children, rightSidebar }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);

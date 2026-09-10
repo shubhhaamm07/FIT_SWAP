@@ -3,6 +3,8 @@ const express = require('express');
 const { protect } = require('../middlewares/auth.middleware');
 const { authorize } = require('../middlewares/role.middleware');
 const trialBookingController = require('../controllers/trial-booking.controller');
+const { bookingLimiter } = require('../middlewares/rateLimiter.middleware');
+const { requireIdempotency } = require('../middlewares/idempotency.middleware');
 
 const router = express.Router();
 
@@ -18,6 +20,8 @@ router.post(
     '/trial-bookings',
     protect,
     authorize('USER'),
+    bookingLimiter,
+    requireIdempotency('trial-booking'),
     trialBookingController.bookTrialSlot
 );
 
@@ -32,6 +36,7 @@ router.patch(
     '/trial-bookings/:bookingId/cancel',
     protect,
     authorize('USER'),
+    bookingLimiter,
     trialBookingController.cancelMyTrialBooking
 );
 
@@ -39,6 +44,7 @@ router.post(
     '/gym-owner/trial-slots',
     protect,
     authorize('GYM_OWNER'),
+    bookingLimiter,
     trialBookingController.createTrialSlot
 );
 
@@ -53,6 +59,7 @@ router.patch(
     '/gym-owner/trial-slots/:slotId',
     protect,
     authorize('GYM_OWNER'),
+    bookingLimiter,
     trialBookingController.updateTrialSlot
 );
 
@@ -60,6 +67,7 @@ router.patch(
     '/gym-owner/trial-slots/:slotId/deactivate',
     protect,
     authorize('GYM_OWNER'),
+    bookingLimiter,
     trialBookingController.deactivateTrialSlot
 );
 
@@ -74,6 +82,7 @@ router.patch(
     '/gym-owner/trial-bookings/:bookingId/status',
     protect,
     authorize('GYM_OWNER'),
+    bookingLimiter,
     trialBookingController.updateBookingStatusByOwner
 );
 

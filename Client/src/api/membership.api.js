@@ -1,8 +1,9 @@
 import axiosInstance from "./axios";
 
-export const getMyMemberships = async () => {
+export const getMyMemberships = async (config = {}) => {
     const response = await axiosInstance.get(
-        "/memberships/my"
+        "/memberships/my",
+        config
     );
 
     return response.data;

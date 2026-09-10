@@ -9,6 +9,7 @@ const marketplaceListingController = require(
 const {
     protect
 } = require('../middlewares/auth.middleware');
+const { requireIdempotency } = require('../middlewares/idempotency.middleware');
 
 /*
 |--------------------------------------------------------------------------
@@ -45,6 +46,7 @@ router.get(
 router.post(
     '/listings',
     protect,
+    requireIdempotency('marketplace-listing'),
     marketplaceListingController.createListing
 );
 

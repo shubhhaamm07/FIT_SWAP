@@ -1,5 +1,6 @@
 const prisma = require('../lib/prisma');
 const { getMemberPlusEntitlement } = require('./platform-billing.service');
+const { serializePublicListing } = require('../serializers/public-marketplace');
 
 const FREE_SAVED_LISTING_LIMIT = 5;
 
@@ -7,7 +8,7 @@ const listingInclude = {
     membership: {
         include: {
             user: {
-                select: { id: true, firstName: true, lastName: true }
+                select: { id: true, firstName: true, lastName: true, username: true, isProfilePublic: true }
             },
             plan: {
                 include: {
@@ -26,15 +27,21 @@ const listingInclude = {
         }
     },
     seller: {
-        select: { id: true, firstName: true, lastName: true }
+        select: { id: true, firstName: true, lastName: true, username: true, isProfilePublic: true }
     }
 };
 
-const getSavedListings = (userId) => prisma.savedListing.findMany({
-    where: { userId },
-    include: { listing: { include: listingInclude } },
-    orderBy: { createdAt: 'desc' }
-});
+const getSavedListings = async (userId) => {
+    const records = await prisma.savedListing.findMany({
+        where: { userId },
+        include: { listing: { include: listingInclude } },
+        orderBy: { createdAt: 'desc' }
+    });
+    return records.map(({ userId: _userId, ...saved }) => ({
+        ...saved,
+        listing: serializePublicListing(saved.listing),
+    }));
+};
 
 const saveListing = async (userId, listingId) => {
     const listing = await prisma.marketplaceListing.findFirst({

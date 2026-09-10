@@ -7,6 +7,11 @@ const {
 const authController = require('../controllers/auth.controller');
 const { authLimiter, emailActionLimiter } = require('../middlewares/rateLimiter.middleware');
 
+router.use((_req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store');
+    return next();
+});
+
 router.post('/register', authLimiter, authController.register);
 router.post('/login', authLimiter, authController.login);
 router.post('/google', authLimiter, authController.googleLogin);
