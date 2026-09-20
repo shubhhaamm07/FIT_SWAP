@@ -1,3 +1,5 @@
+name: fitswap
+
 services:
   db:
     image: postgres:16-alpine
@@ -11,28 +13,58 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
+      start_period: 10s
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}"]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD in .env}
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli --no-auth-warning -a \"$$REDIS_PASSWORD\" ping | grep PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 5s
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal
 
   api:
     build:
       context: ./Server
+      dockerfile: Dockerfile
     restart: unless-stopped
+    init: true
     environment:
+      # Keep local Compose convenient. Production should set this to
+      # `production`, which enforces admin MFA and malware scanning.
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: 8000
       DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/fitswap_
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
       CLIENT_URL: http://localhost:5173
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:?Set JWT_REFRESH_SECRET in .env}
+      AUDIT_HMAC_SECRET: ${AUDIT_HMAC_SECRET:?Set AUDIT_HMAC_SECRET in .env}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:-}
+      ADMIN_MFA_REQUIRED: ${ADMIN_MFA_REQUIRED:-false}
+      CLAMAV_HOST: ${CLAMAV_HOST:-}
+      CLAMAV_PORT: ${CLAMAV_PORT:-3310}
+      MALWARE_SCAN_REQUIRED: ${MALWARE_SCAN_REQUIRED:-false}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
-      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
-      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
       BREVO_API_KEY: ${BREVO_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-20b}
       PLATFORM_UPI_ID: ${PLATFORM_UPI_ID:-}
       PLATFORM_UPI_PAYEE_NAME: ${PLATFORM_UPI_PAYEE_NAME:-}
-      # SMTP remains an optional local fallback. Brevo is preferred whenever
-      # BREVO_API_KEY and EMAIL_FROM are configured.
       SMTP_HOST: ${SMTP_HOST:-}
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_SECURE: ${SMTP_SECURE:-false}
@@ -41,22 +73,47 @@ services:
       SMTP_FROM: ${SMTP_FROM:-}
       AWS_REGION: ${AWS_REGION:-}
       AWS_BUCKET_NAME: ${AWS_BUCKET_NAME:-}
+      AWS_GYM_IMAGE_BUCKET_NAME: ${AWS_GYM_IMAGE_BUCKET_NAME:-}
+      AWS_GYM_IMAGE_BASE_URL: ${AWS_GYM_IMAGE_BASE_URL:-}
+      AWS_PROFILE_IMAGE_BUCKET_NAME: ${AWS_PROFILE_IMAGE_BUCKET_NAME:-}
+      AWS_GYM_DOCUMENT_BUCKET_NAME: ${AWS_GYM_DOCUMENT_BUCKET_NAME:-}
+      AWS_SUPPORT_ATTACHMENT_BUCKET_NAME: ${AWS_SUPPORT_ATTACHMENT_BUCKET_NAME:-}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8000/api/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 45s
+    networks:
+      - internal
 
   web:
     build:
       context: ./Client
+      dockerfile: Dockerfile
       args:
         VITE_GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
     restart: unless-stopped
+    init: true
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     ports:
       - "5173:80"
+    networks:
+      - internal
 
 volumes:
   postgres_data:
+  redis_data:
+
+networks:
+  internal:
+    driver: bridge

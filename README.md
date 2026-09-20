@@ -94,8 +94,10 @@ This is the simplest way to start the full system.
 
    ```env
    POSTGRES_PASSWORD=your-postgres-password
+   REDIS_PASSWORD=your-redis-password
    JWT_SECRET=your-long-random-jwt-secret
    JWT_REFRESH_SECRET=your-different-long-random-refresh-secret
+   AUDIT_HMAC_SECRET=your-separate-audit-hash-secret
    ```
 
 3. Build and start all services.
@@ -106,13 +108,18 @@ This is the simplest way to start the full system.
 
 4. Open [http://localhost:5173](http://localhost:5173).
 
-The Nginx frontend proxies browser requests from `/api` to the API container. PostgreSQL is available only to the Docker network; the API applies pending Prisma migrations at startup.
+The Nginx frontend proxies browser requests from `/api` to the API container. PostgreSQL and Redis are available only inside the Docker network. The API applies pending Prisma migrations at startup, and the web service waits until the API health check succeeds.
 
 To add the demo data after the services are running:
 
 ```bash
 docker compose exec api node prisma/seed.js
 ```
+
+For a public deployment, set `NODE_ENV=production`, configure a 32-byte
+`MFA_ENCRYPTION_KEY`, and connect ClamAV with `CLAMAV_HOST` and `CLAMAV_PORT`.
+Production requires these protections for administrator sign-in and uploaded
+PDF/support attachments. See [the security deployment checklist](Server/docs/security-deployment.md).
 
 ## Local development setup
 
@@ -180,7 +187,8 @@ Open [http://localhost:5173](http://localhost:5173). In local development the fr
 
 ## Demo accounts
 
-After `npm run seed`, these accounts use password `1234`:
+After `npm run seed`, these accounts use `SEED_TEST_PASSWORD` or the safe
+local-only fallback declared in `Server/prisma/seed.js`:
 
 | Role | Email |
 | --- | --- |
@@ -215,8 +223,8 @@ curl http://localhost:8000/api/health
 
 ## Authentication and authorization
 
-- `POST /api/auth/login` returns a JWT and user profile data.
-- The frontend stores the token locally and sends it as `Authorization: Bearer <token>`.
+- `POST /api/auth/login` creates an HTTP-only session cookie after successful authentication.
+- The frontend sends credentials with same-origin `/api` requests; it does not store a bearer token in local storage.
 - Protected API routes use the `protect` middleware.
 - Role-specific actions require `USER`, `GYM_OWNER`, or `ADMIN` authorization as appropriate.
 - Login normalizes email input by trimming whitespace and converting it to lowercase.
@@ -261,11 +269,11 @@ npx prisma migrate status
 
 ### Docker Compose reports missing environment variables
 
-Copy `.env.example` to the root `.env` file and set `POSTGRES_PASSWORD`, `JWT_SECRET`, and `JWT_REFRESH_SECRET`.
+Copy `.env.example` to the root `.env` file and set `POSTGRES_PASSWORD`, `REDIS_PASSWORD`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, and `AUDIT_HMAC_SECRET`.
 
 ### Frontend cannot call the API in Docker
 
-Use the provided Compose setup. Its build injects `VITE_API_URL=/api`, and Nginx forwards `/api` traffic to the API service.
+Use the provided Compose setup. The frontend always calls same-origin `/api`, and Nginx forwards those requests to the API service.
 
 ## Security notes
 
