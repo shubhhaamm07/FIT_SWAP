@@ -48,6 +48,13 @@ html {
     -webkit-tap-highlight-color: transparent;
 }
 
+img,
+svg,
+video,
+canvas {
+    max-width: 100%;
+}
+
 *::-webkit-scrollbar {
     width: 8px;
     height: 8px;
@@ -376,6 +383,27 @@ textarea:focus-visible,
 
 .app-page {
     animation: portal-enter 420ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+/* Mobile browsers zoom fields smaller than 16px and a fixed side drawer can
+   leave the document scrollable behind it. These small defaults keep every
+   existing portal page usable without changing its desktop composition. */
+@media (max-width: 639px) {
+    input,
+    select,
+    textarea {
+        font-size: 16px;
+    }
+
+    .app-page {
+        padding-top: 1.1rem;
+        padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+    }
+
+    .portal-hero::after,
+    .portal-hero-image {
+        animation: none;
+    }
 }
 
 .app-page :is(article, section)[class*="rounded-"] {

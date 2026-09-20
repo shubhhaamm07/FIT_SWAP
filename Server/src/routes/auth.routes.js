@@ -15,6 +15,8 @@ router.use((_req, res, next) => {
 router.post('/register', authLimiter, authController.register);
 router.post('/login', authLimiter, authController.login);
 router.post('/google', authLimiter, authController.googleLogin);
+router.post('/admin-mfa/enrollment', authLimiter, authController.getAdminMfaEnrollment);
+router.post('/admin-mfa/verify', authLimiter, authController.verifyAdminMfa);
 router.post('/logout', protect, authController.logout);
 router.post('/forgot-password', emailActionLimiter, authController.requestPasswordReset);
 router.post('/reset-password', emailActionLimiter, authController.resetPassword);

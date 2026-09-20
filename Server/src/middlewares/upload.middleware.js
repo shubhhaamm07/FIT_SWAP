@@ -2,20 +2,10 @@ const multer = require("multer");
 
 const storage = multer.memoryStorage();
 
-const fileFilter = (req, file, cb) => {
-    const allowedMimeTypes = [
-        "image/jpeg",
-        "image/jpg",
-        "image/png",
-        "image/webp",
-    ];
-
-    if (!allowedMimeTypes.includes(file.mimetype)) {
-        return cb(new Error("Only JPG, JPEG, PNG and WEBP images are allowed."));
-    }
-
-    cb(null, true);
-};
+// Do not trust the browser-provided MIME type here. The image service checks
+// magic bytes, decoded dimensions, pixel count, and safely re-encodes the
+// content before anything reaches S3.
+const fileFilter = (_req, _file, cb) => cb(null, true);
 
 const upload = multer({
     storage,

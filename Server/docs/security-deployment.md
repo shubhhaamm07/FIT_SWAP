@@ -58,8 +58,34 @@ reservation must return the listing to `ACTIVE`; a completed transfer must mark
 it `SOLD`. Cash handovers always wait for gym-owner confirmation and expire
 after seven days if no decision is made.
 
-## Authentication follow-up
+## Administrator MFA
 
-Sensitive admin mutations now require a login no older than 30 minutes. The
-next identity milestone is TOTP or WebAuthn MFA for `ADMIN` and `GYM_OWNER`
-accounts; do not substitute security questions or emailed static codes.
+Administrator TOTP MFA is enforced whenever `NODE_ENV=production`. Before the
+first production login, set `MFA_ENCRYPTION_KEY` to a unique 32-byte secret
+(64 hex characters or base64-encoded 32 bytes). This encrypts the TOTP secret
+at rest; never replace it after administrators enrol, or their authenticator
+secrets will become unreadable.
+
+An administrator first signs in with their password or Google account, then
+scans the FitSwap QR code in an authenticator app. The setup flow reveals ten
+single-use recovery codes once. Store them in an encrypted password manager.
+MFA challenges expire after five minutes and each TOTP time-step may be used
+only once, which prevents replay within the valid time window.
+
+Sensitive admin mutations still require a login no older than 30 minutes. MFA
+for gym owners is a recommended next step, but is not implemented in this
+release.
+
+## File scanning and private evidence
+
+Set `CLAMAV_HOST` and `CLAMAV_PORT` to a reachable ClamAV daemon. Set
+`MALWARE_SCAN_REQUIRED=true` in any non-production environment that should
+also fail closed. Production already fails closed when ClamAV is unavailable.
+Gym-verification PDFs and support attachments are stored privately and can be
+retrieved only through their authorised API endpoints; do not add a public S3
+policy or expose their object URLs.
+
+All profile and gym images are decoded with pixel limits, then rewritten to
+bounded WebP, AVIF, and thumbnail variants. This rejects malformed images and
+decompression bombs rather than trusting their extension or multipart MIME
+type.

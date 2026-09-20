@@ -31,8 +31,7 @@ const uploadGymImages = async (req, res) => {
         });
 
     } catch (error) {
-
-        return res.status(500).json({
+        return res.status(error.statusCode || 400).json({
             success: false,
             message: error.message
         });
@@ -56,8 +55,7 @@ const deleteGymImage = async (req, res) => {
         });
 
     } catch (error) {
-
-        return res.status(500).json({
+        return res.status(error.statusCode || 400).json({
             success: false,
             message: error.message,
         });
@@ -81,8 +79,7 @@ const setPrimaryImage = async (req, res) => {
         });
 
     } catch (error) {
-
-        return res.status(500).json({
+        return res.status(error.statusCode || 400).json({
             success: false,
             message: error.message,
         });
@@ -106,8 +103,7 @@ const reorderGymImages = async (req, res) => {
         });
 
     } catch (error) {
-
-        return res.status(500).json({
+        return res.status(error.statusCode || 400).json({
             success: false,
             message: error.message,
         });
@@ -143,6 +139,7 @@ const getProfileImage = async (req, res) => {
         const image = await imageService.getProfileImage({
             userId: req.user.id,
             type: req.params.type,
+            variant: req.query.variant,
         });
 
         res.set({
@@ -153,7 +150,7 @@ const getProfileImage = async (req, res) => {
         });
         image.Body.pipe(res);
     } catch (error) {
-        return res.status(404).json({
+        return res.status(error.statusCode || 404).json({
             success: false,
             message: error.message,
         });

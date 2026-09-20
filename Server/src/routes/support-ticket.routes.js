@@ -11,13 +11,9 @@ const router = express.Router();
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: MAX_ATTACHMENT_BYTES, files: MAX_ATTACHMENTS, fields: 8 },
-    fileFilter: (_req, file, callback) => {
-        const declaredTypes = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
-        callback(declaredTypes.includes(file.mimetype)
-            ? null
-            : Object.assign(new Error('Only PDF, JPEG, PNG, and WEBP attachments are allowed.'), { statusCode: 400 }),
-        declaredTypes.includes(file.mimetype));
-    }
+    // The service verifies content signatures and scanner results after the
+    // upload is bounded in memory; request MIME values are not trustworthy.
+    fileFilter: (_req, _file, callback) => callback(null, true)
 }).array('attachments', MAX_ATTACHMENTS);
 
 const uploadAttachments = (req, res, next) => upload(req, res, (error) => {

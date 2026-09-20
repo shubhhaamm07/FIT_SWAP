@@ -15,6 +15,20 @@ export const loginWithGoogle = async (credential) => {
     return response.data;
 };
 
+// These endpoints deliberately use the short-lived challenge issued after an
+// administrator has completed the primary sign-in step. They do not accept a
+// normal session cookie, which prevents MFA setup from being changed by an
+// already-signed-in browser.
+export const getAdminMfaEnrollment = async (mfaChallengeToken) => {
+    const response = await api.post("/auth/admin-mfa/enrollment", { mfaChallengeToken }, { skipAuthLogout: true });
+    return response.data;
+};
+
+export const verifyAdminMfa = async ({ mfaChallengeToken, code }) => {
+    const response = await api.post("/auth/admin-mfa/verify", { mfaChallengeToken, code }, { skipAuthLogout: true });
+    return response.data;
+};
+
 export const logoutUser = async () => {
     await api.post("/auth/logout", null, { skipAuthLogout: true });
 };

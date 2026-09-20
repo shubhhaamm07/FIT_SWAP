@@ -1,16 +1,20 @@
 const { randomUUID } = require('node:crypto');
 const { PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { fileTypeFromBuffer } = require('file-type');
+const sharp = require('sharp');
 
 const prisma = require('../lib/prisma');
 const s3 = require('../config/aws');
 const { getMemberPlusEntitlement } = require('./platform-billing.service');
+const { scanUploadedBuffer } = require('../security/malware-scanner');
 
 const MAX_SUBJECT_LENGTH = 140;
 const MAX_MESSAGE_LENGTH = 5000;
 const MAX_ATTACHMENTS = 3;
 const MAX_ATTACHMENT_BYTES = 5 * 1024 * 1024;
 const MAX_ATTACHMENTS_TOTAL_BYTES = 10 * 1024 * 1024;
+const MAX_ATTACHMENT_IMAGE_PIXELS = 20_000_000;
+const MAX_ATTACHMENT_IMAGE_DIMENSION = 8_000;
 
 const CATEGORIES = new Set(['TRANSFER', 'PAYMENT', 'MEMBERSHIP', 'GYM', 'LISTING', 'ACCOUNT', 'TECHNICAL', 'OTHER']);
 const PRIORITIES = new Set(['LOW', 'NORMAL', 'HIGH', 'URGENT']);
@@ -25,6 +29,21 @@ const ALLOWED_ATTACHMENTS = new Map([
 
 const fail = (statusCode, message) => {
     throw Object.assign(new Error(message), { statusCode });
+};
+
+const validateAttachmentImage = async (buffer) => {
+    try {
+        const metadata = await sharp(buffer, { limitInputPixels: MAX_ATTACHMENT_IMAGE_PIXELS, failOn: 'error' }).metadata();
+        const width = Number(metadata.width);
+        const height = Number(metadata.height);
+        const pages = Number(metadata.pages || 1);
+        if (!width || !height || width > MAX_ATTACHMENT_IMAGE_DIMENSION || height > MAX_ATTACHMENT_IMAGE_DIMENSION || width * height * pages > MAX_ATTACHMENT_IMAGE_PIXELS) {
+            fail(413, 'Image attachments must be 8,000 pixels per side and 20 megapixels or smaller.');
+        }
+    } catch (error) {
+        if (error.statusCode) throw error;
+        fail(400, 'This image attachment is damaged or exceeds the safe image-size limit.');
+    }
 };
 
 const userSelect = {
@@ -254,6 +273,8 @@ const validateAttachments = async (files = []) => {
         if (!mime || !ALLOWED_ATTACHMENTS.has(mime)) {
             fail(400, 'Only PDF, JPEG, PNG, and WEBP attachments are allowed.');
         }
+        if (mime.startsWith('image/')) await validateAttachmentImage(file.buffer);
+        await scanUploadedBuffer(file.buffer, { label: 'attachment' });
         const extension = ALLOWED_ATTACHMENTS.get(mime);
         const fileName = String(file.originalname || `attachment.${extension}`)
             .split(/[\\/]/).pop().replace(/[\u0000-\u001f\u007f"]/g, '').slice(0, 180) || `attachment.${extension}`;

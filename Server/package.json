@@ -36,8 +36,10 @@
     "nodemailer": "^9.0.5",
     "pdf-lib": "1.17.1",
     "prisma": "^6.10.1",
+    "qrcode": "^1.5.4",
     "rate-limit-redis": "^6.0.1",
     "redis": "^6.2.1",
+    "sharp": "^0.35.4",
     "uuid": "^14.0.1",
     "validator": "^13.15.35"
   },

@@ -27,10 +27,13 @@ const memberNames = [
 
 async function upsertUser({ firstName, lastName, email, phone, role }) {
     const password = await bcrypt.hash(PASSWORD, 10);
+    const demoAccount = { firstName, lastName, phone, role, password, isActive: true, emailVerifiedAt: new Date() };
     return prisma.user.upsert({
         where: { email },
-        update: { firstName, lastName, phone, role, password },
-        create: { firstName, lastName, email, phone, role, password }
+        // Only accounts whose fixed @fitswap.test address is requested by the
+        // seed are updated. Real owners are never reset by this script.
+        update: demoAccount,
+        create: { ...demoAccount, email }
     });
 }
 
@@ -148,14 +151,61 @@ async function seedOwnerDashboardData(members, gymData) {
     }
 }
 
+async function seedMemberExperienceData(member, gymData) {
+    const today = new Date();
+    const startOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const schedules = [
+        { weekday: 1, title: 'Upper-body strength', focus: 'Push and pull', durationMinutes: 50 },
+        { weekday: 3, title: 'Conditioning', focus: 'Cardio and core', durationMinutes: 35 },
+        { weekday: 5, title: 'Lower-body strength', focus: 'Legs and mobility', durationMinutes: 55 },
+    ];
+
+    const createdSchedules = [];
+    for (const scheduleData of schedules) {
+        let schedule = await prisma.workoutSchedule.findFirst({ where: { userId: member.id, title: scheduleData.title } });
+        if (!schedule) schedule = await prisma.workoutSchedule.create({ data: { userId: member.id, ...scheduleData } });
+        createdSchedules.push(schedule);
+    }
+
+    for (let daysAgo = 1; daysAgo <= 21; daysAgo += 1) {
+        const completedOn = startOfDay(new Date(today.getTime() - daysAgo * 24 * 60 * 60 * 1000));
+        const schedule = createdSchedules[completedOn.getDay() % createdSchedules.length];
+        if (daysAgo % 3 !== 0) {
+            const alreadyLogged = await prisma.workoutCompletion.findFirst({ where: { scheduleId: schedule.id, completedOn } });
+            if (!alreadyLogged) await prisma.workoutCompletion.create({
+                data: { userId: member.id, scheduleId: schedule.id, completedOn, durationMinutes: schedule.durationMinutes }
+            });
+        }
+        if (daysAgo <= 14) {
+            const mealDate = completedOn;
+            const label = daysAgo % 2 ? 'Protein bowl with seasonal fruit' : 'Balanced lentil and rice meal';
+            const existingMeal = await prisma.mealLog.findFirst({ where: { userId: member.id, mealDate, mealType: 'LUNCH', label } });
+            if (!existingMeal) await prisma.mealLog.create({
+                data: { userId: member.id, mealDate, mealType: 'LUNCH', label, estimatedCalories: 540, source: 'AI_PLAN', isFollowed: daysAgo % 4 !== 0 }
+            });
+        }
+    }
+
+    // Historical reports make the crowd-insight graph useful without posing
+    // as a current live report. Current crowd data remains short lived.
+    const crowdGym = gymData[0]?.gym;
+    if (crowdGym) {
+        for (let daysAgo = 1; daysAgo <= 28; daysAgo += 1) {
+            const reportedAt = new Date(today.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+            reportedAt.setHours(18 + (daysAgo % 3), 0, 0, 0);
+            const existingReport = await prisma.gymCrowdReportHistory.findFirst({
+                where: { gymId: crowdGym.id, userId: member.id, reportedAt }
+            });
+            if (!existingReport) await prisma.gymCrowdReportHistory.create({
+                data: { gymId: crowdGym.id, userId: member.id, reportedAt, level: daysAgo % 5 === 0 ? 'HIGH' : daysAgo % 2 ? 'MEDIUM' : 'LOW' }
+            });
+        }
+    }
+}
+
 async function main() {
     const admin = await upsertUser({ firstName: 'Shubham', lastName: 'Rana', email: 'shubham.rana@fitswap.test', phone: '9000000001', role: 'ADMIN' });
     const owners = await Promise.all(Array.from({ length: 5 }, (_, index) => upsertUser({ firstName: `GymOwner${index + 1}`, lastName: 'FitSwap', email: `owner${index + 1}@fitswap.test`, phone: `90000000${10 + index}`, role: 'GYM_OWNER' })));
-    // This also resets the password of any Gym Owner created manually in the local database.
-    await prisma.user.updateMany({
-        where: { role: 'GYM_OWNER' },
-        data: { password: await bcrypt.hash(PASSWORD, 10) }
-    });
     const gymData = [];
     for (let index = 0; index < owners.length; index += 1) gymData.push(await ensureGym(owners[index], index));
 
@@ -167,6 +217,7 @@ async function main() {
     }
 
     await seedOwnerDashboardData(members, gymData);
+    await seedMemberExperienceData(members[0], gymData);
 
     const listings = [];
     for (let index = 0; index < members.length; index += 1) {
@@ -228,8 +279,8 @@ async function main() {
         if (!existing) await prisma.notification.create({ data: { userId: members[index].id, title: 'Seeded marketplace activity', message: 'Your FitSwap test listing is ready to manage.' } });
     }
 
-    console.log(`Seeded ${members.length} members, ${owners.length} gym owners, ${gymData.length} gyms, and ${listings.length} listings.`);
-    console.log('Demo login password is the local SEED_TEST_PASSWORD value.');
+    console.log(`Seeded ${members.length} verified members, ${owners.length} verified gym owners, ${gymData.length} gyms, and ${listings.length} listings.`);
+    console.log('Demo login password is the local SEED_TEST_PASSWORD value. Demo accounts use the @fitswap.test addresses declared in this seed file.');
     console.log(`Created ${owners.length} gym-owner demo accounts without printing their credentials.`);
 }
 

@@ -11,10 +11,9 @@ const router = express.Router();
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: service.MAX_PDF_BYTES, files: 1, fields: 0 },
-    fileFilter: (_req, file, cb) => {
-        const allowed = ['application/pdf', 'application/octet-stream'].includes(file.mimetype);
-        cb(allowed ? null : Object.assign(new Error('Only PDF documents are allowed.'), { statusCode: 400 }), allowed);
-    }
+    // `validatePdf` checks the bytes and parser result; MIME is supplied by
+    // the client and must not be treated as an access-control decision.
+    fileFilter: (_req, _file, cb) => cb(null, true)
 }).single('document');
 
 const uploadPdf = (req, res, next) => upload(req, res, (error) => {

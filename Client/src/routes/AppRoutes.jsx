@@ -8,6 +8,7 @@ const RegisterPage = lazy(() => import("../pages/auth/RegisterPage"));
 const ForgotPasswordPage = lazy(() => import("../pages/auth/ForgotPasswordPage"));
 const ResetPasswordPage = lazy(() => import("../pages/auth/ResetPasswordPage"));
 const VerifyEmailPage = lazy(() => import("../pages/auth/VerifyEmailPage"));
+const AdminMfaPage = lazy(() => import("../pages/auth/AdminMfaPage"));
 const DashboardPage = lazy(() => import("../pages/dashboard/DashboardPage"));
 const MembershipsPage = lazy(() => import("../pages/memberships/MembershipsPage"));
 const MembershipDetails = lazy(() => import("../components/memberships/details/MembershipDetails"));
@@ -60,6 +61,8 @@ function AppRoutes() {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         <Route path="/verify-email" element={<VerifyEmailPage />} />
+
+        <Route path="/admin/mfa" element={<AdminMfaPage />} />
 
         {/* ================= Protected Routes ================= */}
 

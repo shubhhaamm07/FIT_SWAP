@@ -1,6 +1,7 @@
 const authService = require('../services/auth.service');
 const generateToken = require('../utils/generate-token');
 const securityService = require('../services/security.service');
+const adminMfa = require('../security/admin-mfa');
 
 const sessionCookieOptions = () => ({
     httpOnly: true,
@@ -39,6 +40,22 @@ const authResponseUser = (user) => ({
     role: user.role,
     emailVerifiedAt: user.emailVerifiedAt
 });
+
+const completePrimarySignIn = async ({ user, req, res, authMethod }) => {
+    const mfaChallenge = await adminMfa.beginAdminMfa(user, authMethod);
+    if (mfaChallenge) {
+        return res.status(200).json({
+            success: true,
+            mfaRequired: true,
+            mfaSetupRequired: mfaChallenge.setupRequired,
+            mfaChallengeToken: mfaChallenge.token,
+        });
+    }
+    const session = await securityService.createSession({ user, req, authMethod });
+    const token = generateToken(user, session.id);
+    setSessionCookie(res, token);
+    return res.status(200).json({ success: true, user: authResponseUser(user) });
+};
 const register = async (req, res) => {
     try {
         const user = await authService.registerUser(req.body);
@@ -78,14 +95,7 @@ const login = async (req, res) => {
     try {
         await securityService.assertLoginAllowed(req.body?.email, req);
         user = await authService.loginUser(req.body);
-        const session = await securityService.createSession({ user, req, authMethod: 'PASSWORD' });
-        const token = generateToken(user, session.id);
-
-        setSessionCookie(res, token);
-        return res.status(200).json({
-            success: true,
-            user: authResponseUser(user)
-        });
+        return completePrimarySignIn({ user, req, res, authMethod: 'PASSWORD' });
     } catch (error) {
         if (!user && error.code !== 'LOGIN_TEMPORARILY_BLOCKED') {
             await securityService.recordFailedLogin(req.body?.email, req, 'PASSWORD').catch(() => undefined);
@@ -103,20 +113,41 @@ const googleLogin = async (req, res) => {
     let user;
     try {
         user = await authService.loginWithGoogleCredential(req.body?.credential);
-        const session = await securityService.createSession({ user, req, authMethod: 'GOOGLE' });
-        const token = generateToken(user, session.id);
-
-        setSessionCookie(res, token);
-        return res.status(200).json({
-            success: true,
-            user: authResponseUser(user)
-        });
+        return completePrimarySignIn({ user, req, res, authMethod: 'GOOGLE' });
     } catch (error) {
         return res.status(error.statusCode || (user ? 500 : 401)).json({
             success: false,
             message: user ? 'Unable to create a secure session. Please try again.' : error.message,
             code: error.code
         });
+    }
+};
+
+const getAdminMfaEnrollment = async (req, res) => {
+    try {
+        const data = await adminMfa.getEnrollment(req.body?.mfaChallengeToken);
+        return res.status(200).json({ success: true, data });
+    } catch (error) {
+        return res.status(error.statusCode || 400).json({ success: false, message: error.message, code: error.code });
+    }
+};
+
+const verifyAdminMfa = async (req, res) => {
+    try {
+        const result = await adminMfa.verifyAdminMfa({
+            challengeToken: req.body?.mfaChallengeToken,
+            code: req.body?.code,
+        });
+        const session = await securityService.createSession({ user: result.user, req, authMethod: result.authMethod });
+        setSessionCookie(res, generateToken(result.user, session.id));
+        return res.status(200).json({
+            success: true,
+            user: authResponseUser(result.user),
+            mfaEnabled: true,
+            recoveryCodes: result.recoveryCodes,
+        });
+    } catch (error) {
+        return res.status(error.statusCode || 400).json({ success: false, message: error.message, code: error.code });
     }
 };
 
@@ -293,6 +324,8 @@ module.exports = {
     register,
     login,
     googleLogin,
+    getAdminMfaEnrollment,
+    verifyAdminMfa,
     logout,
     getMe,
     updateMe,

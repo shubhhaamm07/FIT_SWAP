@@ -5,6 +5,7 @@ const prisma = require('../lib/prisma');
 const s3 = require('../config/aws');
 const { suspendFutureTrialOperations } = require('./gym.service');
 const { verificationDocumentSelect } = require('./gym-verification-fields');
+const { scanUploadedBuffer } = require('../security/malware-scanner');
 
 const MAX_PDF_BYTES = 10 * 1024 * 1024;
 const MAX_PDF_PAGES = 25;
@@ -26,6 +27,7 @@ const validatePdf = async (file) => {
     }
     const pageCount = pdf.getPageCount();
     if (pageCount < 1 || pageCount > MAX_PDF_PAGES) fail(400, 'The PDF must contain between 1 and 25 pages.');
+    await scanUploadedBuffer(file.buffer, { label: 'verification PDF' });
     return {
         pageCount,
         byteSize: file.buffer.length,

@@ -8,31 +8,39 @@ datasource db {
 }
 
 model User {
-  id                            String    @id @default(cuid())
-  firstName                     String
-  lastName                      String
-  email                         String    @unique
+  id                             String    @id @default(cuid())
+  firstName                      String
+  lastName                       String
+  email                          String    @unique
   // Stable Google account identifier (`sub`). Email addresses are not used as
   // the long-term Google identity because they can change.
-  googleSubject                 String?   @unique
-  phone                         String?   @unique
-  password                      String
-  role                          UserRole  @default(USER)
-  isActive                      Boolean   @default(true)
-  username                      String?   @unique
-  bio                           String?
-  city                          String?
-  isProfilePublic               Boolean   @default(true)
-  emailVerifiedAt               DateTime?
+  googleSubject                  String?   @unique
+  phone                          String?   @unique
+  password                       String
+  role                           UserRole  @default(USER)
+  isActive                       Boolean   @default(true)
+  username                       String?   @unique
+  bio                            String?
+  city                           String?
+  isProfilePublic                Boolean   @default(true)
+  emailVerifiedAt                DateTime?
   // Used to invalidate JWTs issued before a password reset or change.
-  passwordChangedAt             DateTime?
-  avatarKey                     String?
-  coverKey                      String?
-  emailNotifications            Boolean   @default(true)
-  marketplaceNotifications      Boolean   @default(true)
-  membershipExpiryNotifications Boolean   @default(true)
-  upiId                         String?
-  upiPayeeName                  String?
+  passwordChangedAt              DateTime?
+  avatarKey                      String?
+  coverKey                       String?
+  emailNotifications             Boolean   @default(true)
+  marketplaceNotifications       Boolean   @default(true)
+  membershipExpiryNotifications  Boolean   @default(true)
+  upiId                          String?
+  upiPayeeName                   String?
+  // TOTP material is encrypted with MFA_ENCRYPTION_KEY. These fields are
+  // deliberately limited to administrators; members and gym owners do not
+  // receive an MFA challenge in this release.
+  adminMfaSecretEncrypted        String?
+  adminMfaPendingSecretEncrypted String?
+  adminMfaEnabledAt              DateTime?
+  adminMfaRecoveryCodeHashes     String[]  @default([])
+  adminMfaLastUsedStep           BigInt?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -587,14 +595,15 @@ model IdempotencyRecord {
 }
 
 model AuthToken {
-  id        String        @id @default(cuid())
-  userId    String
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  tokenHash String        @unique
-  type      AuthTokenType
-  expiresAt DateTime
-  usedAt    DateTime?
-  createdAt DateTime      @default(now())
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String           @unique
+  type       AuthTokenType
+  authMethod LoginAuthMethod?
+  expiresAt  DateTime
+  usedAt     DateTime?
+  createdAt  DateTime         @default(now())
 
   @@index([userId, type])
   @@index([expiresAt])
@@ -936,6 +945,7 @@ enum AnnouncementAudience {
 enum AuthTokenType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
+  ADMIN_MFA_CHALLENGE
 }
 
 enum TrialBookingStatus {

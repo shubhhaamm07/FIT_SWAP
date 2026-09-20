@@ -53,6 +53,14 @@ function LoginForm() {
   };
 
   const completeSignIn = (response) => {
+    if (response?.mfaRequired && response?.mfaChallengeToken) {
+      sessionStorage.setItem("fitswap_admin_mfa_challenge", response.mfaChallengeToken);
+      navigate("/admin/mfa", {
+        replace: true,
+        state: { mfaChallengeToken: response.mfaChallengeToken, setupRequired: response.mfaSetupRequired },
+      });
+      return;
+    }
     login(response.user);
     navigate(response.user.role === "ADMIN" ? "/admin/dashboard" : response.user.role === "GYM_OWNER" ? "/owner/dashboard" : "/dashboard");
   };
