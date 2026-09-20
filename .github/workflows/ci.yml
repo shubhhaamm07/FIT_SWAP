@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: fitswap-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   client:
     name: Client-Check
@@ -38,6 +42,44 @@ jobs:
   server:
     name: Server-Check
     runs-on: ubuntu-latest
+    # this is bascially the setup of the database and redis
+
+    # settting up the env of the envirorment
+    env:
+        NODE_ENV: test
+        DATABASE_URL: postgresql://fitswap:fitswap_test_password@localhost:5432/fitswap_test?schema=public
+        REDIS_URL: redis://localhost:6379
+
+        # setting up the confg to stat these services 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: fitswap
+          POSTGRES_PASSWORD: fitswap_test_password
+          POSTGRES_DB: fitswap_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fitswap -d fitswap_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+        #   till here
+        
+        
+        
     defaults:
       run:
         working-directory: Server
@@ -57,20 +99,40 @@ jobs:
 
       - name: Generate Prisma Client
         run: npx prisma generate
-    
+      - name: Apply Prisma migrations to test database
+        run: npx prisma migrate deploy
       - name: Run server test
         run: npm test
 
-  docker: 
-    name: Docker configuration check
+  docker:
+    name: Full Docker Stack Check
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Download repository code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
-      - name: Validate Docker Compose file
+      - name: Validate Docker Compose configuration
         run: docker compose --env-file .env.example config --quiet
+
+      - name: Start FitSwap containers and wait for health checks
+        run: docker compose --env-file .env.example up --build -d --wait
+
+      - name: Check frontend health
+        run: curl --fail --retry 5 --retry-delay 2 http://localhost:5173/health
+
+      - name: Check API health through frontend proxy
+        run: curl --fail --retry 5 --retry-delay 2 http://localhost:5173/api/health
+
+      - name: Show container logs after failure
+        if: failure()
+        run: docker compose --env-file .env.example logs --no-color
+
+      - name: Stop and remove temporary containers
+        if: always()
+        run: docker compose --env-file .env.example down -v --remove-orphans
+
 
 
 
