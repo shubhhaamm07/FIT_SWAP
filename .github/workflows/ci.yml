@@ -1,6 +1,8 @@
 name: FitSwap-CI
 on:
   pull_request:
+    branches:
+        - main
   push:
     branches:
       - main
@@ -21,7 +23,7 @@ jobs:
         working-directory: Client
     steps:
       - name: Download repository code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -111,7 +113,7 @@ jobs:
 
     steps:
       - name: Download repository code
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Validate Docker Compose configuration
         run: docker compose --env-file .env.example config --quiet
