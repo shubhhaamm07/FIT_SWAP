@@ -1,6 +1,14 @@
+# Prisma 6 needs OpenSSL to select the Debian 12 query engine during
+# generation and to load that engine when the API starts.
+FROM node:22-bookworm-slim AS base
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install production dependencies in a separate stage so no host node_modules
 # or development tools are copied into the runtime image.
-FROM node:22-bookworm-slim AS dependencies
+FROM base AS dependencies
 
 WORKDIR /app
 
@@ -10,7 +18,7 @@ RUN npm ci --omit=dev --no-audit --no-fund
 COPY prisma ./prisma
 RUN npx prisma generate
 
-FROM node:22-bookworm-slim AS runtime
+FROM base AS runtime
 
 ENV NODE_ENV=production \
     PORT=8000
