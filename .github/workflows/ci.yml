@@ -95,6 +95,8 @@ jobs:
       - name: Deploy
         run: npx prisma migrate deploy
       - name: testing
+        env:
+          REDIS_URL: ""
         run: npm test
       - name: Docker login
         uses: docker/login-action@v2
