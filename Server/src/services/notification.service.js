@@ -57,6 +57,13 @@ const ensureRedisSubscription = async () => {
     return redisSubscription;
 };
 
+const closeRedisSubscription = async () => {
+    if (redisSubscriber?.isOpen) redisSubscriber.destroy();
+    if (redisSubscription) await redisSubscription;
+    redisSubscriber = undefined;
+    redisSubscription = undefined;
+};
+
 const publishCrossInstanceNotification = async (notification) => {
     const publisher = await getRedisClient();
     if (!publisher) return;
@@ -174,5 +181,6 @@ module.exports = {
     getMyNotifications,
     markAsRead,
     markAllAsRead,
-    subscribe
+    subscribe,
+    closeRedisSubscription
 };

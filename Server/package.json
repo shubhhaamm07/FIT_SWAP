@@ -9,7 +9,7 @@
     "seed": "node prisma/seed.js",
     "seed:kharar": "node prisma/seed-kharar.js",
     "test:expiry-reminders": "node --test src/services/__tests__/membership-expiry-reminder.service.test.js",
-    "test": "node --test src/services/__tests__/*.test.js test/*.test.js"
+    "test": "node --require ./test/redis-cleanup.js --test src/services/__tests__/*.test.js test/*.test.js"
   },
   "keywords": [],
   "author": "",

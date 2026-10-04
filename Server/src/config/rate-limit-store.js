@@ -37,4 +37,11 @@ const getRedisClient = async () => {
     return client.isReady ? client : null;
 };
 
-module.exports = { createRateLimitStore, getRedisClient };
+const closeRedisClient = async () => {
+    if (!client) return;
+    // Destroy also stops connection retries when Redis is unavailable.
+    if (client.isOpen) client.destroy();
+    await connection;
+};
+
+module.exports = { createRateLimitStore, getRedisClient, closeRedisClient };
