@@ -44,7 +44,7 @@ jobs:
         with:
           context: ./Client
           push: true
-          tags: ${{vars.DOCKER_USERNAME}}/FitSwap-frontend:latest
+          tags: ${{vars.DOCKER_USERNAME}}/fitSwap-frontend:latest
 
   backend:
     runs-on: ubuntu-latest
@@ -110,4 +110,4 @@ jobs:
         with:
           context: ./Server
           push: true
-          tags: ${{vars.DOCKER_USERNAME}}/FitSwap-backend:latest
+          tags: ${{vars.DOCKER_USERNAME}}/fitSwap-backend:latest
