@@ -44,7 +44,7 @@ jobs:
         with:
           context: ./Client
           push: true
-          tags: ${{vars.DOCKER_USERNAME}}/fitSwap-frontend:latest
+          tags: ${{vars.DOCKER_USERNAME}}/fitswap-frontend:latest
 
   backend:
     runs-on: ubuntu-latest
@@ -89,7 +89,7 @@ jobs:
           cache: "npm"
           cache-dependency-path: ./Server/package-lock.json
       - name: Install Dependencies
-        run: npm inatall
+        run: npm install
       - name: Generate Prisma
         run: npx prisma generate
       - name: Deploy
@@ -110,4 +110,4 @@ jobs:
         with:
           context: ./Server
           push: true
-          tags: ${{vars.DOCKER_USERNAME}}/fitSwap-backend:latest
+          tags: ${{vars.DOCKER_USERNAME}}/fitswap-backend:latest
