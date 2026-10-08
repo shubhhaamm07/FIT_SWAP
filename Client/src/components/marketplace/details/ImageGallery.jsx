@@ -1,3 +1,5 @@
+import GymPhoto from "../../common/GymPhoto";
+
 const ImageGallery = ({ images = [] }) => {
   const availableImages = images.filter(Boolean);
 
@@ -5,7 +7,7 @@ const ImageGallery = ({ images = [] }) => {
 
   return (
     <div className="space-y-4">
-      <img
+      <GymPhoto
         src={availableImages[0]}
         alt="Gym"
         className="h-64 w-full rounded-2xl object-cover sm:h-80 sm:rounded-3xl lg:h-[450px]"
@@ -14,7 +16,7 @@ const ImageGallery = ({ images = [] }) => {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
         {availableImages.map((image, index) => (
-          <img
+          <GymPhoto
             key={index}
             src={image}
             alt={`Gym view ${index + 1}`}

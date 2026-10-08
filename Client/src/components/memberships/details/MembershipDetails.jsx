@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import DashboardLayout from "../../../layouts/DashboardLayout";
+import GymPhoto from "../../common/GymPhoto";
 
 import MembershipOverview from "../cards/MembershipOverview";
 import MembershipBenefits from "../cards/MembershipBenefits";
@@ -77,7 +78,7 @@ function MembershipDetails() {
         </button>
 
         <section className="relative isolate mt-5 min-h-[280px] overflow-hidden rounded-2xl border border-violet-400/20 bg-[#160d2d]">
-          <img
+          <GymPhoto
             src={gymImage || dashboardHero}
             alt=""
             className="absolute inset-0 -z-20 h-full w-full object-cover object-[72%_center] opacity-45"

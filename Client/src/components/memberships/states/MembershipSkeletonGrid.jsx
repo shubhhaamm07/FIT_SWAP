@@ -1,4 +1,4 @@
-import SkeletonMembership from "../../dashboard/Skeletons/SkeletonMembership";
+import SkeletonMembership from "../../dashboard/skeletons/SkeletonMembership";
 
 function MembershipSkeletonGrid() {
   return (

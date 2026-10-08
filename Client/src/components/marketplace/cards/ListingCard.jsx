@@ -6,6 +6,7 @@ import {
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { removeSavedListing, saveListing } from "../../../api/marketplace.api";
+import GymPhoto from "../../common/GymPhoto";
 
 import calculateDiscount from "../utils/calculateDiscount";
 import formatPrice from "../utils/formatPrice";
@@ -41,7 +42,7 @@ const ListingCard = ({ listing, isSaved = false, onSavedChange }) => {
       "
     >
       <div className="relative h-32 overflow-hidden sm:h-36">
-        <img
+        <GymPhoto
           src={listing.image}
           alt={listing.gym}
           className="h-full w-full object-cover"

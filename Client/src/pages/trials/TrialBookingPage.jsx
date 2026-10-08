@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import DashboardLayout from "../../layouts/DashboardLayout";
+import GymPhoto from "../../components/common/GymPhoto";
 import { getAllGyms } from "../../api/gym.api";
 import {
   bookTrialSlot,
@@ -248,7 +249,7 @@ function SelectField({ label, value, onChange, children }) {
 function TrialSlotCard({ slot, booked, busy, onBook }) {
   const image = slot.gym?.images?.[0]?.imageUrl;
   return <article className="overflow-hidden rounded-2xl border border-white/[0.08] bg-[#11121a] shadow-xl shadow-black/10">
-    <div className="relative h-32 overflow-hidden bg-[linear-gradient(135deg,#312e81,#111827)]">{image && <img src={image} alt="" className="h-full w-full object-cover opacity-75" />}<div className="absolute inset-0 bg-gradient-to-t from-[#11121a] via-transparent to-transparent" /><span className="absolute right-3 top-3 rounded-full border border-white/10 bg-black/55 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur"><UsersRound size={12} className="mr-1 inline" /> {slot.remainingCapacity} left</span></div>
+    <div className="relative h-32 overflow-hidden bg-[linear-gradient(135deg,#312e81,#111827)]">{image && <GymPhoto src={image} alt="" className="h-full w-full object-cover opacity-75" />}<div className="absolute inset-0 bg-gradient-to-t from-[#11121a] via-transparent to-transparent" /><span className="absolute right-3 top-3 rounded-full border border-white/10 bg-black/55 px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur"><UsersRound size={12} className="mr-1 inline" /> {slot.remainingCapacity} left</span></div>
     <div className="p-5"><h2 className="truncate text-lg font-semibold text-white">{slot.gym?.name}</h2><p className="mt-1 flex items-center gap-1.5 truncate text-xs text-zinc-500"><MapPin size={13} /> {slot.gym?.address}, {slot.gym?.city}</p><div className="mt-4 grid grid-cols-2 gap-2"><Info icon={CalendarDays} text={formatDay(slot.startAt)} /><Info icon={Clock3} text={`${formatTime(slot.startAt)} – ${formatTime(slot.endAt)}`} /></div>{slot.requiresApproval && <p className="mt-3 flex items-center gap-1.5 text-xs text-amber-300"><ShieldCheck size={14} /> Gym confirmation required</p>}<button type="button" disabled={busy || booked} onClick={() => void onBook(slot)} className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-violet-500 disabled:cursor-not-allowed disabled:opacity-50">{busy ? <LoaderCircle size={16} className="animate-spin" /> : booked ? <CheckCircle2 size={16} /> : <TicketCheck size={16} />}{busy ? "Booking…" : booked ? "Previously booked" : "Book free trial"}</button></div>
   </article>;
 }

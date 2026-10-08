@@ -1,5 +1,6 @@
 import { Eye, MapPin, Play, Snowflake, Crown } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import GymPhoto from "../../common/GymPhoto";
 
 import { formatCurrency, formatDate, getGymLocation } from "../utils/membershipHelpers";
 
@@ -27,7 +28,7 @@ function MembershipCard({
       <div className="flex flex-col gap-5 xl:flex-row xl:items-center">
         <div className="h-28 w-full shrink-0 overflow-hidden rounded-xl bg-gradient-to-br from-violet-950 via-[#181026] to-[#06080d] sm:h-32 xl:w-40">
           {gymImage ? (
-            <img src={gymImage} alt={gym.name ?? "Gym"} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+            <GymPhoto src={gymImage} alt={gym.name ?? "Gym"} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
           ) : (
             <div className="grid h-full place-items-center"><Crown size={30} className="text-violet-400/80" /></div>
           )}

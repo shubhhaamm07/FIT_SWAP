@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { CirclePause, CirclePlay, PackageOpen, Sparkles, Trash2, X } from "lucide-react";
 import DashboardLayout from "../../layouts/DashboardLayout";
 import MarketplaceSidebar from "../../components/marketplace/MarketplaceSidebar";
+import GymPhoto from "../../components/common/GymPhoto";
 import {
   activateListing,
   cancelListing,
@@ -219,7 +220,7 @@ function ListingRow({ listing, onAction, onBoost, onRedeemPlusBoost, isFitSwapPl
   const boostEndsAt = listing.boostedUntil ? new Date(listing.boostedUntil) : null;
   return (
     <article className="overflow-hidden rounded-xl border border-white/[0.08] bg-[#11121a] sm:flex">
-      <img
+      <GymPhoto
         src={listing.image}
         alt=""
         className="h-36 w-full object-cover sm:h-auto sm:w-40"

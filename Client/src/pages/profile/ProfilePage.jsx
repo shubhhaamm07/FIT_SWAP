@@ -31,6 +31,7 @@ import { getMyMemberships } from "../../api/membership.api";
 import { getMyListings } from "../../api/marketplace.api";
 import { useAuth } from "../../hooks/useAuth";
 import formatPrice from "../../components/marketplace/utils/formatPrice";
+import GymPhoto from "../../components/common/GymPhoto";
 
 const fallbackImage =
   "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=900";
@@ -503,7 +504,7 @@ function MembershipGrid({ memberships, onOpen }) {
             className="group overflow-hidden rounded-2xl border border-white/[0.08] bg-black/15 text-left transition hover:-translate-y-0.5 hover:border-violet-400/35"
           >
             <div className="relative h-32 overflow-hidden">
-              <img
+              <GymPhoto
                 src={image}
                 alt=""
                 className="h-full w-full object-cover opacity-70 transition duration-300 group-hover:scale-105 group-hover:opacity-90"
@@ -554,7 +555,7 @@ function ListingGrid({ listings, onOpen }) {
           className="group overflow-hidden rounded-2xl border border-white/[0.08] bg-black/15 text-left transition hover:-translate-y-0.5 hover:border-violet-400/35"
         >
           <div className="relative h-32 overflow-hidden">
-            <img
+            <GymPhoto
               src={listing.image || fallbackImage}
               alt=""
               className="h-full w-full object-cover opacity-70 transition duration-300 group-hover:scale-105 group-hover:opacity-90"

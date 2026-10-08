@@ -5,6 +5,7 @@ import DashboardLayout from "../../layouts/DashboardLayout";
 import { getListingById } from "../../api/marketplace.api";
 import { useAuth } from "../../hooks/useAuth";
 import PurchaseCard from "../../components/marketplace/details/PurchaseCard";
+import GymPhoto from "../../components/common/GymPhoto";
 import formatPrice from "../../components/marketplace/utils/formatPrice";
 import calculateDiscount from "../../components/marketplace/utils/calculateDiscount";
 
@@ -57,7 +58,7 @@ const ListingDetailsPage = () => {
 
         <section className="overflow-hidden rounded-2xl border border-white/[0.1] bg-[#11121a] lg:grid lg:grid-cols-[1.05fr_1fr]">
           <div className="relative min-h-[280px] overflow-hidden lg:min-h-[420px]">
-            <img src={listing.image} alt={listing.gym} className="absolute inset-0 h-full w-full object-cover" />
+            <GymPhoto src={listing.image} alt={listing.gym} className="absolute inset-0 h-full w-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a10] via-transparent to-transparent lg:bg-gradient-to-r lg:from-transparent lg:to-[#11121a]" />
             <span className="absolute left-5 top-5 inline-flex items-center gap-1.5 rounded-full border border-violet-400/30 bg-[#130b26]/80 px-3 py-1.5 text-xs font-semibold text-violet-200 backdrop-blur"><Ticket size={13} /> Verified listing</span>
           </div>
