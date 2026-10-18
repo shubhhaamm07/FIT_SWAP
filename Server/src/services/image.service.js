@@ -463,6 +463,11 @@ const getProfileImage = async ({ userId, type, variant = 'default' }) => {
 };
 
 module.exports = {
+    gymImageBucket,
+    inspectAndRenderImage,
+    uploadImageVariants,
+    companionKeys,
+    deleteS3Objects,
     uploadGymImages,
     deleteGymImage,
     setPrimaryImage,

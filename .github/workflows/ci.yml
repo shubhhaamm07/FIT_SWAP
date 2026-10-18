@@ -1,50 +1,41 @@
-# Goal - Making the CI pipeline for Scratch
-# CheckOUT the code
-# setup
-# install dependencies
-# linting
-# testing
-# building
 name: CI
+
 on:
+  pull_request:
   push:
     branches: [main]
+
+permissions:
+  contents: read
+
 jobs:
   frontend:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./Client
+        working-directory: Client
     steps:
-      - name: Checkout Code
+      - name: Check out repository
         uses: actions/checkout@v6
-      - name: Setup Node.js
+
+      - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: "npm"
-          cache-dependency-path: ./Client/package-lock.json
-      - name: Install Dependencies
-        run: npm install
-      - name: Linting
+          cache: npm
+          cache-dependency-path: Client/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci --include=optional --no-audit --no-fund
+
+      - name: Lint
         run: npm run lint
-      - name: Testing
+
+      - name: Test
         run: npm test
-      - name: Docker login
-        uses: docker/login-action@v2
-        with:
-          username: ${{ vars.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_TOKEN}}
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-      - name: Build and push
-        uses: docker/build-push-action@v7
-        with:
-          context: ./Client
-          push: true
-          tags: ${{vars.DOCKER_USERNAME}}/fitswap-frontend:latest
+
+      - name: Build
+        run: npm run build
 
   backend:
     runs-on: ubuntu-latest
@@ -62,7 +53,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U fitswap -d fitswap_test"
+          --health-cmd "pg_isready -U shubham -d fitswap_test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -76,40 +67,62 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+
     defaults:
       run:
-        working-directory: ./Server
+        working-directory: Server
     steps:
-      - name: Checkout Code
+      - name: Check out repository
         uses: actions/checkout@v6
-      - name: Setup Node.js
+
+      - name: Set up Node.js
         uses: actions/setup-node@v7
         with:
           node-version: 22
-          cache: "npm"
-          cache-dependency-path: ./Server/package-lock.json
-      - name: Install Dependencies
-        run: npm install
-      - name: Generate Prisma
+          cache: npm
+          cache-dependency-path: Server/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Generate Prisma Client
         run: npx prisma generate
-      - name: Deploy
+
+      - name: Apply migrations to test database
         run: npx prisma migrate deploy
-      - name: testing
-        env:
-          REDIS_URL: ""
+
+      - name: Test
         run: npm test
-      - name: Docker login
-        uses: docker/login-action@v2
-        with:
-          username: ${{ vars.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_TOKEN}}
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+
+  docker:
+    name: Build Docker images
+    needs: [frontend, backend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
-      - name: Build and push
+
+      # Pull requests build both images, but do not receive registry credentials.
+      - name: Log in to Docker Hub
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ vars.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_TOKEN }}
+
+      - name: Build client image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./Client
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: ${{ github.event_name == 'push' && format('{0}/fitswap-frontend:latest,{0}/fitswap-frontend:{1}', vars.DOCKER_USERNAME, github.sha) || 'fitswap-frontend:ci' }}
+
+      - name: Build server image
         uses: docker/build-push-action@v7
         with:
           context: ./Server
-          push: true
-          tags: ${{vars.DOCKER_USERNAME}}/fitswap-backend:latest
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: ${{ github.event_name == 'push' && format('{0}/fitswap-backend:latest,{0}/fitswap-backend:{1}', vars.DOCKER_USERNAME, github.sha) || 'fitswap-backend:ci' }}

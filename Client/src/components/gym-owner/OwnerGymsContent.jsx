@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Building2, Download, FileText, LoaderCircle, Pencil, Plus, Upload } from "lucide-react";
 import { downloadGymVerification, submitGymVerification } from "../../api/gym.api";
+import OwnerGymPosts from "./OwnerGymPosts";
 
 const formatDate = (value) => new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(new Date(value));
 const tones = {
@@ -35,6 +36,7 @@ export default function OwnerGymsContent({ gyms, onEdit, onAdd, onReload }) {
           <button type="button" onClick={() => onEdit(gym)} className="inline-flex items-center gap-2 rounded-lg border border-violet-400/25 px-3 py-2 text-xs font-semibold text-violet-300 hover:bg-violet-500/10"><Pencil size={14} /> Edit profile</button>
         </div>
         <GymVerificationPanel gym={gym} onReload={onReload} />
+        <OwnerGymPosts gym={gym} />
       </article>
     )}</div>}
   </section>;

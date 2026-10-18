@@ -100,6 +100,7 @@ model Gym {
   verificationDocuments GymVerificationDocument[]
   crowdReports          GymCrowdReport[]
   crowdReportHistory    GymCrowdReportHistory[]
+  posts                 GymPost[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -670,6 +671,33 @@ model GymImage {
   updatedAt DateTime @updatedAt
 
   @@index([gymId])
+}
+
+model GymPost {
+  id          String      @id @default(cuid())
+  gymId       String
+  gym         Gym         @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  kind        GymPostKind
+  title       String
+  body        String?
+  offerPrice  Decimal?    @db.Decimal(12, 2)
+  winnerName  String?
+  posterKey   String?     @unique
+  startsAt    DateTime?
+  endsAt      DateTime?
+  isPublished Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([gymId, isPublished, createdAt])
+  @@index([gymId, endsAt])
+}
+
+enum GymPostKind {
+  UPDATE
+  OFFER
+  EVENT
+  WINNER
 }
 
 // A member's reusable weekly workout template. Completing a session is stored

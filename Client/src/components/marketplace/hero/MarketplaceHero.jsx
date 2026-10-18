@@ -1,5 +1,6 @@
-import { CalendarRange, CirclePlay, Dumbbell, HeartHandshake } from "lucide-react";
+import { CalendarRange, Dumbbell, HeartHandshake } from "lucide-react";
 import heroImage from "../../../assets/images/dashboard-hero.png";
+import MarketplaceGuide from "./MarketplaceGuide";
 
 const MarketplaceHero = () => {
   return (
@@ -17,9 +18,7 @@ const MarketplaceHero = () => {
             <HeroStat icon={Dumbbell} value="28" label="Gyms Available" />
             <HeroStat icon={HeartHandshake} value="1.2K+" label="Happy Members" />
           </div>
-          <button className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-black/25 px-4 py-2 text-sm font-medium text-white backdrop-blur transition hover:border-violet-400 hover:bg-violet-500/15">
-            <CirclePlay size={17} /> How it works
-          </button>
+          <MarketplaceGuide />
         </div>
       </div>
     </section>

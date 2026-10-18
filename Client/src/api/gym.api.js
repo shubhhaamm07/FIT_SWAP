@@ -56,6 +56,37 @@ export const getGymById = async (gymId, config = {}) => {
     return data.data;
 };
 
+export const getGymPosts = async (gymId, config = {}) => {
+    const { data } = await axios.get(`/gyms/${gymId}/posts`, config);
+    return data.data;
+};
+
+export const getMyGymPosts = async (gymId, config = {}) => {
+    const { data } = await axios.get(`/gyms/${gymId}/my-posts`, config);
+    return data.data;
+};
+
+export const saveGymPost = async (gymId, post, poster, postId = null) => {
+    const form = new FormData();
+    for (const [key, value] of Object.entries(post)) {
+        form.append(key, value == null ? "" : String(value));
+    }
+    if (poster) form.append("poster", poster);
+    const path = `/gyms/${gymId}/posts${postId ? `/${postId}` : ""}`;
+    const { data } = await axios({
+        method: postId ? "patch" : "post",
+        url: path,
+        data: form,
+        headers: { "Content-Type": undefined },
+        timeout: 120000,
+    });
+    return data.data;
+};
+
+export const deleteGymPost = async (gymId, postId) => {
+    await axios.delete(`/gyms/${gymId}/posts/${postId}`);
+};
+
 export const createMembershipPlan = async (gymId, planData) => {
     const { data } = await axios.post(`/gyms/${gymId}/plans`, planData);
     return data.data;
