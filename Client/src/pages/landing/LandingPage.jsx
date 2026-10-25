@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import Navbar from "../../components/common/Navbar";
 import HeroSection from "../../components/landing/HeroSection";
+import FitSwapJourneySection from "../../components/landing/FitSwapJourneySection";
 import WhyFitSwapSection from "../../components/landing/WhyFitSwapSection";
 import HowItWorksSection from "../../components/landing/HowItWorksSection";
 import MarketplacePreview from "../../components/landing/MarketplacePreview";
@@ -45,6 +46,7 @@ function LandingPage() {
       <FadeInSection>
         <HeroSection gymCount={gymCount} listingCount={listings.length} />
       </FadeInSection>
+      <FitSwapJourneySection />
       {/* <FadeInSection>
         <StatsSection gymCount={gymCount} listingCount={listings.length} />
       </FadeInSection> */}

@@ -1,0 +1,218 @@
+.fit-journey {
+  padding: clamp(64px, 7vw, 104px) 20px;
+  background: transparent;
+  color: #fff;
+  scroll-margin-top: 84px;
+}
+.fit-journey-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.fit-journey-intro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 32px;
+  margin-bottom: 36px;
+}
+.fit-journey-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 18px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: #d9ff4b;
+}
+.fit-journey-eyebrow > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.fit-journey h2 {
+  margin: 0;
+  font-size: clamp(36px, 4.4vw, 64px);
+  line-height: 1.04;
+  font-weight: 800;
+  letter-spacing: -0.055em;
+}
+.fit-journey h2 > span {
+  color: #c4b5fd;
+}
+.fit-journey-lead {
+  max-width: 370px;
+}
+.fit-journey-lead > p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.9;
+  color: #aaa5b6;
+}
+.fit-journey-lead > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #e3ff83;
+  text-decoration: none;
+}
+.fit-journey-lead > a:hover {
+  color: #fff;
+}
+.fit-journey-scene {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 8;
+  min-height: 380px;
+  margin: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.fit-journey-scene:focus-visible {
+  outline: 2px solid #bfa7ff;
+  outline-offset: 8px;
+}
+.fit-journey-canvas,
+.fit-journey-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: transparent;
+}
+.fit-journey-canvas {
+  display: block;
+  opacity: 0;
+}
+.fit-journey-canvas[data-ready="true"] {
+  opacity: 1;
+}
+.fit-journey-poster {
+  object-fit: contain;
+  padding: 64px 0 0;
+}
+.fit-journey-scene:has(.fit-journey-canvas[data-ready="true"])
+  .fit-journey-poster {
+  opacity: 0;
+}
+.fit-journey-caption {
+  position: absolute;
+  top: 12px;
+  left: 0;
+  max-width: 410px;
+  pointer-events: none;
+}
+.fit-journey-caption .fit-journey-caption-step {
+  color: #d9ff4b;
+  font-size: 10px;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+.fit-journey-caption h3 {
+  font-size: clamp(18px, 2vw, 25px);
+  line-height: 1.3;
+  margin: 9px 0 7px;
+  letter-spacing: -0.035em;
+  font-weight: 700;
+}
+.fit-journey-caption p {
+  color: #b5adc4;
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 0;
+}
+.fit-journey :is(a, button):focus-visible {
+  outline: 3px solid #d9ff4b;
+  outline-offset: 5px;
+}
+.fit-journey-benefits {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 30px;
+  list-style: none;
+  padding: 0;
+  margin: 28px 0 0;
+}
+.fit-journey-benefits > li {
+  position: relative;
+  padding: 18px 24px 10px 0;
+  border-top: 1px solid #ffffff19;
+}
+.fit-journey-benefit-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #bfa7ff;
+}
+.fit-journey-benefit-top > span {
+  color: #776c8c;
+  font:
+    500 11px ui-monospace,
+    monospace;
+}
+.fit-journey-benefits h3 {
+  margin: 20px 0 9px;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+.fit-journey-benefits p {
+  margin: 0;
+  color: #a29bab;
+  font-size: 13px;
+  line-height: 1.8;
+}
+.fit-journey-step-arrow {
+  position: absolute;
+  right: -22px;
+  top: 17px;
+  color: #5e4c76;
+}
+@media (min-width: 768px) {
+  .fit-journey {
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+}
+@media (max-width: 700px) {
+  .fit-journey-intro {
+    display: block;
+    margin-bottom: 26px;
+  }
+  .fit-journey-lead {
+    max-width: 100%;
+    margin-top: 24px;
+  }
+  .fit-journey-scene {
+    aspect-ratio: 4 / 3;
+    min-height: 350px;
+  }
+  .fit-journey-benefits {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .fit-journey-benefits > li {
+    padding-right: 0;
+  }
+  .fit-journey-benefits h3 {
+    margin-top: 12px;
+  }
+  .fit-journey-step-arrow {
+    display: none !important;
+  }
+  .fit-journey-caption {
+    max-width: min(100%, 350px);
+    top: 8px;
+  }
+  .fit-journey-caption p {
+    font-size: 11px;
+  }
+}
