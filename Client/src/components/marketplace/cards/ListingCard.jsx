@@ -1,21 +1,25 @@
 import {
   Heart,
   MapPin,
-  Star,
 } from "lucide-react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../../../hooks/useAuth";
+import { signInPath } from "../../../utils/signInPath";
 import { removeSavedListing, saveListing } from "../../../api/marketplace.api";
 import GymPhoto from "../../common/GymPhoto";
 
 import calculateDiscount from "../utils/calculateDiscount";
 import formatPrice from "../utils/formatPrice";
 const ListingCard = ({ listing, isSaved = false, onSavedChange }) => {
+  const { isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const discount = calculateDiscount(listing.originalPrice, listing.price);
   const [saved, setSaved] = useState(isSaved);
   const [saveError, setSaveError] = useState("");
 
   const handleSave = async () => {
+    if (!isAuthenticated) return navigate(signInPath(`/marketplace/${listing.id}`));
     try {
       setSaveError("");
       if (saved) await removeSavedListing(listing.id);
@@ -48,7 +52,7 @@ const ListingCard = ({ listing, isSaved = false, onSavedChange }) => {
           className="h-full w-full object-cover"
         />
 
-        <button type="button" onClick={handleSave}
+        <button type="button" onClick={handleSave} aria-label={`${saved ? "Unsave" : "Save"} ${listing.membership} at ${listing.gym}`} aria-pressed={saved}
           className="
             absolute
             right-2.5
@@ -74,7 +78,7 @@ const ListingCard = ({ listing, isSaved = false, onSavedChange }) => {
 
       <div className="space-y-3 p-3">
         <div>
-          <div className="flex items-center justify-between gap-2"><h3 className="truncate text-xs font-semibold text-white">{listing.gym}</h3><span className="flex shrink-0 items-center gap-0.5 text-[10px] text-amber-300"><Star size={11} fill="currentColor" /> 4.7</span></div>
+          <h3 className="truncate text-xs font-semibold text-white">{listing.gym}</h3>
           <p className="mt-1 flex items-center gap-1 text-[10px] text-zinc-500">
             <MapPin size={10} className="shrink-0" />
             <span className="truncate">{listing.location}</span>
@@ -85,7 +89,7 @@ const ListingCard = ({ listing, isSaved = false, onSavedChange }) => {
             )}
           </p>
         </div>
-        <div><p className="text-[10px] font-medium text-zinc-200">{listing.membership}</p><p className="mt-1 text-[10px] text-zinc-500">Valid till {listing.validTill || "15 Dec 2026"}<span className="float-right text-violet-400">{Math.max(1, Math.round(listing.remainingDays / 30))} months left</span></p></div>
+        <div><p className="text-[10px] font-medium text-zinc-200">{listing.membership}</p><p className="mt-1 text-[10px] text-zinc-500">Valid until {listing.validTill || "Not provided"} · {listing.remainingDays} days left</p><p className="mt-1 text-[10px] text-zinc-500">Listing {listing.id.slice(-8)}</p></div>
 
         <div className="flex items-end justify-between">
           <div>
@@ -101,7 +105,7 @@ const ListingCard = ({ listing, isSaved = false, onSavedChange }) => {
             </div>
           </div>
 
-          <Link to={`/marketplace/${listing.id}`} className="rounded-md border border-violet-500/70 px-2.5 py-1.5 text-[10px] font-medium text-violet-300 transition hover:bg-violet-600 hover:text-white">View Details</Link>
+          <Link to={`/marketplace/${listing.id}`} aria-label={`View ${listing.membership} at ${listing.gym}, listing ${listing.id}`} className="rounded-md border border-violet-500/70 px-2.5 py-1.5 text-[10px] font-medium text-violet-300 transition hover:bg-violet-600 hover:text-white">View Details</Link>
         </div>
 
         {saveError && <p className="text-[10px] text-red-400">{saveError}</p>}

@@ -77,10 +77,12 @@ export const getMarketplaceListings = async (config = {}) => {
 };
 
 export const getListingById = async (
-    listingId
+    listingId,
+    config = {},
 ) => {
     const { data } = await axios.get(
-        `/listings/${listingId}`
+        `/listings/${listingId}`,
+        config,
     );
 
     return mapMarketplaceListing(data.data);

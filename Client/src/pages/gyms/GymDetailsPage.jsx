@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, BadgeCheck, CalendarCheck2, Check, CheckCircle2, CircleAlert, Clock3, Dumbbell, LoaderCircle, MapPin, Phone, Sparkles, X } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
-import DashboardLayout from "../../layouts/DashboardLayout";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import BrowseLayout from "../../layouts/BrowseLayout";
 import { getGymById } from "../../api/gym.api";
 import { getMyMemberships } from "../../api/membership.api";
 import { cancelUpiPaymentRequest, createGymUpiPaymentRequest, getMyUpiPaymentRequests, markUpiPaymentPaid } from "../../api/upi-payment.api";
@@ -12,10 +12,15 @@ import GymPhoto from "../../components/common/GymPhoto";
 import formatPrice from "../../components/marketplace/utils/formatPrice";
 import { isRequestCancelled, useVisibilityPolling } from "../../hooks/useVisibilityPolling";
 
+import { useAuth } from "../../hooks/useAuth";
+import PageMetadata from "../../seo/PageMetadata";
+import { signInPath } from "../../utils/signInPath";
+
 const fallbackImage = "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?w=1200";
 
 function GymDetailsPage() {
   const { gymId } = useParams();
+  const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [gym, setGym] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -33,7 +38,7 @@ function GymDetailsPage() {
       try {
         const [gymData, membershipsResponse] = await Promise.all([
           getGymById(gymId, { signal: controller.signal }),
-          getMyMemberships({ signal: controller.signal }).catch(() => ({ data: [] })),
+          isAuthenticated ? getMyMemberships({ signal: controller.signal }).catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
         ]);
         if (controller.signal.aborted) return;
         setGym(gymData);
@@ -48,7 +53,7 @@ function GymDetailsPage() {
     };
     void loadGym();
     return () => controller.abort();
-  }, [gymId]);
+  }, [gymId, isAuthenticated]);
 
   const refreshUpiRequest = useCallback(async ({ signal } = {}) => {
     if (!upiRequestId || ["COMPLETED", "REJECTED", "CANCELLED", "EXPIRED"].includes(upiRequestStatus)) return;
@@ -115,23 +120,24 @@ function GymDetailsPage() {
     }
   };
 
-  if (loading) return <DashboardLayout><div className="flex min-h-96 items-center justify-center gap-2 text-sm text-zinc-400"><LoaderCircle size={18} className="animate-spin" /> Loading gym…</div></DashboardLayout>;
-  if (!gym) return <DashboardLayout><div className="mx-auto max-w-xl rounded-2xl border border-red-500/20 bg-red-500/5 p-6 text-red-200">{message || "Gym not found."}<button type="button" onClick={() => navigate("/gyms")} className="mt-4 block text-sm font-semibold text-white">Back to gyms</button></div></DashboardLayout>;
+  if (loading) return <BrowseLayout><PageMetadata title="Partner Gym | FitSwap" description="Explore gym details and membership plans." /><div className="flex min-h-96 items-center justify-center gap-2 text-sm text-zinc-400"><LoaderCircle size={18} className="animate-spin" /> Loading gym…</div></BrowseLayout>;
+  if (!gym) return <BrowseLayout><PageMetadata title="Gym Unavailable | FitSwap" description="Browse approved FitSwap partner gyms." noindex /><div className="mx-auto max-w-xl rounded-2xl border border-red-500/20 bg-red-500/5 p-6 text-red-200">{message || "Gym not found."}<button type="button" onClick={() => navigate("/gyms")} className="mt-4 block text-sm font-semibold text-white">Back to gyms</button></div></BrowseLayout>;
 
   const image = gym.images?.find((item) => item.isPrimary)?.imageUrl || gym.images?.[0]?.imageUrl || fallbackImage;
   const isError = /unable|already|failed|cancelled|not configured|contact support/i.test(message);
 
-  return <DashboardLayout>
-    <main className="mx-auto w-full max-w-5xl pb-8">
+  return <BrowseLayout>
+    <PageMetadata title={`${gym.name} in ${gym.city} | FitSwap`} description={`Explore ${gym.name} in ${gym.city}, ${gym.state}. View published membership plans and contact the gym to confirm facilities and opening hours.`} />
+    <div className="mx-auto w-full max-w-5xl pb-8">
       <button type="button" onClick={() => navigate("/gyms")} className="mb-5 inline-flex items-center gap-2 text-sm font-medium text-zinc-400 transition hover:text-white"><ArrowLeft size={16} /> All gyms</button>
       {message && <div className={`mb-5 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm ${isError ? "border-red-500/20 bg-red-500/5 text-red-300" : "border-emerald-500/20 bg-emerald-500/5 text-emerald-300"}`}><CircleAlert size={16} />{message}{!isError && purchasedPlanIds.length > 0 && <button type="button" onClick={() => navigate("/memberships")} className="ml-auto shrink-0 text-xs font-bold text-emerald-200 underline">View memberships</button>}</div>}
-      <section className="overflow-hidden rounded-[28px] border border-white/[0.08] bg-[#11121a]"><div className="relative h-64 sm:h-80"><GymPhoto src={image} alt="" className="h-full w-full object-cover opacity-65" /><div className="absolute inset-0 bg-gradient-to-t from-[#11121a] via-[#11121a]/15" /></div><div className="relative -mt-20 px-6 pb-7 sm:px-8"><span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/90 px-2.5 py-1 text-xs font-bold text-white"><BadgeCheck size={14} /> Approved FitSwap gym</span><h1 className="mt-4 text-3xl font-bold text-white sm:text-4xl">{gym.name}</h1><p className="mt-2 flex items-center gap-1.5 text-sm text-zinc-300"><MapPin size={15} /> {gym.address}, {gym.city}, {gym.state} {gym.pincode}</p><p className="mt-5 max-w-3xl text-sm leading-6 text-zinc-400">{gym.description || "An official FitSwap partner gym offering fresh memberships for your fitness journey."}</p></div></section>
-      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_280px]"><section className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5 sm:p-6"><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-violet-500/10 text-violet-300"><Dumbbell size={19} /></div><div><h2 className="font-bold text-white">Official memberships</h2><p className="mt-1 text-sm text-zinc-500">Buy a new plan directly from {gym.name}.</p></div></div><div className="mt-6 space-y-3">{gym.plans?.length ? gym.plans.map((plan) => <PlanCard key={plan.id} plan={plan} purchased={purchasedPlanIds.includes(plan.id)} onChoose={() => setSelectedPlan(plan)} />) : <p className="rounded-xl border border-dashed border-white/[0.1] p-5 text-sm text-zinc-500">This gym has no published membership plans yet.</p>}</div></section><aside className="space-y-5"><section className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5"><h2 className="font-semibold text-white">Gym information</h2><div className="mt-4 space-y-4 text-sm text-zinc-400"><p className="flex items-center gap-2"><Phone size={15} className="text-violet-300" /> {gym.phone}</p><p className="flex items-center gap-2"><Clock3 size={15} className="text-violet-300" /> Contact gym for opening hours</p></div></section><section className="rounded-2xl border border-cyan-400/15 bg-cyan-500/[0.06] p-5"><CalendarCheck2 size={20} className="text-cyan-300" /><h2 className="mt-3 font-semibold text-white">Try before you join</h2><p className="mt-2 text-sm leading-5 text-zinc-400">Reserve an available trial session at this gym.</p><button type="button" onClick={() => navigate(`/trials?gymId=${gym.id}`)} className="mt-4 w-full rounded-xl bg-cyan-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-cyan-500">View trial slots</button></section><section className="rounded-2xl border border-violet-500/15 bg-violet-500/[0.06] p-5"><Sparkles size={20} className="text-violet-300" /><h2 className="mt-3 font-semibold text-white">Why buy direct?</h2><ul className="mt-3 space-y-2 text-sm leading-5 text-zinc-400"><li className="flex gap-2"><Check size={15} className="mt-0.5 text-emerald-300" /> Fresh membership issued by the gym</li><li className="flex gap-2"><Check size={15} className="mt-0.5 text-emerald-300" /> Full plan validity from today</li><li className="flex gap-2"><Check size={15} className="mt-0.5 text-emerald-300" /> Official FitSwap partner</li></ul></section></aside></div>
-      <GymUpdatesFeed key={gym.id} gymId={gym.id} gymName={gym.name} />
-      <div className="mt-6"><CrowdLevelCard gymId={gym.id} /></div>
-    </main>
+      <section className="overflow-hidden rounded-[28px] border border-white/[0.08] bg-[#11121a]"><div className="relative h-64 sm:h-80"><GymPhoto src={image} alt={gym.name} loading="eager" sizes="(min-width: 1280px) 1024px, 100vw" className="h-full w-full object-cover opacity-65" /><div className="absolute inset-0 bg-gradient-to-t from-[#11121a] via-[#11121a]/15" /></div><div className="relative -mt-20 px-6 pb-7 sm:px-8"><span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/90 px-2.5 py-1 text-xs font-bold text-white"><BadgeCheck size={14} /> Approved FitSwap gym</span><h1 className="mt-4 text-3xl font-bold text-white sm:text-4xl">{gym.name}</h1><p className="mt-2 flex items-center gap-1.5 text-sm text-zinc-300"><MapPin size={15} /> {gym.address}, {gym.city}, {gym.state} {gym.pincode}</p><p className="mt-5 max-w-3xl text-sm leading-6 text-zinc-400">{gym.description || "An official FitSwap partner gym offering fresh memberships for your fitness journey."}</p></div></section>
+      <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_280px]"><section className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5 sm:p-6"><div className="flex items-center gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-violet-500/10 text-violet-300"><Dumbbell size={19} /></div><div><h2 className="font-bold text-white">Official memberships</h2><p className="mt-1 text-sm text-zinc-500">Buy a new plan directly from {gym.name}.</p></div></div><div className="mt-6 space-y-3">{gym.plans?.length ? gym.plans.map((plan) => <PlanCard key={plan.id} plan={plan} purchased={purchasedPlanIds.includes(plan.id)} onChoose={() => isAuthenticated ? setSelectedPlan(plan) : navigate(signInPath(`/gyms/${gymId}`))} />) : <p className="rounded-xl border border-dashed border-white/[0.1] p-5 text-sm text-zinc-500">This gym has no published membership plans yet.</p>}</div></section><aside className="space-y-5"><section className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5"><h2 className="font-semibold text-white">Gym information</h2><div className="mt-4 space-y-4 text-sm text-zinc-400"><p className="flex items-center gap-2"><Phone size={15} className="text-violet-300" /> {gym.phone}</p><p className="flex items-center gap-2"><Clock3 size={15} className="text-violet-300" /> Contact gym for opening hours</p></div></section><section className="rounded-2xl border border-cyan-400/15 bg-cyan-500/[0.06] p-5"><CalendarCheck2 size={20} className="text-cyan-300" /><h2 className="mt-3 font-semibold text-white">Try before you join</h2><p className="mt-2 text-sm leading-5 text-zinc-400">Reserve an available trial session at this gym.</p><button type="button" onClick={() => navigate(isAuthenticated ? `/trials?gymId=${gym.id}` : signInPath(`/trials?gymId=${gym.id}`))} className="mt-4 w-full rounded-xl bg-cyan-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-cyan-500">View trial slots</button></section><section className="rounded-2xl border border-violet-500/15 bg-violet-500/[0.06] p-5"><Sparkles size={20} className="text-violet-300" /><h2 className="mt-3 font-semibold text-white">Why buy direct?</h2><ul className="mt-3 space-y-2 text-sm leading-5 text-zinc-400"><li className="flex gap-2"><Check size={15} className="mt-0.5 text-emerald-300" /> Fresh membership issued by the gym</li><li className="flex gap-2"><Check size={15} className="mt-0.5 text-emerald-300" /> Full plan validity from today</li><li className="flex gap-2"><Check size={15} className="mt-0.5 text-emerald-300" /> Official FitSwap partner</li></ul></section></aside></div>
+      {isAuthenticated && <GymUpdatesFeed key={gym.id} gymId={gym.id} gymName={gym.name} />}
+      {isAuthenticated ? <div className="mt-6"><CrowdLevelCard gymId={gym.id} /></div> : <p className="mt-6 text-sm text-zinc-400"><Link to={signInPath(`/gyms/${gym.id}`)} className="text-violet-300 underline">Sign in</Link> for member updates and crowd insights.</p>}
+    </div>
     {selectedPlan && <PurchasePlanModal gym={gym} plan={selectedPlan} request={upiRequest} buying={buying} onClose={() => { setSelectedPlan(null); setUpiRequest(null); }} onConfirm={startUpiCheckout} onMarkPaid={markPaid} onCancel={cancelUpiRequest} />}
-  </DashboardLayout>;
+  </BrowseLayout>;
 }
 
 function PlanCard({ plan, purchased, onChoose }) { return <article className="rounded-2xl border border-white/[0.08] bg-black/10 p-4"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="font-semibold text-white">{plan.name}</p><p className="mt-1 text-sm text-zinc-500">{plan.durationInDays} days · {plan.transferable ? "Transferable" : "Non-transferable"}{plan.freezeAllowed ? " · Freeze available" : ""}</p>{plan.description && <p className="mt-2 text-sm text-zinc-400">{plan.description}</p>}</div><div className="flex items-center justify-between gap-4 sm:block sm:text-right"><p className="text-xl font-bold text-white">{formatPrice(plan.price)}</p><button type="button" disabled={purchased} onClick={onChoose} className={`mt-2 inline-flex items-center justify-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${purchased ? "cursor-default bg-emerald-500/15 text-emerald-300" : "bg-violet-600 text-white hover:bg-violet-500"}`}>{purchased ? <><CheckCircle2 size={16} /> Membership active</> : "Get membership"}</button></div></div></article>; }

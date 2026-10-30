@@ -1,22 +1,17 @@
 import { useEffect, useState } from "react";
 import { Dumbbell, Menu, X } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
-const navigationItems = ["Marketplace", "How It Works", "Partner Gyms", "Pricing"];
+const navigationItems = [
+  { label: "Marketplace", to: "/marketplace" },
+  { label: "How It Works", to: "/how-it-works" },
+  { label: "Partner Gyms", to: "/gyms" },
+  { label: "Fees & Payments", to: "/fees-and-payments" },
+];
 
 function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const navigate = useNavigate();
-
-  const navigateLanding = (item) => {
-    setMenuOpen(false);
-
-    if (item === "Marketplace") return navigate("/login");
-    if (item === "How It Works") return document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" });
-    if (item === "Partner Gyms") return document.getElementById("marketplace-preview")?.scrollIntoView({ behavior: "smooth" });
-    return navigate("/register");
-  };
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 30);
@@ -27,6 +22,7 @@ function Navbar() {
 
   return (
     <nav className={`landing-web3-nav fixed left-0 top-0 z-50 w-full transition-all duration-500 ${scrolled || menuOpen ? "is-scrolled" : ""}`}>
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-violet-600 focus:px-4 focus:py-3">Skip to content</a>
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:h-20 sm:px-6 lg:px-8">
         <Link to="/" className="group flex min-w-0 items-center gap-2.5 sm:gap-3" onClick={() => setMenuOpen(false)}>
           <div className="landing-web3-brand grid h-10 w-10 shrink-0 place-items-center rounded-xl text-white transition duration-300 group-hover:rotate-12 group-hover:scale-110 sm:h-12 sm:w-12 sm:rounded-2xl">
@@ -34,13 +30,13 @@ function Navbar() {
             <Dumbbell size={24} className="hidden sm:block" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-xl font-extrabold tracking-wide sm:text-2xl">Fit<span className="landing-web3-brand-accent">Swap</span></h1>
+            <span className="block text-xl font-extrabold tracking-wide sm:text-2xl">Fit<span className="landing-web3-brand-accent">Swap</span></span>
             <p className="-mt-1 hidden text-xs text-zinc-500 sm:block">Gym Marketplace</p>
           </div>
         </Link>
 
         <div className="hidden items-center gap-7 xl:flex">
-          {navigationItems.map((item) => <NavButton key={item} item={item} onClick={navigateLanding} />)}
+          {navigationItems.map((item) => <Link key={item.to} to={item.to} className="landing-web3-link relative text-sm transition-colors duration-300">{item.label}</Link>)}
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-3">
@@ -55,17 +51,13 @@ function Navbar() {
       {menuOpen && (
         <div className="landing-web3-mobile border-t px-4 py-4 xl:hidden">
           <div className="mx-auto grid max-w-7xl gap-1">
-            {navigationItems.map((item) => <button key={item} type="button" onClick={() => navigateLanding(item)} className="flex min-h-11 items-center rounded-xl px-4 text-left text-sm font-medium text-zinc-200 transition hover:bg-violet-500/12 hover:text-violet-100">{item}</button>)}
+            {navigationItems.map((item) => <Link key={item.to} to={item.to} onClick={() => setMenuOpen(false)} className="flex min-h-11 items-center rounded-xl px-4 text-left text-sm font-medium text-zinc-200 transition hover:bg-violet-500/12 hover:text-violet-100">{item.label}</Link>)}
             <Link to="/login" onClick={() => setMenuOpen(false)} className="mt-2 flex min-h-11 items-center rounded-xl px-4 text-sm font-semibold text-sky-200 transition hover:bg-sky-500/10 sm:hidden">Login</Link>
           </div>
         </div>
       )}
     </nav>
   );
-}
-
-function NavButton({ item, onClick }) {
-  return <button type="button" onClick={() => onClick(item)} className="landing-web3-link relative text-sm transition-colors duration-300 after:absolute after:-bottom-2 after:left-0 after:h-px after:w-0 after:transition-all after:duration-300 hover:after:w-full">{item}</button>;
 }
 
 export default Navbar;

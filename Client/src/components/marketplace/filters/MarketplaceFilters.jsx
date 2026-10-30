@@ -31,11 +31,12 @@ const MarketplaceFilters = ({
       {/* Search */}
 
       <div className="mb-4">
-        <label className="mb-2 block text-xs font-medium text-zinc-300">
+        <label htmlFor="marketplace-search" className="mb-2 block text-xs font-medium text-zinc-300">
           Search
         </label>
 
         <SearchBar
+          id="marketplace-search"
           value={filters.search}
           onChange={(value) => updateFilter("search", value)}
         />
@@ -44,11 +45,12 @@ const MarketplaceFilters = ({
       {/* Location */}
 
       <div className="mb-4">
-        <label className="mb-2 flex items-center gap-2 text-xs font-medium text-zinc-300">
+        <label htmlFor="marketplace-state" className="mb-2 flex items-center gap-2 text-xs font-medium text-zinc-300">
           <Building2 size={14} /> State
         </label>
 
         <input
+          id="marketplace-state"
           list="marketplace-states"
           value={filters.state}
           onChange={(event) => updateFilter("state", event.target.value)}
@@ -60,10 +62,11 @@ const MarketplaceFilters = ({
           {locationOptions.states.map((state) => <option key={state} value={state} />)}
         </datalist>
 
-        <label className="mb-2 mt-3 block text-xs font-medium text-zinc-300">
+        <label htmlFor="marketplace-city" className="mb-2 mt-3 block text-xs font-medium text-zinc-300">
           City or district
         </label>
         <input
+          id="marketplace-city"
           list="marketplace-cities"
           value={filters.city}
           onChange={(event) => updateFilter("city", event.target.value)}
@@ -83,7 +86,7 @@ const MarketplaceFilters = ({
 
       <div className="mb-4">
         <div className="mb-2 flex items-center justify-between gap-2">
-          <label className="flex items-center gap-2 text-xs font-medium text-zinc-300">
+          <label htmlFor="marketplace-distance" className="flex items-center gap-2 text-xs font-medium text-zinc-300">
             <MapPin size={14} /> Distance
           </label>
           {userLocation && <button type="button" onClick={clearUserLocation} className="text-[11px] font-semibold text-zinc-400 hover:text-white">Clear</button>}
@@ -100,6 +103,7 @@ const MarketplaceFilters = ({
         </button>
 
         <select
+          id="marketplace-distance"
           value={filters.distance}
           onChange={(e) => updateFilter("distance", e.target.value)}
           disabled={!userLocation}
@@ -131,6 +135,8 @@ const MarketplaceFilters = ({
         <div className="grid grid-cols-2 gap-2">
           <input
             type="number"
+            aria-label="Minimum price in rupees"
+            min="0"
             placeholder="Min"
             value={filters.minPrice}
             onChange={(e) => updateFilter("minPrice", e.target.value)}
@@ -139,6 +145,8 @@ const MarketplaceFilters = ({
 
           <input
             type="number"
+            aria-label="Maximum price in rupees"
+            min="0"
             placeholder="Max"
             value={filters.maxPrice}
             onChange={(e) => updateFilter("maxPrice", e.target.value)}
@@ -150,11 +158,12 @@ const MarketplaceFilters = ({
       {/* Membership type */}
 
       <div className="mb-5">
-        <label className="mb-2 flex items-center gap-2 text-xs font-medium text-zinc-300">
+        <label htmlFor="marketplace-duration" className="mb-2 flex items-center gap-2 text-xs font-medium text-zinc-300">
           <CalendarDays size={14} /> Remaining Days
         </label>
 
         <select
+          id="marketplace-duration"
           value={filters.duration}
           onChange={(e) => updateFilter("duration", e.target.value)}
           className="w-full rounded-lg border border-white/[0.08] bg-[#15161e] px-3 py-2.5 text-xs text-white outline-none"
@@ -171,20 +180,10 @@ const MarketplaceFilters = ({
 
       <div className="mb-5">
         <label className="mb-3 block text-xs font-medium text-zinc-300">
-          Amenities
+          Listing options
         </label>
 
         <div className="space-y-2.5">
-          <label className="flex items-center gap-2 text-xs text-zinc-300">
-            <input
-              type="checkbox"
-              checked={filters.verifiedOnly}
-              onChange={(e) => updateFilter("verifiedOnly", e.target.checked)}
-              className="h-4 w-4 accent-violet-600"
-            />
-            Swimming Pool
-          </label>
-
           <label className="flex items-center gap-2 text-xs text-zinc-300">
             <input
               type="checkbox"
@@ -192,14 +191,14 @@ const MarketplaceFilters = ({
               onChange={(e) => updateFilter("featuredOnly", e.target.checked)}
               className="h-4 w-4 accent-violet-600"
             />
-            Personal Training
+            Featured listings only
           </label>
         </div>
       </div>
 
       {/* Buttons */}
 
-      <button onClick={resetFilters} className="flex items-center gap-1.5 text-xs text-violet-400 hover:text-violet-300"><RotateCcw size={13} /> Show more</button>
+      <button onClick={resetFilters} className="flex items-center gap-1.5 text-xs text-violet-400 hover:text-violet-300"><RotateCcw size={13} /> Clear all filters</button>
     </aside>
   );
 };

@@ -5,8 +5,10 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
-import membershipSculpture from "../../assets/images/fitswap-3d-membership-cutout.png";
+import { Link } from "react-router-dom";
+import membershipSculpture from "../../assets/images/optimized/membership-640.webp";
+import sculptureSmall from "../../assets/images/optimized/membership-360.webp";
+import sculptureLarge from "../../assets/images/optimized/membership-1024.webp";
 
 const enter = {
   hidden: { opacity: 0, y: 22 },
@@ -14,12 +16,6 @@ const enter = {
 };
 
 function HeroSection({ gymCount, listingCount }) {
-  const navigate = useNavigate();
-
-  const scrollToHowItWorks = () => {
-    document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" });
-  };
-
   return (
     <section className="fit-hero relative isolate overflow-hidden pt-16 sm:pt-20">
       <div className="fit-hero-noise absolute inset-0 -z-30" />
@@ -51,7 +47,7 @@ function HeroSection({ gymCount, listingCount }) {
         >
           <HeroMetric value={listingCount || "—"} label="Live passes" />
           <HeroMetric value={gymCount || "—"} label="Partner gyms" />
-          <HeroMetric value="100%" label="Verified flow" />
+          <HeroMetric value="Plan-led" label="Transfer checks" />
         </motion.aside>
 
         <MembershipSculpture />
@@ -63,24 +59,22 @@ function HeroSection({ gymCount, listingCount }) {
           className="fit-hero-copy mt-8 text-center lg:mt-0 lg:text-left"
         >
           <p className="text-base leading-7 text-zinc-300 sm:text-lg">
-            Buy verified memberships, recover unused value, and move ownership through one secure workflow.
+            Compare gym memberships, recover unused value, and follow a clear ownership handover.
           </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:justify-center lg:justify-start">
-            <button
-              type="button"
-              onClick={() => navigate("/login")}
+            <Link
+              to="/marketplace"
               className="fit-hero-primary group inline-flex items-center justify-center gap-2 rounded-full px-5 py-3.5 text-sm font-bold text-[#131116]"
             >
               Explore marketplace
               <ArrowRight size={17} className="transition-transform group-hover:translate-x-1" />
-            </button>
-            <button
-              type="button"
-              onClick={scrollToHowItWorks}
+            </Link>
+            <Link
+              to="/how-it-works"
               className="fit-hero-secondary inline-flex items-center justify-center gap-2 rounded-full px-5 py-3.5 text-sm font-semibold text-white"
             >
               See how it works
-            </button>
+            </Link>
           </div>
           <div className="mt-7 inline-flex items-center gap-3 rounded-2xl border border-white/[0.09] bg-white/[0.035] px-3.5 py-3 text-left backdrop-blur-md">
             <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-400/10 text-emerald-300"><ShieldCheck size={18} /></span>
@@ -91,7 +85,7 @@ function HeroSection({ gymCount, listingCount }) {
 
       <div className="fit-hero-marquee border-y border-white/[0.08] py-3">
         <div className="fit-hero-marquee-track" aria-hidden="true">
-          {["Verified gyms", "Secure transfers", "Real membership value", "FitSwap marketplace", "Payment protected", "Verified gyms", "Secure transfers", "Real membership value", "FitSwap marketplace", "Payment protected"].map((item, index) => <span key={`${item}-${index}`}><Dumbbell size={14} /> {item}</span>)}
+          {["Approved gyms", "Visible transfer steps", "Real membership value", "FitSwap marketplace", "Direct UPI payments", "Approved gyms", "Visible transfer steps", "Real membership value", "FitSwap marketplace", "Direct UPI payments"].map((item, index) => <span key={`${item}-${index}`}><Dumbbell size={14} /> {item}</span>)}
         </div>
       </div>
     </section>
@@ -111,6 +105,11 @@ function MembershipSculpture() {
       <div className="fit-sculpture-orbit fit-sculpture-orbit-two" />
       <motion.img
         src={membershipSculpture}
+        srcSet={`${sculptureSmall} 360w, ${membershipSculpture} 640w, ${sculptureLarge} 1024w`}
+        sizes="(min-width: 1024px) 510px, (min-width: 640px) 430px, calc(100vw - 40px)"
+        width="1024"
+        height="1536"
+        fetchPriority="high"
         alt="Floating FitSwap membership card with gym equipment"
         className="fit-sculpture-image relative z-10 mx-auto block w-full"
         animate={{ y: [0, -12, 0], rotate: [-1, 1.3, -1] }}

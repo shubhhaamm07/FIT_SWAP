@@ -7,7 +7,9 @@ function LoginPage() {
     <AuthLayout>
       <div className="auth-editorial-card rounded-[28px] p-6 sm:p-8">
         <AuthHeader />
-        <div className="mt-8"><LoginForm /></div>
+        <div className="mt-8">
+          <LoginForm />
+        </div>
       </div>
     </AuthLayout>
   );

@@ -55,16 +55,8 @@ if (process.env.NODE_ENV === 'production') {
     app.set('trust proxy', 1);
 }
 
-const configuredOrigins = String(
-    process.env.CLIENT_URLS ||
-    process.env.CLIENT_URL ||
-    'http://localhost:5173'
-)
-    .split(',')
-    .map((origin) => origin.trim().replace(/\/$/, ''))
-    .filter(Boolean);
-
-const allowedOrigins = new Set(configuredOrigins);
+const { buildAllowedOrigins } = require('./security/client-origins');
+const allowedOrigins = buildAllowedOrigins();
 
 app.disable('x-powered-by');
 app.use((req, res, next) => {

@@ -41,7 +41,7 @@ const authResponseUser = (user) => ({
     emailVerifiedAt: user.emailVerifiedAt
 });
 
-const completePrimarySignIn = async ({ user, req, res, authMethod }) => {
+const completePrimarySignIn = async ({ user, req, res, authMethod, mobile = false }) => {
     const mfaChallenge = await adminMfa.beginAdminMfa(user, authMethod);
     if (mfaChallenge) {
         return res.status(200).json({
@@ -53,6 +53,9 @@ const completePrimarySignIn = async ({ user, req, res, authMethod }) => {
     }
     const session = await securityService.createSession({ user, req, authMethod });
     const token = generateToken(user, session.id);
+    if (mobile) {
+        return res.status(200).json({ success: true, user: authResponseUser(user), token });
+    }
     setSessionCookie(res, token);
     return res.status(200).json({ success: true, user: authResponseUser(user) });
 };
@@ -90,12 +93,12 @@ const register = async (req, res) => {
         });
     }
 };
-const login = async (req, res) => {
+const loginWithSession = async (req, res, mobile = false) => {
     let user;
     try {
         await securityService.assertLoginAllowed(req.body?.email, req);
         user = await authService.loginUser(req.body);
-        return completePrimarySignIn({ user, req, res, authMethod: 'PASSWORD' });
+        return await completePrimarySignIn({ user, req, res, authMethod: 'PASSWORD', mobile });
     } catch (error) {
         if (!user && error.code !== 'LOGIN_TEMPORARILY_BLOCKED') {
             await securityService.recordFailedLogin(req.body?.email, req, 'PASSWORD').catch(() => undefined);
@@ -109,11 +112,14 @@ const login = async (req, res) => {
     }
 };
 
-const googleLogin = async (req, res) => {
+const login = (req, res) => loginWithSession(req, res);
+const mobileLogin = (req, res) => loginWithSession(req, res, true);
+
+const googleLoginWithSession = async (req, res, mobile = false) => {
     let user;
     try {
         user = await authService.loginWithGoogleCredential(req.body?.credential);
-        return completePrimarySignIn({ user, req, res, authMethod: 'GOOGLE' });
+        return await completePrimarySignIn({ user, req, res, authMethod: 'GOOGLE', mobile });
     } catch (error) {
         return res.status(error.statusCode || (user ? 500 : 401)).json({
             success: false,
@@ -122,6 +128,9 @@ const googleLogin = async (req, res) => {
         });
     }
 };
+
+const googleLogin = (req, res) => googleLoginWithSession(req, res);
+const mobileGoogleLogin = (req, res) => googleLoginWithSession(req, res, true);
 
 const getAdminMfaEnrollment = async (req, res) => {
     try {
@@ -132,17 +141,19 @@ const getAdminMfaEnrollment = async (req, res) => {
     }
 };
 
-const verifyAdminMfa = async (req, res) => {
+const verifyAdminMfaWithSession = async (req, res, mobile = false) => {
     try {
         const result = await adminMfa.verifyAdminMfa({
             challengeToken: req.body?.mfaChallengeToken,
             code: req.body?.code,
         });
         const session = await securityService.createSession({ user: result.user, req, authMethod: result.authMethod });
-        setSessionCookie(res, generateToken(result.user, session.id));
+        const token = generateToken(result.user, session.id);
+        if (!mobile) setSessionCookie(res, token);
         return res.status(200).json({
             success: true,
             user: authResponseUser(result.user),
+            ...(mobile ? { token } : {}),
             mfaEnabled: true,
             recoveryCodes: result.recoveryCodes,
         });
@@ -150,6 +161,9 @@ const verifyAdminMfa = async (req, res) => {
         return res.status(error.statusCode || 400).json({ success: false, message: error.message, code: error.code });
     }
 };
+
+const verifyAdminMfa = (req, res) => verifyAdminMfaWithSession(req, res);
+const mobileVerifyAdminMfa = (req, res) => verifyAdminMfaWithSession(req, res, true);
 
 const requestPasswordReset = async (req, res) => {
     try {
@@ -323,6 +337,9 @@ const deleteMe = async (req, res) => {
 module.exports = {
     register,
     login,
+    mobileLogin,
+    mobileGoogleLogin,
+    mobileVerifyAdminMfa,
     googleLogin,
     getAdminMfaEnrollment,
     verifyAdminMfa,

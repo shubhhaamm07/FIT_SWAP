@@ -872,8 +872,8 @@ textarea:focus-visible,
     display: grid;
     grid-template-areas:
         "heading"
-        "art"
         "copy"
+        "art"
         "metrics";
 }
 

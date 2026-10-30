@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "FitSwap",
+    "slug": "fitswap-mobile",
+    "version": "0.2.0",
+    "orientation": "default",
+    "userInterfaceStyle": "dark",
+    "scheme": "fitswap",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.fitswap.mobile"
+    },
+    "android": {
+      "package": "com.fitswap.mobile"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    },
+    "plugins": [
+      "expo-font",
+      "expo-secure-store",
+      "expo-status-bar",
+      "expo-sharing",
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose photos for your FitSwap profile and gym.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Show partner gyms near you when you request nearby results."
+        }
+      ]
+    ]
+  }
+}

@@ -1,16 +1,22 @@
 import { useState } from "react";
 import { GoogleLogin } from "@react-oauth/google";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { safeReturnPath } from "../../utils/signInPath";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
-import { loginUser, loginWithGoogle, requestVerificationEmail } from "../../api/auth.api";
+import {
+  loginUser,
+  loginWithGoogle,
+  requestVerificationEmail,
+} from "../../api/auth.api";
 
 const googleSignInEnabled = Boolean(import.meta.env.VITE_GOOGLE_CLIENT_ID);
 
 function LoginForm() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -54,15 +60,27 @@ function LoginForm() {
 
   const completeSignIn = (response) => {
     if (response?.mfaRequired && response?.mfaChallengeToken) {
-      sessionStorage.setItem("fitswap_admin_mfa_challenge", response.mfaChallengeToken);
+      sessionStorage.setItem(
+        "fitswap_admin_mfa_challenge",
+        response.mfaChallengeToken,
+      );
       navigate("/admin/mfa", {
         replace: true,
-        state: { mfaChallengeToken: response.mfaChallengeToken, setupRequired: response.mfaSetupRequired },
+        state: {
+          mfaChallengeToken: response.mfaChallengeToken,
+          setupRequired: response.mfaSetupRequired,
+        },
       });
       return;
     }
     login(response.user);
-    navigate(response.user.role === "ADMIN" ? "/admin/dashboard" : response.user.role === "GYM_OWNER" ? "/owner/dashboard" : "/dashboard");
+    navigate(
+      response.user.role === "ADMIN"
+        ? "/admin/dashboard"
+        : response.user.role === "GYM_OWNER"
+          ? "/owner/dashboard"
+          : safeReturnPath(searchParams.get("returnTo")) || "/dashboard",
+    );
   };
 
   const handleSubmit = async (e) => {
@@ -76,9 +94,12 @@ function LoginForm() {
 
       completeSignIn(response);
     } catch (error) {
-      const message = error.response?.data?.message || "Invalid email or password.";
+      const message =
+        error.response?.data?.message || "Invalid email or password.";
       setErrors((current) => ({ ...current, form: message }));
-      setVerificationNeeded(error.response?.data?.code === "EMAIL_NOT_VERIFIED");
+      setVerificationNeeded(
+        error.response?.data?.code === "EMAIL_NOT_VERIFIED",
+      );
     } finally {
       setSubmitting(false);
     }
@@ -86,7 +107,10 @@ function LoginForm() {
 
   const handleGoogleSuccess = async (credentialResponse) => {
     if (!credentialResponse?.credential || googleSubmitting) {
-      setErrors((current) => ({ ...current, form: "Google did not return a sign-in credential. Please try again." }));
+      setErrors((current) => ({
+        ...current,
+        form: "Google did not return a sign-in credential. Please try again.",
+      }));
       return;
     }
 
@@ -99,7 +123,9 @@ function LoginForm() {
     } catch (error) {
       setErrors((current) => ({
         ...current,
-        form: error.response?.data?.message || "Google sign-in could not be completed. Please try again."
+        form:
+          error.response?.data?.message ||
+          "Google sign-in could not be completed. Please try again.",
       }));
     } finally {
       setGoogleSubmitting(false);
@@ -108,7 +134,10 @@ function LoginForm() {
 
   const handleResendVerification = async () => {
     if (!formData.email.trim()) {
-      setErrors((current) => ({ ...current, email: "Enter your email address first." }));
+      setErrors((current) => ({
+        ...current,
+        email: "Enter your email address first.",
+      }));
       return;
     }
 
@@ -120,7 +149,9 @@ function LoginForm() {
     } catch (error) {
       setErrors((current) => ({
         ...current,
-        form: error.response?.data?.message || "Unable to send a verification email right now.",
+        form:
+          error.response?.data?.message ||
+          "Unable to send a verification email right now.",
       }));
     } finally {
       setResendingVerification(false);
@@ -163,7 +194,10 @@ function LoginForm() {
       </div>
 
       {errors.form && (
-        <p role="alert" className="rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm leading-6 text-red-200">
+        <p
+          role="alert"
+          className="rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm leading-6 text-red-200"
+        >
           {errors.form}
         </p>
       )}
@@ -180,11 +214,18 @@ function LoginForm() {
           disabled={resendingVerification}
           className="w-full rounded-xl border border-violet-400/30 bg-violet-500/10 px-4 py-3 text-sm font-semibold text-violet-100 transition hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {resendingVerification ? "Sending verification email…" : "Resend verification email"}
+          {resendingVerification
+            ? "Sending verification email…"
+            : "Resend verification email"}
         </button>
       )}
 
-      <Button type="submit" size="lg" disabled={submitting} className="auth-submit-button w-full">
+      <Button
+        type="submit"
+        size="lg"
+        disabled={submitting}
+        className="auth-submit-button w-full"
+      >
         {submitting ? "Signing you in…" : "Login to FitSwap"}
       </Button>
 
@@ -192,13 +233,22 @@ function LoginForm() {
         <>
           <div className="my-7 flex items-center gap-3">
             <span className="h-px flex-1 bg-white/[0.08]" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.17em] text-zinc-600">or continue with</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.17em] text-zinc-600">
+              or continue with
+            </span>
             <span className="h-px flex-1 bg-white/[0.08]" />
           </div>
-          <div className={`auth-google-button flex min-h-11 w-full justify-center rounded-2xl py-0.5 ${googleSubmitting ? "pointer-events-none opacity-60" : ""}`}>
+          <div
+            className={`auth-google-button flex min-h-11 w-full justify-center rounded-2xl py-0.5 ${googleSubmitting ? "pointer-events-none opacity-60" : ""}`}
+          >
             <GoogleLogin
               onSuccess={handleGoogleSuccess}
-              onError={() => setErrors((current) => ({ ...current, form: "Google sign-in was cancelled or could not start. Please try again." }))}
+              onError={() =>
+                setErrors((current) => ({
+                  ...current,
+                  form: "Google sign-in was cancelled or could not start. Please try again.",
+                }))
+              }
               theme="filled_black"
               shape="pill"
               text="continue_with"
@@ -211,10 +261,7 @@ function LoginForm() {
 
       <p className="text-center text-sm text-zinc-500">
         Don't have an account?
-        <Link
-          to="/register"
-          className="auth-text-link ml-2 transition-colors"
-        >
+        <Link to="/register" className="auth-text-link ml-2 transition-colors">
           Register
         </Link>
       </p>

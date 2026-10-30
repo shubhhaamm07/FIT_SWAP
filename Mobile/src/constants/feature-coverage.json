@@ -1,0 +1,192 @@
+[
+  {
+    "webRoute": "/",
+    "nativeFile": "src/pages/auth/AuthPage.tsx",
+    "note": "Marketing content is adapted into native onboarding with the existing 3D artwork."
+  },
+  {
+    "webRoute": "/login",
+    "nativeFile": "src/pages/auth/AuthPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/register",
+    "nativeFile": "src/pages/auth/AuthPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/forgot-password",
+    "nativeFile": "src/pages/auth/AuthPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/reset-password",
+    "nativeFile": "src/pages/auth/AuthPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/verify-email",
+    "nativeFile": "src/pages/auth/AuthPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/admin/mfa",
+    "nativeFile": "src/pages/auth/AdminMfaPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/dashboard",
+    "nativeFile": "src/pages/dashboard/DashboardPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/memberships",
+    "nativeFile": "src/pages/memberships/MembershipsPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/memberships/:membershipId",
+    "nativeFile": "src/pages/memberships/MembershipDetailsPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/marketplace",
+    "nativeFile": "src/pages/marketplace/MarketplacePage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/marketplace/:listingId",
+    "nativeFile": "src/pages/marketplace/ListingDetailsPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/marketplace/wishlist",
+    "nativeFile": "src/pages/marketplace/WishlistPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/marketplace/sell",
+    "nativeFile": "src/pages/marketplace/SellMembershipPage.tsx",
+    "note": "Select an eligible membership first; its reference is passed to the selling page."
+  },
+  {
+    "webRoute": "/marketplace/my-listings",
+    "nativeFile": "src/pages/marketplace/MyListingsPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/transfers",
+    "nativeFile": "src/pages/transfers/TransferRequestsPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/profile",
+    "nativeFile": "src/pages/profile/EditProfilePage.tsx",
+    "note": "Profile editing, media, and privacy settings are available from Your space."
+  },
+  {
+    "webRoute": "/settings",
+    "nativeFile": "src/pages/settings/SettingsPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/notifications",
+    "nativeFile": "src/pages/notifications/NotificationsPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/support",
+    "nativeFile": "src/pages/support/SupportTicketsPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/gyms",
+    "nativeFile": "src/pages/gyms/GymsPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/gyms/nearby",
+    "nativeFile": "src/pages/gyms/NearbyGymsPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/gyms/:gymId",
+    "nativeFile": "src/pages/gyms/GymDetailsPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/trials",
+    "nativeFile": "src/pages/trials/TrialBookingPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/diet-planner",
+    "nativeFile": "src/pages/diet/DietPlannerPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/wellness",
+    "nativeFile": "src/pages/wellness/WellnessPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/security",
+    "nativeFile": "src/pages/security/SecurityCentrePage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/plus",
+    "nativeFile": "src/pages/billing/FitSwapPlusPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/owner/dashboard",
+    "nativeFile": "src/pages/gym-owner/GymOwnerOperationsPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/owner/trials",
+    "nativeFile": "src/pages/gym-owner/OwnerTrialsPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/owner/:section",
+    "nativeFile": "src/pages/gym-owner/GymOwnerOperationsPage.tsx",
+    "note": "Gyms, plans, members, sales, transfers, audit, and risk; business billing uses the shared subscription page."
+  },
+  {
+    "webRoute": "/admin/:section",
+    "nativeFile": "src/pages/admin/AdminPortalPage.tsx",
+    "note": "Dashboard, gym verification, users/access, listing moderation, payments, and platform security."
+  },
+  {
+    "webRoute": "/admin/analytics",
+    "nativeFile": "src/pages/admin/AdminPortalPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/admin/announcements",
+    "nativeFile": "src/pages/admin/AdminNotificationCentrePage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/admin/audit-logs",
+    "nativeFile": "src/pages/admin/AdminPortalPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/admin/transfer-audit",
+    "nativeFile": "src/pages/admin/AdminPortalPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "/admin/fraud-alerts",
+    "nativeFile": "src/pages/admin/AdminPortalPage.tsx",
+    "note": "Native screen and API actions implemented; live account/device verification remains required."
+  },
+  {
+    "webRoute": "*",
+    "nativeFile": "src/pages/auth/AuthPage.tsx",
+    "note": "Native navigation uses registered routes and role guards; unauthenticated users see onboarding."
+  }
+]

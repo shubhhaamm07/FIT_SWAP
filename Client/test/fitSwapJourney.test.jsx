@@ -114,7 +114,7 @@ test("hidden tabs release the GPU renderer and returning recreates it", async ()
   expect(mocks.create).toHaveBeenCalledTimes(2);
 });
 
-test("WebGL failures keep the transparent fallback, explanation, and login link", async () => {
+test("WebGL failures keep the transparent fallback, explanation, and public browse link", async () => {
   mocks.create.mockImplementation(() => {
     throw new Error("WebGL unavailable");
   });
@@ -126,7 +126,7 @@ test("WebGL failures keep the transparent fallback, explanation, and login link"
     screen
       .getByRole("link", { name: /Find your next pass/ })
       .getAttribute("href"),
-  ).toBe("/login");
+  ).toBe("/marketplace");
   expect(screen.getAllByRole("listitem")).toHaveLength(3);
 });
 

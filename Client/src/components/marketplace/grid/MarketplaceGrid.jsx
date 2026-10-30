@@ -1,4 +1,3 @@
-import { Grid2X2, List } from "lucide-react";
 import ListingCard from "../cards/ListingCard";
 import EmptyState from "../states/EmptyState";
 import ErrorState from "../states/ErrorState";
@@ -30,13 +29,11 @@ const MarketplaceGrid = () => {
       <div className="flex items-center justify-between">
         <p className="text-sm text-zinc-400">{resultLabel}</p>
         <div className="flex items-center gap-2">
-          <button className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-600/20 text-violet-400"><Grid2X2 size={15} /></button>
-          <button className="flex h-8 w-8 items-center justify-center rounded-lg border border-white/[0.08] bg-[#11121a] text-zinc-400"><List size={16} /></button>
           <select
             aria-label="Sort listings"
             value={filters.sortBy}
             onChange={(e) => updateFilter("sortBy", e.target.value)}
-            className="sr-only"
+            className="max-w-36 rounded-lg border border-white/10 bg-[#15161e] px-2 py-2 text-xs text-zinc-300"
           >
             <option value="newest">Newest First</option>
             <option value="nearest">Nearest First</option>

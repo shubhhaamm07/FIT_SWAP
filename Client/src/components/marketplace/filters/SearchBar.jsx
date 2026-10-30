@@ -1,6 +1,6 @@
 import { Search } from "lucide-react";
 
-const SearchBar = ({ value, onChange }) => {
+const SearchBar = ({ value, onChange, id }) => {
   return (
     <div className="relative">
       <Search
@@ -9,6 +9,8 @@ const SearchBar = ({ value, onChange }) => {
       />
 
       <input
+        id={id}
+        aria-label="Search memberships by gym, plan or city"
         type="text"
         placeholder="Search by gym, membership or city..."
         value={value}

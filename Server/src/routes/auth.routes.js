@@ -14,6 +14,9 @@ router.use((_req, res, next) => {
 
 router.post('/register', authLimiter, authController.register);
 router.post('/login', authLimiter, authController.login);
+router.post('/mobile/login', authLimiter, authController.mobileLogin);
+router.post('/mobile/google', authLimiter, authController.mobileGoogleLogin);
+router.post('/mobile/admin-mfa/verify', authLimiter, authController.mobileVerifyAdminMfa);
 router.post('/google', authLimiter, authController.googleLogin);
 router.post('/admin-mfa/enrollment', authLimiter, authController.getAdminMfaEnrollment);
 router.post('/admin-mfa/verify', authLimiter, authController.verifyAdminMfa);

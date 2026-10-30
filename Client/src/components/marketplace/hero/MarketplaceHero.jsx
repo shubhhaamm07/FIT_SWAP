@@ -1,8 +1,9 @@
-import { CalendarRange, Dumbbell, HeartHandshake } from "lucide-react";
-import heroImage from "../../../assets/images/dashboard-hero.png";
+import heroImage from "../../../assets/images/optimized/dashboard-hero.webp";
 import MarketplaceGuide from "./MarketplaceGuide";
+import { useMarketplaceContext } from "../hooks/useMarketplaceContext";
 
 const MarketplaceHero = () => {
+  const { totalListings, loading } = useMarketplaceContext();
   return (
     <section className="relative min-h-[198px] overflow-hidden rounded-xl border border-white/[0.08] bg-[#0e0d15]">
       <img src={heroImage} alt="Athlete training in a gym" className="absolute inset-0 h-full w-full object-cover object-center opacity-55" />
@@ -13,20 +14,12 @@ const MarketplaceHero = () => {
           <p className="mt-1 text-sm text-zinc-300 sm:text-base">Buy and sell gym memberships <span className="text-violet-400">near you</span></p>
         </div>
         <div className="flex flex-wrap items-end justify-between gap-5">
-          <div className="flex flex-wrap gap-x-7 gap-y-3">
-            <HeroStat icon={CalendarRange} value="342" label="Active Listings" />
-            <HeroStat icon={Dumbbell} value="28" label="Gyms Available" />
-            <HeroStat icon={HeartHandshake} value="1.2K+" label="Happy Members" />
-          </div>
+          <p className="text-sm text-zinc-300">{loading ? "Loading available passes…" : `${totalListings} matching memberships`} · Check each plan’s transfer conditions</p>
           <MarketplaceGuide />
         </div>
       </div>
     </section>
   );
 };
-
-function HeroStat({ icon: Icon, value, label }) {
-  return <div className="flex items-center gap-2.5"><Icon size={25} className="text-violet-500" /><div><p className="text-base font-semibold leading-none text-white">{value}</p><p className="mt-1 text-[11px] text-zinc-400">{label}</p></div></div>;
-}
 
 export default MarketplaceHero;

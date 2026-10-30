@@ -1,49 +1,53 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, BadgeCheck, CalendarDays, CircleCheck, Clock3, Dumbbell, MapPin, ShieldCheck, Ticket, UserRound } from "lucide-react";
-import DashboardLayout from "../../layouts/DashboardLayout";
+import BrowseLayout from "../../layouts/BrowseLayout";
 import { getListingById } from "../../api/marketplace.api";
 import { useAuth } from "../../hooks/useAuth";
 import PurchaseCard from "../../components/marketplace/details/PurchaseCard";
 import GymPhoto from "../../components/common/GymPhoto";
 import formatPrice from "../../components/marketplace/utils/formatPrice";
 import calculateDiscount from "../../components/marketplace/utils/calculateDiscount";
+import PageMetadata from "../../seo/PageMetadata";
+import { signInPath } from "../../utils/signInPath";
 
 const ListingDetailsPage = () => {
   const { listingId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
   const [listing, setListing] = useState(null);
   const [error, setError] = useState("");
   const [purchased, setPurchased] = useState(false);
 
   useEffect(() => {
+    const controller = new AbortController();
     const loadListing = async () => {
       try {
-        setError("");
-        setListing(await getListingById(listingId));
+        const result = await getListingById(listingId, { signal: controller.signal });
+        if (!controller.signal.aborted) { setListing(result); setError(""); }
       } catch (err) {
-        setError(err.response?.data?.message || "Unable to load this listing.");
+        if (!controller.signal.aborted) { setListing(null); setError(err.response?.data?.message || "Unable to load this listing."); }
       }
     };
 
     void loadListing();
+    return () => controller.abort();
   }, [listingId]);
 
-  if (!listing && !error) return <PageState message="Loading listing details…" />;
+  if ((!listing && !error) || (listing && listing.id !== listingId)) return <PageState message="Loading listing details…" />;
   if (!listing) return <PageState message={error || "Listing not found."} error />;
 
   const discount = calculateDiscount(listing.originalPrice, listing.price);
   const membershipOwnerId = listing.raw?.membership?.user?.id;
-  const hasPurchased = purchased || (
+  const hasPurchased = Boolean(user?.id) && (purchased || (
     listing.status === "SOLD"
-    && Boolean(user?.id)
     && membershipOwnerId === user.id
-  );
+  ));
 
   return (
-    <DashboardLayout>
-      <main className="mx-auto w-full max-w-6xl pb-10">
+    <BrowseLayout>
+      <PageMetadata title={`${listing.membership} at ${listing.gym} | FitSwap`} description={`${listing.membership} in ${listing.location}. Asking price ${formatPrice(listing.price)}, valid until ${listing.validTill}. Review the individual transfer conditions.`} noindex={listing.status !== "ACTIVE"} />
+      <div className="mx-auto w-full max-w-6xl pb-10">
         <Link to="/marketplace" className="mb-5 inline-flex items-center gap-2 text-sm font-medium text-zinc-400 transition hover:text-white"><ArrowLeft size={16} /> Back to marketplace</Link>
 
         {hasPurchased && (
@@ -58,9 +62,9 @@ const ListingDetailsPage = () => {
 
         <section className="overflow-hidden rounded-2xl border border-white/[0.1] bg-[#11121a] lg:grid lg:grid-cols-[1.05fr_1fr]">
           <div className="relative min-h-[280px] overflow-hidden lg:min-h-[420px]">
-            <GymPhoto src={listing.image} alt={listing.gym} className="absolute inset-0 h-full w-full object-cover" />
+            <GymPhoto src={listing.image} alt={listing.gym} loading="eager" sizes="(min-width: 1024px) 50vw, 100vw" className="absolute inset-0 h-full w-full object-cover" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a10] via-transparent to-transparent lg:bg-gradient-to-r lg:from-transparent lg:to-[#11121a]" />
-            <span className="absolute left-5 top-5 inline-flex items-center gap-1.5 rounded-full border border-violet-400/30 bg-[#130b26]/80 px-3 py-1.5 text-xs font-semibold text-violet-200 backdrop-blur"><Ticket size={13} /> Verified listing</span>
+            <span className="absolute left-5 top-5 inline-flex items-center gap-1.5 rounded-full border border-violet-400/30 bg-[#130b26]/80 px-3 py-1.5 text-xs font-semibold text-violet-200 backdrop-blur"><Ticket size={13} /> {listing.status === "ACTIVE" ? "Available pass" : listing.status}</span>
           </div>
           <div className="flex flex-col justify-between p-6 sm:p-8">
             <div>
@@ -77,30 +81,33 @@ const ListingDetailsPage = () => {
           <div className="space-y-6">
             <section className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5 sm:p-6">
               <SectionTitle icon={Dumbbell} title="Membership details" description="Everything included with this transferable plan." />
-              <div className="mt-6 grid gap-3 sm:grid-cols-2"><Detail label="Membership type" value={listing.membership} /><Detail label="Gym location" value={listing.location} /><Detail label="Remaining validity" value={listing.remainingDays + " days"} /><Detail label="Access" value="Full gym access" /></div>
+              <div className="mt-6 grid gap-3 sm:grid-cols-2"><Detail label="Membership type" value={listing.membership} /><Detail label="Gym location" value={listing.location} /><Detail label="Remaining validity" value={listing.remainingDays + " days"} /><Detail label="Listing reference" value={listing.id} /><Detail label="Minimum days for transfer" value={listing.minimumTransferDays} /><Detail label="Gym approval" value={listing.requiresGymApproval ? "Required" : "Not required by this plan"} /></div>
+              <p className="mt-4 text-sm leading-6 text-zinc-400">The original expiry date stays unchanged. Confirm access benefits and any separate gym charges before paying. <Link to="/transfer-guide" className="text-violet-300 underline">Read transfer rules</Link>.</p>
+              {listing.raw?.membership?.plan?.gym?.id && <Link to={`/gyms/${listing.raw.membership.plan.gym.id}`} className="mt-4 inline-block text-sm text-violet-300 underline">View {listing.gym} and its plans</Link>}
             </section>
 
             <section className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5 sm:p-6">
-              <SectionTitle icon={ShieldCheck} title="Safe transfer process" description="FitSwap keeps each payment and handover step clear for both members." />
-              <div className="mt-6 grid gap-4 sm:grid-cols-3"><Process number="01" title="Pay & add UTR" text="Pay the exact dynamic QR amount." /><Process number="02" title="Seller checks" text="The seller verifies payment in their bank app." /><Process number="03" title="Gym approves" text="The membership moves after gym approval." /></div>
+              <SectionTitle icon={ShieldCheck} title="Transfer process" description="Review the permitted payment methods and approval steps before starting." />
+              <div className="mt-6 grid gap-4 sm:grid-cols-3"><Process number="01" title="Choose a method" text={listing.allowOnlinePayment ? "Pay the exact QR amount directly to the seller and record your UTR." : "Arrange a cash handover only if this plan allows it."} /><Process number="02" title="Seller checks" text="The seller confirms receipt of payment or the cash handover." /><Process number="03" title={listing.requiresGymApproval ? "Gym approves" : "Policy checks"} text={listing.requiresGymApproval ? "Ownership changes after gym approval and policy checks." : "Ownership changes after seller confirmation and policy checks."} /></div>
+              <Link to="/fees-and-payments" className="mt-4 inline-block text-sm text-violet-300 underline">How direct payments and disputes work</Link>
             </section>
 
             <section className="rounded-2xl border border-white/[0.08] bg-[#11121a] p-5 sm:p-6">
-              <SectionTitle icon={UserRound} title="Seller information" description="This member has a verified FitSwap profile." />
-              <div className="mt-5 flex items-center gap-4 rounded-xl border border-white/[0.07] bg-black/10 p-4"><div className="grid h-12 w-12 place-items-center rounded-full bg-violet-600 text-lg font-bold text-white">{listing.seller?.charAt(0)}</div><div><p className="font-semibold text-white">{listing.seller}</p><p className="mt-1 flex items-center gap-1 text-xs text-emerald-400"><BadgeCheck size={14} /> Verified seller</p></div></div>
+              <SectionTitle icon={UserRound} title="Seller information" description="Public seller details supplied with this listing." />
+              <div className="mt-5 flex items-center gap-4 rounded-xl border border-white/[0.07] bg-black/10 p-4"><div className="grid h-12 w-12 place-items-center rounded-full bg-violet-600 text-lg font-bold text-white">{listing.seller?.charAt(0)}</div><div><p className="font-semibold text-white">{listing.seller}</p><p className="mt-1 flex items-center gap-1 text-xs text-zinc-400"><BadgeCheck size={14} /> FitSwap member</p></div></div>
             </section>
           </div>
-          <aside><PurchaseCard listing={listing} onPurchased={() => setPurchased(true)} isPurchased={hasPurchased} /></aside>
+          <aside>{isAuthenticated ? <PurchaseCard listing={listing} onPurchased={() => setPurchased(true)} isPurchased={hasPurchased} /> : <div className="rounded-2xl border border-violet-400/20 bg-violet-500/[.06] p-6"><h2 className="text-xl font-bold">Review first. Sign in to continue.</h2><p className="mt-3 text-sm leading-6 text-zinc-400">Check the expiry date and plan conditions. Sign in to save this pass or begin an available transfer.</p><Link to={signInPath(`/marketplace/${listing.id}`)} className="mt-5 block rounded-xl bg-violet-600 px-4 py-3 text-center font-semibold">Sign in to continue</Link><Link to="/fees-and-payments" className="mt-4 block text-sm text-violet-200 underline">Read payment details</Link></div>}</aside>
         </div>
-      </main>
-    </DashboardLayout>
+      </div>
+    </BrowseLayout>
   );
 };
 
-function PageState({ message, error = false }) { return <DashboardLayout><div className={"py-28 text-center " + (error ? "text-red-400" : "text-zinc-400")}>{message}</div></DashboardLayout>; }
+function PageState({ message, error = false }) { return <BrowseLayout><PageMetadata title={error ? "Listing Unavailable | FitSwap" : "Gym Membership Listing | FitSwap"} description="Browse available gym membership listings in the FitSwap marketplace." noindex={error} /><div role={error ? "alert" : "status"} className={"py-28 text-center " + (error ? "text-red-400" : "text-zinc-400")}>{message}<Link to="/marketplace" className="mt-4 block text-violet-300 underline">Browse available passes</Link></div></BrowseLayout>; }
 function MiniStat({ icon: Icon, label, value }) { return <div><p className="flex items-center gap-1.5 text-xs text-zinc-500"><Icon size={13} /> {label}</p><p className="mt-1.5 text-sm font-semibold text-white">{value}</p></div>; }
 function SectionTitle({ icon: Icon, title, description }) { return <div className="flex gap-3"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-violet-500/12 text-violet-400"><Icon size={19} /></span><div><h2 className="font-semibold text-white">{title}</h2><p className="mt-0.5 text-sm text-zinc-500">{description}</p></div></div>; }
-function Detail({ label, value }) { return <div className="rounded-xl border border-white/[0.07] bg-black/10 p-4"><p className="text-xs text-zinc-500">{label}</p><p className="mt-1.5 text-sm font-medium text-white">{value}</p></div>; }
+function Detail({ label, value }) { return <div className="rounded-xl border border-white/[0.07] bg-black/10 p-4"><p className="text-xs text-zinc-500">{label}</p><p className="mt-1.5 break-words text-sm font-medium text-white [overflow-wrap:anywhere]">{value}</p></div>; }
 function Process({ number, title, text }) { return <div className="rounded-xl border border-white/[0.07] bg-black/10 p-4"><span className="text-xs font-bold text-violet-400">{number}</span><h3 className="mt-3 text-sm font-semibold text-white">{title}</h3><p className="mt-1 text-xs leading-5 text-zinc-500">{text}</p><CircleCheck className="mt-4 text-emerald-400" size={17} /></div>; }
 
 export default ListingDetailsPage;

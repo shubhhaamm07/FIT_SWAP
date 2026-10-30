@@ -1,6 +1,9 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { LoaderCircle } from "lucide-react";
+import { RouteMetadata } from "../seo/PageMetadata";
+const GuidePage = lazy(() => import("../pages/public/GuidePage"));
+const NotFoundPage = lazy(() => import("../pages/public/NotFoundPage"));
 
 const LandingPage = lazy(() => import("../pages/landing/LandingPage"));
 const LoginPage = lazy(() => import("../pages/auth/LoginPage"));
@@ -46,11 +49,13 @@ import RoleRoute from "./RoleRoute";
 function AppRoutes() {
   return (
     <BrowserRouter>
+      <RouteMetadata />
       <Suspense fallback={<RouteLoader />}>
         <Routes>
         {/* ================= Public Routes ================= */}
 
         <Route path="/" element={<LandingPage />} />
+        {["/how-it-works", "/transfer-guide", "/fees-and-payments", "/help", "/terms", "/privacy"].map((path) => <Route key={path} path={path} element={<GuidePage />} />)}
 
         <Route path="/login" element={<LoginPage />} />
 
@@ -96,18 +101,14 @@ function AppRoutes() {
         <Route
           path="/marketplace"
           element={
-            <ProtectedRoute>
-              <MarketplacePage />
-            </ProtectedRoute>
+            <MarketplacePage />
           }
         />
 
         <Route
           path="/marketplace/:listingId"
           element={
-            <ProtectedRoute>
-              <ListingDetailsPage />
-            </ProtectedRoute>
+            <ListingDetailsPage />
           }
         />
 
@@ -181,7 +182,7 @@ function AppRoutes() {
 
         <Route
           path="/gyms"
-          element={<ProtectedRoute><GymsPage /></ProtectedRoute>}
+          element={<GymsPage />}
         />
 
         <Route
@@ -191,7 +192,7 @@ function AppRoutes() {
 
         <Route
           path="/gyms/:gymId"
-          element={<ProtectedRoute><GymDetailsPage /></ProtectedRoute>}
+          element={<GymDetailsPage />}
         />
 
         <Route
@@ -264,8 +265,7 @@ function AppRoutes() {
           element={<RoleRoute allowedRoles={["ADMIN"]}><AdminFraudAlertsPage /></RoleRoute>}
         />
 
-        {/* Keep an outdated sidebar URL or a mistyped path from rendering an empty screen. */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
     </BrowserRouter>

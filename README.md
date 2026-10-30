@@ -285,3 +285,17 @@ Use the provided Compose setup. The frontend always calls same-origin `/api`, an
 ## License
 
 No license has been specified for this project yet.
+
+## React Native app
+
+`Mobile/` contains the React Native, Expo, TypeScript, and NativeWind app for members, gym owners, and administrators. Its source follows the website’s feature structure and shares the existing API.
+
+```sh
+cd Mobile
+npm ci
+cp .env.example .env
+# Set API URLs for your phone or emulator.
+npm start
+```
+
+See [mobile setup and architecture](Mobile/README.md), [website-to-mobile coverage](Mobile/FEATURE-COVERAGE.md), and [validation and release checks](Mobile/VALIDATION.md). The app includes native secure sessions, administrator MFA, UPI checkout, responsive phone/tablet layouts, and explicit read-only role previews. Native Google sign-in requires a custom native build and configured OAuth clients.

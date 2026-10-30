@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAppearance } from "../../hooks/useAppearance";
-import membershipArtwork from "../../assets/images/fitswap-3d-membership-cutout.png";
+import membershipArtwork from "../../assets/images/optimized/membership-640.webp";
 import "./FitSwapJourneySection.css";
 
 const benefits = [
@@ -94,7 +94,7 @@ export default function FitSwapJourneySection() {
   const { effectiveReducedMotion } = useAppearance();
   const container = useRef(null);
   const [inView, setInView] = useState(false);
-  const [pageVisible, setPageVisible] = useState(() => !document.hidden);
+  const [pageVisible, setPageVisible] = useState(() => typeof document === "undefined" || !document.hidden);
   const [keyboardPaused, setKeyboardPaused] = useState(false);
   const [failed, setFailed] = useState(false);
   const [phase, setPhase] = useState(0);
@@ -115,7 +115,7 @@ export default function FitSwapJourneySection() {
     return () => document.removeEventListener("visibilitychange", sync);
   }, []);
 
-  const visible = inView || !window.IntersectionObserver;
+  const visible = inView || (typeof window !== "undefined" && !window.IntersectionObserver);
   const active = visible && pageVisible && !failed;
   const caption = captions[phase];
   function handleMotionKey(event) {
@@ -148,7 +148,7 @@ export default function FitSwapJourneySection() {
               Buy a membership that fits your life. Pass on the time you can’t
               use. Keep fitness moving, with a clear handover at every step.
             </p>
-            <Link to="/login">
+            <Link to="/marketplace">
               Find your next pass <ArrowUpRight size={17} aria-hidden="true" />
             </Link>
           </div>

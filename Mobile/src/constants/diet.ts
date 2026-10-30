@@ -1,0 +1,101 @@
+import type { FormField } from "../contexts/FormContext";
+import { numberField, selectField } from "../contexts/FormContext";
+export const dietFields: FormField[] = [
+  { ...numberField("age", "Age"), min: 18, max: 100 },
+  selectField("sex", "Sex for energy estimate", [
+    "UNSPECIFIED",
+    "FEMALE",
+    "MALE",
+  ]),
+  { ...numberField("heightCm", "Height in cm"), min: 100, max: 250 },
+  { ...numberField("weightKg", "Weight in kg"), min: 30, max: 300 },
+  selectField("goal", "Goal", [
+    "GENERAL_FITNESS",
+    "LOSE_WEIGHT",
+    "MAINTAIN",
+    "GAIN_MUSCLE",
+  ]),
+  selectField(
+    "activityLevel",
+    "Activity",
+    ["LOW", "LIGHT", "MODERATE", "HIGH"],
+    "MODERATE",
+  ),
+  selectField("diet", "Diet preference", [
+    "VEGETARIAN",
+    "EGGETARIAN",
+    "NON_VEGETARIAN",
+    "VEGAN",
+  ]),
+  selectField("mealsPerDay", "Meals per day", ["3", "4", "5"], "4"),
+  selectField(
+    "budget",
+    "Budget",
+    ["ECONOMY", "BALANCED", "FLEXIBLE"],
+    "BALANCED",
+  ),
+  {
+    ...numberField("weeklyBudgetInr", "Weekly budget in rupees"),
+    required: false,
+  },
+  { key: "favouriteFoods", label: "Favourite foods" },
+  { key: "avoidFoods", label: "Foods to avoid" },
+  { key: "dietaryNotes", label: "Dietary notes", type: "multiline" },
+  selectField("cuisineStyle", "Cuisine", [
+    "ANY",
+    "NORTH_INDIAN",
+    "SOUTH_INDIAN",
+    "PUNJABI",
+    "GUJARATI",
+    "BENGALI",
+    "MAHARASHTRIAN",
+  ]),
+  selectField("cookingStyle", "Cooking style", [
+    "FLEXIBLE",
+    "QUICK_15_MIN",
+    "MEAL_PREP",
+    "MINIMAL_COOKING",
+  ]),
+  selectField("workoutTime", "Workout time", [
+    "NOT_SCHEDULED",
+    "MORNING",
+    "AFTERNOON",
+    "EVENING",
+  ]),
+  {
+    key: "workoutDays",
+    label: "Workout days",
+    type: "multi",
+    options: ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"].map((value) => ({
+      value,
+      label: value,
+    })),
+  },
+  {
+    key: "healthConcerns",
+    label: "Health considerations (up to four)",
+    type: "multi",
+    options: [
+      "THYROID",
+      "PCOS",
+      "DIABETES",
+      "HIGH_BLOOD_PRESSURE",
+      "HIGH_CHOLESTEROL",
+      "KIDNEY_DISEASE",
+      "HEART_DISEASE",
+      "LIVER_DISEASE",
+      "PREGNANCY_POSTPARTUM",
+      "EATING_DISORDER",
+      "FOOD_ALLERGY",
+      "OTHER_MEDICAL_CONDITION",
+    ].map((value) => ({ value, label: value.replace(/_/g, " ") })),
+  },
+  {
+    key: "aiConsent",
+    label:
+      "I consent to using these details to generate a general fitness meal plan.",
+    type: "switch",
+    required: true,
+    hint: "The planner is not medical advice. Health concerns can require professional review instead of a meal plan.",
+  },
+];

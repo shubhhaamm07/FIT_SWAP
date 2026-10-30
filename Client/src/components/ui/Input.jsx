@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 function Input({
   label,
   type = "text",
@@ -10,12 +12,18 @@ function Input({
   icon,
   rightIcon,
   onRightIconClick,
+  rightIconLabel,
+  id,
+  ...inputProps
 }) {
+  const generatedId = useId();
+  const inputId = id || generatedId;
+  const errorId = `${inputId}-error`;
   return (
     <div className="auth-input-group space-y-2">
       {/* Label */}
       {label && (
-        <label className="text-sm font-medium text-zinc-300">
+        <label htmlFor={inputId} className="text-sm font-medium text-zinc-300">
           {label}
 
           {required && <span className="ml-1 text-red-500">*</span>}
@@ -48,6 +56,11 @@ function Input({
         {/* Input */}
 
         <input
+          {...inputProps}
+          id={inputId}
+          required={required}
+          aria-invalid={Boolean(error)}
+          aria-describedby={error ? errorId : inputProps["aria-describedby"]}
           type={type}
           name={name}
           value={value}
@@ -91,6 +104,8 @@ function Input({
           <button
             type="button"
             onClick={onRightIconClick}
+            aria-label={rightIconLabel || (type === "password" ? "Show password" : "Hide password")}
+            aria-pressed={type !== "password"}
             className="
               absolute
               right-4
@@ -110,7 +125,7 @@ function Input({
 
       {/* Error */}
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p id={errorId} role="alert" className="text-sm text-red-500">{error}</p>}
     </div>
   );
 }

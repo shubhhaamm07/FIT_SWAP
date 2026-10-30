@@ -42,7 +42,7 @@ function LandingPage() {
   return (
     <div className="site-shell fitswap-web3 bg-[#0B0B0F] text-white">
       <Navbar />
-
+      <main id="main-content">
       <FadeInSection>
         <HeroSection gymCount={gymCount} listingCount={listings.length} />
       </FadeInSection>
@@ -112,6 +112,7 @@ function LandingPage() {
       <FadeInSection>
         <CTASection />
       </FadeInSection>
+      </main>
       <FadeInSection>
         <Footer />
       </FadeInSection>

@@ -1,7 +1,16 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
-import { User, Mail, Phone, Lock, Eye, EyeOff, Dumbbell, CheckCircle2 } from "lucide-react";
+import {
+  User,
+  Mail,
+  Phone,
+  Lock,
+  Eye,
+  EyeOff,
+  Dumbbell,
+  CheckCircle2,
+} from "lucide-react";
 
 import Input from "../../components/ui/Input";
 import Button from "../../components/ui/Button";
@@ -103,7 +112,9 @@ function RegisterForm() {
 
       setRegisteredEmail(formData.email.trim());
     } catch (error) {
-      const message = error.response?.data?.message || "Registration failed. Please try again.";
+      const message =
+        error.response?.data?.message ||
+        "Registration failed. Please try again.";
       setErrors((current) => ({ ...current, form: message }));
     } finally {
       setSubmitting(false);
@@ -118,11 +129,14 @@ function RegisterForm() {
         </span>
         <h2 className="mt-5 text-2xl font-bold text-white">Account created</h2>
         <p className="mt-3 text-sm leading-6 text-zinc-400">
-          Your account for <span className="font-medium text-zinc-200">{registeredEmail}</span> is ready.
-          We&apos;ve queued a verification email; check your inbox and spam folder.
+          Your account for{" "}
+          <span className="font-medium text-zinc-200">{registeredEmail}</span>{" "}
+          is ready. We&apos;ve queued a verification email; check your inbox and
+          spam folder.
         </p>
         <p className="mt-3 text-xs leading-5 text-zinc-500">
-          You are not signed in yet. If the email does not arrive, you can resend it after signing in from Settings.
+          You are not signed in yet. If the email does not arrive, you can
+          resend it after signing in from Settings.
         </p>
         <Link
           to="/login"
@@ -212,7 +226,9 @@ function RegisterForm() {
       />
 
       <div>
-        <label className="mb-3 block text-sm font-medium text-zinc-300">I want to join as</label>
+        <label className="mb-3 block text-sm font-medium text-zinc-300">
+          I want to join as
+        </label>
 
         <div className="grid grid-cols-2 gap-3">
           <RoleCard
@@ -236,6 +252,7 @@ function RegisterForm() {
       <div>
         <div className="flex items-center gap-3">
           <input
+            id="accepted-terms"
             type="checkbox"
             checked={acceptedTerms}
             onChange={(e) => {
@@ -245,9 +262,9 @@ function RegisterForm() {
             className="auth-terms-checkbox"
           />
 
-          <p className="text-sm text-zinc-400">
-            I agree to the Terms & Conditions
-          </p>
+          <label htmlFor="accepted-terms" className="text-sm text-zinc-400">
+            I agree to the <Link to="/terms" target="_blank" rel="noopener noreferrer" className="text-violet-300 underline">Terms & Conditions (review draft)</Link> and have read the <Link to="/privacy" target="_blank" rel="noopener noreferrer" className="text-violet-300 underline">Privacy notice (review draft)</Link>.
+          </label>
         </div>
 
         {errors.terms && (
@@ -256,21 +273,26 @@ function RegisterForm() {
       </div>
 
       {errors.form && (
-        <p role="alert" className="rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm leading-6 text-red-200">
+        <p
+          role="alert"
+          className="rounded-xl border border-red-400/20 bg-red-500/10 px-4 py-3 text-sm leading-6 text-red-200"
+        >
           {errors.form}
         </p>
       )}
 
-      <Button type="submit" size="lg" disabled={submitting} className="auth-submit-button w-full">
+      <Button
+        type="submit"
+        size="lg"
+        disabled={submitting}
+        className="auth-submit-button w-full"
+      >
         {submitting ? "Creating account…" : "Create Account"}
       </Button>
 
       <p className="text-center text-sm text-zinc-500">
         Already have an account?
-        <Link
-          to="/login"
-          className="auth-text-link ml-2 transition-colors"
-        >
+        <Link to="/login" className="auth-text-link ml-2 transition-colors">
           Login
         </Link>
       </p>

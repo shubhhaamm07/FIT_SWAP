@@ -1,10 +1,11 @@
+import { useAuth } from "../../hooks/useAuth";
 import { Outlet } from "react-router-dom";
 
 import MarketplaceHero from "../../components/marketplace/hero/MarketplaceHero";
 import MarketplaceFilters from "../../components/marketplace/filters/MarketplaceFilters";
 import MarketplaceGrid from "../../components/marketplace/grid/MarketplaceGrid";
 import MarketplaceSidebar from "../../components/marketplace/MarketplaceSidebar";
-import DashboardLayout from "../../layouts/DashboardLayout";
+import BrowseLayout from "../../layouts/BrowseLayout";
 import { MarketplaceProvider } from "../../components/marketplace/hooks/MarketplaceProvider";
 import { useMarketplaceContext } from "../../components/marketplace/hooks/useMarketplaceContext";
 
@@ -49,13 +50,14 @@ const MarketplaceContent = () => {
 };
 
 const MarketplacePage = () => {
+  const { isAuthenticated } = useAuth();
   return (
     <MarketplaceProvider>
-      <DashboardLayout rightSidebar={<MarketplaceSidebar />}>
+      <BrowseLayout rightSidebar={isAuthenticated ? <MarketplaceSidebar /> : null}>
         <div className="marketplace-page flex flex-col gap-4 lg:gap-5">
           <MarketplaceContent />
         </div>
-      </DashboardLayout>
+      </BrowseLayout>
     </MarketplaceProvider>
   );
 };
